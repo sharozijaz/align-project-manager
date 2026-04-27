@@ -32,6 +32,8 @@ export const allowedEmails = (rawAllowedEmails ?? "")
 export const isEmailAllowed = (email?: string) =>
   !allowedEmails.length || Boolean(email && allowedEmails.includes(email.toLowerCase()));
 
+export const getAuthRedirectUrl = () => `${window.location.origin}/`;
+
 export const supabase = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl, supabaseAnonKey!, {
       auth: {

@@ -8,7 +8,7 @@ import { useCalendarStore } from "../store/calendarStore";
 import { useProjectStore } from "../store/projectStore";
 import { useSyncStore } from "../store/syncStore";
 import { useTaskStore } from "../store/taskStore";
-import { isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
+import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import { dateLabel } from "../utils/date";
@@ -68,7 +68,7 @@ export function Settings() {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/settings`,
+          emailRedirectTo: getAuthRedirectUrl(),
         },
       });
 

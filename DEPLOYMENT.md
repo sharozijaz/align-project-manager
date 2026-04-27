@@ -17,6 +17,7 @@ Add these in the hosting provider dashboard:
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_ALLOWED_EMAILS=you@example.com
 ```
 
 Use the same values that are currently working in `.env.local`.
@@ -36,15 +37,17 @@ Site URL: https://your-deployed-url
 Add redirect URLs:
 
 ```text
-http://localhost:5173/settings
-https://your-deployed-url/settings
+http://localhost:5173/
+https://your-deployed-url/
 ```
 
 When the custom subdomain is ready, add:
 
 ```text
-https://your-subdomain.yourdomain.com/settings
+https://your-subdomain.yourdomain.com/
 ```
+
+Magic links are generated against the app root URL. If you change these Supabase settings, request a fresh magic link because old links keep their original redirect target.
 
 ## First Production Test
 

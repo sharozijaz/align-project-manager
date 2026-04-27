@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { LockKeyhole } from "lucide-react";
-import { allowedEmails, isEmailAllowed, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
+import { getAuthRedirectUrl, isEmailAllowed, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { errorMessage } from "../../utils/errors";
 import { Button } from "../ui/Button";
@@ -43,7 +43,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/settings`,
+          emailRedirectTo: getAuthRedirectUrl(),
         },
       });
 
