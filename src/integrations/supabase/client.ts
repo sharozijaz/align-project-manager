@@ -4,6 +4,7 @@ import type { Database } from "./types";
 const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const rawAllowedEmails = import.meta.env.VITE_ALLOWED_EMAILS;
+const rawAppUrl = import.meta.env.VITE_APP_URL;
 
 export const normalizeSupabaseUrl = (value?: string) => {
   if (!value) return "";
@@ -32,7 +33,17 @@ export const allowedEmails = (rawAllowedEmails ?? "")
 export const isEmailAllowed = (email?: string) =>
   !allowedEmails.length || Boolean(email && allowedEmails.includes(email.toLowerCase()));
 
-export const getAuthRedirectUrl = () => `${window.location.origin}/`;
+const normalizeAppUrl = (value?: string) => {
+  if (!value?.trim()) return "";
+
+  const trimmed = value.trim();
+  const withProtocol = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
+
+  return `${withProtocol.replace(/\/$/u, "")}/`;
+};
+
+export const appUrl = normalizeAppUrl(rawAppUrl);
+export const getAuthRedirectUrl = () => appUrl || `${window.location.origin}/`;
 
 export const supabase = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl, supabaseAnonKey!, {

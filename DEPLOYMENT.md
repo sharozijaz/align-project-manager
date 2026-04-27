@@ -18,9 +18,12 @@ Add these in the hosting provider dashboard:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_ALLOWED_EMAILS=you@example.com
+VITE_APP_URL=https://your-deployed-url
 ```
 
 Use the same values that are currently working in `.env.local`.
+
+`VITE_APP_URL` must be the full app URL with `https://`. Do not use the Supabase project URL here.
 
 ## Supabase Auth Redirect URLs
 
