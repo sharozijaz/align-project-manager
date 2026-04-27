@@ -4,11 +4,14 @@ import { Navbar } from "../components/layout/Navbar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
+import { useThemeStore } from "../store/themeStore";
 
 export function App() {
+  const theme = useThemeStore((state) => state.theme);
+
   return (
     <AuthGate>
-      <div data-theme="dark">
+      <div data-theme={theme}>
         <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
           <div className="w-full p-3 sm:p-4">
             <div className="mx-auto max-w-[1440px] space-y-4">

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { SyncIndicator } from "../sync/SyncIndicator";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 const links = [
   { to: "/", label: "Home", icon: Home },
@@ -43,6 +44,7 @@ export function Navbar() {
       </nav>
       <div className="flex items-center gap-2 text-sm">
         <SyncIndicator />
+        <ThemeToggle />
         <span className="hidden text-[var(--text-muted)] sm:inline">Sharoz</span>
         <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
           <UserRound size={16} />

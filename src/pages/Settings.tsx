@@ -4,11 +4,13 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { useCalendarStore } from "../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
 import { useSyncStore } from "../store/syncStore";
 import { useTaskStore } from "../store/taskStore";
+import { useThemeStore } from "../store/themeStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
@@ -43,6 +45,7 @@ export function Settings() {
   const { events, replaceEvents } = useCalendarStore();
   const syncState = useSyncStore();
   const googleSyncState = useGoogleCalendarSyncStore();
+  const theme = useThemeStore((state) => state.theme);
   const googleReadiness = getGoogleCalendarReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const deletedTasks = tasks.filter((task) => task.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
@@ -258,7 +261,13 @@ export function Settings() {
         </Card>
         <Card className="p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Theme</h2>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">Dark workspace theme is enabled across the app.</p>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            {theme === "dark" ? "Dark theme is active." : "Light theme is active."}
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <ThemeToggle showLabel />
+            <span className="text-sm text-[var(--text-soft)]">Saved on this device.</span>
+          </div>
         </Card>
         <Card className="p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CalendarDays size={18} /> Google Calendar</h2>

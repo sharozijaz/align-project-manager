@@ -187,13 +187,20 @@ textarea:focus-visible {
 }
 
 input[type="date"] {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  filter: invert(1);
   opacity: 0.82;
+}
+
+[data-theme="dark"] input[type="date"] {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }
 
 ::selection {

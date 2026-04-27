@@ -3,6 +3,7 @@ import { LockKeyhole } from "lucide-react";
 import { getAuthRedirectUrl, isEmailAllowed, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../../hooks/useMagicLinkCooldown";
+import { useThemeStore } from "../../store/themeStore";
 import { errorMessage } from "../../utils/errors";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -106,8 +107,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 }
 
 function AuthShell({ children }: { children: ReactNode }) {
+  const theme = useThemeStore((state) => state.theme);
+
   return (
-    <div data-theme="dark" className="min-h-screen bg-[var(--bg)] p-4 text-[var(--text)]">
+    <div data-theme={theme} className="min-h-screen bg-[var(--bg)] p-4 text-[var(--text)]">
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-md place-items-center">
         <Card className="w-full border-[var(--border-strong)] bg-[var(--surface-raised)] p-6 shadow-[var(--shadow-md)]">
           {children}
