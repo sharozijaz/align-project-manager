@@ -5,6 +5,9 @@ export interface GoogleCalendarConnection {
   accountEmail?: string;
   calendarId?: string;
   connectedAt?: string;
+  expiresAt?: string;
+  updatedAt?: string;
+  scopes?: string[];
 }
 
 export interface GoogleCalendarEvent extends CalendarEvent {

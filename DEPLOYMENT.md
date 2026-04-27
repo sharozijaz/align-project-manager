@@ -22,6 +22,14 @@ VITE_APP_URL=https://your-deployed-url
 VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id
 VITE_GOOGLE_REDIRECT_URI=https://your-deployed-url/api/google-calendar/callback
 VITE_GOOGLE_CALENDAR_ID=primary
+APP_URL=https://your-deployed-url
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_REDIRECT_URI=https://your-deployed-url/api/google-calendar/callback
+GOOGLE_CALENDAR_ID=primary
 ```
 
 Use the same values that are currently working in `.env.local`.
@@ -29,6 +37,7 @@ Use the same values that are currently working in `.env.local`.
 `VITE_APP_URL` must be the full app URL with `https://`. Do not use the Supabase project URL here.
 
 Google Calendar sync will also need a backend/serverless callback for the OAuth code exchange before the Connect button can complete. Keep Google client secrets out of Vite environment variables.
+Run `supabase/google-calendar.sql` before using the Google Calendar Connect button.
 
 ## Supabase Auth Redirect URLs
 

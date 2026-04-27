@@ -1,5 +1,5 @@
 import { CalendarDays, Cloud, Download, Palette, RotateCcw, Trash2, Upload, UserRound } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -11,7 +11,12 @@ import { useTaskStore } from "../store/taskStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
-import { connectGoogleCalendar, getGoogleCalendarReadiness } from "../integrations/googleCalendar/googleCalendarClient";
+import {
+  connectGoogleCalendar,
+  getGoogleCalendarConnection,
+  getGoogleCalendarReadiness,
+} from "../integrations/googleCalendar/googleCalendarClient";
+import type { GoogleCalendarConnection } from "../integrations/googleCalendar/types";
 import { previewGoogleCalendarSync } from "../integrations/googleCalendar/sync";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { dateLabel } from "../utils/date";
@@ -24,6 +29,8 @@ export function Settings() {
   const [dataMessage, setDataMessage] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
   const [calendarMessage, setCalendarMessage] = useState("");
+  const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection | null>(null);
+  const [checkingGoogleConnection, setCheckingGoogleConnection] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
   const magicLinkCooldown = useMagicLinkCooldown();
@@ -35,6 +42,41 @@ export function Settings() {
   const googleReadiness = getGoogleCalendarReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const deletedTasks = tasks.filter((task) => task.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const calendarStatus = params.get("googleCalendar");
+
+    if (calendarStatus === "connected") {
+      setCalendarMessage("Google Calendar connected.");
+      window.history.replaceState({}, "", "/settings");
+    } else if (calendarStatus) {
+      setCalendarMessage("Google Calendar connection did not complete.");
+      window.history.replaceState({}, "", "/settings");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!session || !googleReadiness.ready) return;
+
+    let cancelled = false;
+    setCheckingGoogleConnection(true);
+
+    void getGoogleCalendarConnection()
+      .then((connection) => {
+        if (!cancelled) setGoogleConnection(connection);
+      })
+      .catch((error) => {
+        if (!cancelled) setCalendarMessage(errorMessage(error, "Could not check Google Calendar connection."));
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingGoogleConnection(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleReadiness.ready, session]);
 
   const exportData = () => {
     const backup = createWorkspaceBackup({ tasks, projects, events });
@@ -173,6 +215,12 @@ export function Settings() {
             <div className="flex items-center justify-between gap-3">
               <span className="text-[var(--text-muted)]">OAuth config</span>
               <Badge tone={googleReadiness.ready ? "emerald" : "amber"}>{googleReadiness.ready ? "ready" : "missing"}</Badge>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[var(--text-muted)]">Connection</span>
+              <Badge tone={googleConnection?.connected ? "emerald" : "slate"}>
+                {checkingGoogleConnection ? "checking" : googleConnection?.connected ? "connected" : "not connected"}
+              </Badge>
             </div>
             <p className="text-[var(--text-soft)]">
               Scope: <span className="text-[var(--text-muted)]">{googleReadiness.config.scopes[0]}</span>

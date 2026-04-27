@@ -19,25 +19,45 @@ This is intended for events on calendars the signed-in Google user owns.
 ## Required Environment Variables
 
 ```bash
+APP_URL=https://your-domain.com
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_REDIRECT_URI=https://your-domain.com/api/google-calendar/callback
+GOOGLE_CALENDAR_ID=primary
 VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id
 VITE_GOOGLE_REDIRECT_URI=https://your-domain.com/api/google-calendar/callback
 VITE_GOOGLE_CALENDAR_ID=primary
 ```
 
-Do not add Google client secrets to Vite variables. Any `VITE_` value is visible in the browser.
+Do not add Google client secrets or Supabase service role keys to Vite variables. Any `VITE_` value is visible in the browser.
 
-## Recommended Backend Flow
+## Supabase Table
 
-1. Create a Google Cloud OAuth client.
-2. Add the deployed callback URL as an authorized redirect URI.
-3. Add a serverless callback route, for example `/api/google-calendar/callback`.
-4. Exchange the Google authorization code on the server.
-5. Store encrypted refresh tokens by Supabase user ID.
-6. Use serverless endpoints to:
-   - fetch Google events
-   - create events from Align tasks
-   - update events when tasks change
-   - revoke/disconnect Google Calendar
+Run:
+
+```text
+supabase/google-calendar.sql
+```
+
+This creates server-only token storage in `public.google_calendar_connections`.
+
+## Backend Flow
+
+Implemented endpoints:
+
+- `POST /api/google-calendar/connect`
+- `GET /api/google-calendar/callback`
+- `GET /api/google-calendar/status`
+
+Still to add:
+
+- fetch Google events
+- create events from Align tasks
+- update events when tasks change
+- revoke/disconnect Google Calendar
 
 ## Frontend Files
 

@@ -1,5 +1,5 @@
 import type { Task } from "../../types/task";
-import { getAuthRedirectUrl } from "../supabase/client";
+import { getAuthRedirectUrl, supabase } from "../supabase/client";
 import type {
   GoogleCalendarConfig,
   GoogleCalendarConnection,
@@ -39,9 +39,37 @@ export async function connectGoogleCalendar(): Promise<GoogleCalendarConnection>
     throw new Error(`Google Calendar is missing configuration: ${readiness.missing.join(", ")}.`);
   }
 
-  throw new Error(
-    "Google Calendar OAuth needs a backend or serverless callback to exchange the authorization code and store tokens safely.",
-  );
+  const token = await getAccessToken();
+  const response = await fetch("/api/google-calendar/connect", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
+  const data = (await response.json()) as { url?: string; error?: string };
+
+  if (!response.ok || !data.url) {
+    throw new Error(data.error || "Could not start Google Calendar connection.");
+  }
+
+  window.location.assign(data.url);
+  return { connected: false };
+}
+
+export async function getGoogleCalendarConnection(): Promise<GoogleCalendarConnection> {
+  const token = await getAccessToken();
+  const response = await fetch("/api/google-calendar/status", {
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
+  const data = (await response.json()) as GoogleCalendarConnection & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not read Google Calendar connection.");
+  }
+
+  return data;
 }
 
 export async function fetchGoogleEvents(): Promise<GoogleCalendarEvent[]> {
@@ -55,4 +83,18 @@ export async function syncTaskToGoogleCalendar(_task: Task): Promise<void> {
 
 export async function disconnectGoogleCalendar(): Promise<void> {
   // Future serverless flow: revoke Google tokens and clear stored connection metadata.
+}
+
+async function getAccessToken() {
+  if (!supabase) throw new Error("Sign in before connecting Google Calendar.");
+
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) throw error;
+  if (!session?.access_token) throw new Error("Sign in before connecting Google Calendar.");
+
+  return session.access_token;
 }
