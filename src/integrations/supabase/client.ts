@@ -3,6 +3,7 @@ import type { Database } from "./types";
 
 const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const rawAllowedEmails = import.meta.env.VITE_ALLOWED_EMAILS;
 
 export const normalizeSupabaseUrl = (value?: string) => {
   if (!value) return "";
@@ -23,6 +24,13 @@ export const supabaseConfigIssue = !rawSupabaseUrl
         : "Your Supabase URL was missing https://, so it was added automatically. Update .env.local when you can.";
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const allowedEmails = (rawAllowedEmails ?? "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+export const isEmailAllowed = (email?: string) =>
+  !allowedEmails.length || Boolean(email && allowedEmails.includes(email.toLowerCase()));
 
 export const supabase = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl, supabaseAnonKey!, {
