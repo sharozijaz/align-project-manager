@@ -1,10 +1,12 @@
 import type { Task } from "../../types/task";
+import type { CalendarEvent } from "../../types/calendar";
 import { getAuthRedirectUrl, supabase } from "../supabase/client";
 import type {
   GoogleCalendarConfig,
   GoogleCalendarConnection,
   GoogleCalendarEvent,
   GoogleCalendarReadiness,
+  GoogleCalendarSyncResult,
 } from "./types";
 
 const GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events.owned"];
@@ -73,16 +75,62 @@ export async function getGoogleCalendarConnection(): Promise<GoogleCalendarConne
 }
 
 export async function fetchGoogleEvents(): Promise<GoogleCalendarEvent[]> {
-  // Future serverless flow: call Calendar API events.list with a backend-held OAuth token.
-  return [];
+  const token = await getAccessToken();
+  const response = await fetch("/api/google-calendar/events", {
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
+  const data = (await response.json()) as { events?: CalendarEvent[]; error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not fetch Google Calendar events.");
+  }
+
+  return (data.events ?? []) as GoogleCalendarEvent[];
 }
 
-export async function syncTaskToGoogleCalendar(_task: Task): Promise<void> {
-  // Future serverless flow: map Task fields to Calendar API events.insert/events.update payloads.
+export async function syncTasksToGoogleCalendar(tasks: Task[]): Promise<GoogleCalendarSyncResult> {
+  const token = await getAccessToken();
+  const response = await fetch("/api/google-calendar/sync", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ tasks }),
+  });
+  const data = (await response.json()) as Partial<GoogleCalendarSyncResult> & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not sync tasks to Google Calendar.");
+  }
+
+  return {
+    created: data.created ?? 0,
+    updated: data.updated ?? 0,
+    removed: data.removed ?? 0,
+    skipped: data.skipped ?? 0,
+  };
+}
+
+export async function syncTaskToGoogleCalendar(task: Task): Promise<void> {
+  await syncTasksToGoogleCalendar([task]);
 }
 
 export async function disconnectGoogleCalendar(): Promise<void> {
-  // Future serverless flow: revoke Google tokens and clear stored connection metadata.
+  const token = await getAccessToken();
+  const response = await fetch("/api/google-calendar/disconnect", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
+  const data = (await response.json()) as { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not disconnect Google Calendar.");
+  }
 }
 
 async function getAccessToken() {

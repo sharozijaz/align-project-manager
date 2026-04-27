@@ -32,3 +32,10 @@ export interface GoogleCalendarSyncPreview {
   skippedTasks: number;
   reason: string;
 }
+
+export interface GoogleCalendarSyncResult {
+  created: number;
+  updated: number;
+  removed: number;
+  skipped: number;
+}

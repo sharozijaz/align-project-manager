@@ -13,11 +13,12 @@ import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrati
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import {
   connectGoogleCalendar,
+  disconnectGoogleCalendar,
   getGoogleCalendarConnection,
   getGoogleCalendarReadiness,
 } from "../integrations/googleCalendar/googleCalendarClient";
 import type { GoogleCalendarConnection } from "../integrations/googleCalendar/types";
-import { previewGoogleCalendarSync } from "../integrations/googleCalendar/sync";
+import { previewGoogleCalendarSync, syncLocalTasksWithGoogleCalendar } from "../integrations/googleCalendar/sync";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { dateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
@@ -31,6 +32,7 @@ export function Settings() {
   const [calendarMessage, setCalendarMessage] = useState("");
   const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection | null>(null);
   const [checkingGoogleConnection, setCheckingGoogleConnection] = useState(false);
+  const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
   const magicLinkCooldown = useMagicLinkCooldown();
@@ -193,6 +195,43 @@ export function Settings() {
     }
   };
 
+  const handleGoogleCalendarSync = async () => {
+    setSyncingCalendar(true);
+    setCalendarMessage("");
+
+    try {
+      const result = await syncLocalTasksWithGoogleCalendar(tasks);
+      const localEvents = events.filter((event) => event.source !== "google");
+      replaceEvents([...result.googleEvents, ...localEvents]);
+      setCalendarMessage(
+        `Calendar synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.importedEvents} imported.`,
+      );
+    } catch (error) {
+      setCalendarMessage(errorMessage(error, "Could not sync Google Calendar."));
+    } finally {
+      setSyncingCalendar(false);
+    }
+  };
+
+  const handleGoogleCalendarDisconnect = async () => {
+    const shouldDisconnect = window.confirm("Disconnect Google Calendar from Align?");
+    if (!shouldDisconnect) return;
+
+    setSyncingCalendar(true);
+    setCalendarMessage("");
+
+    try {
+      await disconnectGoogleCalendar();
+      setGoogleConnection({ connected: false });
+      replaceEvents(events.filter((event) => event.source !== "google"));
+      setCalendarMessage("Google Calendar disconnected.");
+    } catch (error) {
+      setCalendarMessage(errorMessage(error, "Could not disconnect Google Calendar."));
+    } finally {
+      setSyncingCalendar(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
@@ -232,9 +271,22 @@ export function Settings() {
               <p className="text-[var(--warning)]">Missing {googleReadiness.missing.join(", ")}.</p>
             ) : null}
           </div>
-          <Button className="mt-4" variant="secondary" onClick={() => void handleGoogleCalendarConnect()}>
-            Connect Google Calendar
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {googleConnection?.connected ? (
+              <>
+                <Button variant="secondary" onClick={() => void handleGoogleCalendarSync()} disabled={syncingCalendar}>
+                  {syncingCalendar ? "Syncing..." : "Sync Calendar Now"}
+                </Button>
+                <Button variant="danger" onClick={() => void handleGoogleCalendarDisconnect()} disabled={syncingCalendar}>
+                  Disconnect
+                </Button>
+              </>
+            ) : (
+              <Button variant="secondary" onClick={() => void handleGoogleCalendarConnect()}>
+                Connect Google Calendar
+              </Button>
+            )}
+          </div>
           {calendarMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{calendarMessage}</p> : null}
         </Card>
         <Card className="p-5">

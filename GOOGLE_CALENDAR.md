@@ -51,13 +51,22 @@ Implemented endpoints:
 - `POST /api/google-calendar/connect`
 - `GET /api/google-calendar/callback`
 - `GET /api/google-calendar/status`
+- `GET /api/google-calendar/events`
+- `POST /api/google-calendar/sync`
+- `POST /api/google-calendar/disconnect`
 
-Still to add:
+Implemented behavior:
 
 - fetch Google events
 - create events from Align tasks
 - update events when tasks change
 - revoke/disconnect Google Calendar
+- prevent duplicate task events with `public.google_calendar_task_links`
+
+Still to add:
+
+- automatic background sync cadence
+- richer conflict handling if the Google event was manually edited
 
 ## Frontend Files
 

@@ -1,5 +1,5 @@
 import type { Task } from "../../types/task";
-import { fetchGoogleEvents, syncTaskToGoogleCalendar } from "./googleCalendarClient";
+import { fetchGoogleEvents, syncTasksToGoogleCalendar } from "./googleCalendarClient";
 import type { GoogleCalendarSyncPreview } from "./types";
 
 export function previewGoogleCalendarSync(tasks: Task[]): GoogleCalendarSyncPreview {
@@ -17,8 +17,15 @@ export function previewGoogleCalendarSync(tasks: Task[]): GoogleCalendarSyncPrev
 
 export async function syncLocalTasksWithGoogleCalendar(tasks: Task[]) {
   const googleEvents = await fetchGoogleEvents();
-  const datedTasks = tasks.filter((task) => !task.deletedAt && task.dueDate && task.status !== "completed");
+  const result = await syncTasksToGoogleCalendar(tasks);
 
-  await Promise.all(datedTasks.map((task) => syncTaskToGoogleCalendar(task)));
-  return { syncedTasks: datedTasks.length, importedEvents: googleEvents.length };
+  return {
+    syncedTasks: result.created + result.updated,
+    importedEvents: googleEvents.length,
+    created: result.created,
+    updated: result.updated,
+    removed: result.removed,
+    skipped: result.skipped,
+    googleEvents,
+  };
 }

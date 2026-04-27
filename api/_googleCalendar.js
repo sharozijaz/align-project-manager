@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+const GOOGLE_CALENDAR_API_URL = "https://www.googleapis.com/calendar/v3";
 
 export const calendarScopes = ["https://www.googleapis.com/auth/calendar.events.owned"];
 
@@ -146,7 +148,7 @@ export async function upsertGoogleConnection(env, userId, tokens) {
   const row = {
     user_id: userId,
     access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
+    ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
     expires_at: expiresAt,
     calendar_id: env.googleCalendarId,
     scopes: calendarScopes,
@@ -173,7 +175,7 @@ export async function upsertGoogleConnection(env, userId, tokens) {
 export async function getGoogleConnection(env, userId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_connections`);
   url.searchParams.set("user_id", `eq.${userId}`);
-  url.searchParams.set("select", "user_id,calendar_id,expires_at,updated_at,scopes");
+  url.searchParams.set("select", "user_id,calendar_id,access_token,refresh_token,expires_at,updated_at,scopes");
 
   const response = await fetch(url, {
     headers: {
@@ -191,12 +193,197 @@ export async function getGoogleConnection(env, userId) {
   return rows[0] || null;
 }
 
+export async function requireGoogleConnection(env, userId) {
+  const connection = await getGoogleConnection(env, userId);
+
+  if (!connection) {
+    throw new HttpError(409, "Connect Google Calendar first.");
+  }
+
+  return refreshGoogleAccessTokenIfNeeded(env, connection);
+}
+
+export async function refreshGoogleAccessTokenIfNeeded(env, connection) {
+  const expiresAt = new Date(connection.expires_at).getTime();
+
+  if (Number.isFinite(expiresAt) && expiresAt - Date.now() > 2 * 60 * 1000) {
+    return connection;
+  }
+
+  if (!connection.refresh_token) {
+    throw new HttpError(409, "Reconnect Google Calendar to refresh access.");
+  }
+
+  const body = new URLSearchParams({
+    client_id: env.googleClientId,
+    client_secret: env.googleClientSecret,
+    refresh_token: connection.refresh_token,
+    grant_type: "refresh_token",
+  });
+
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new HttpError(response.status, data.error_description || data.error || "Could not refresh Google token.");
+  }
+
+  await upsertGoogleConnection(env, connection.user_id, {
+    ...data,
+    refresh_token: connection.refresh_token,
+  });
+
+  return {
+    ...connection,
+    access_token: data.access_token,
+    expires_at: new Date(Date.now() + Number(data.expires_in || 3600) * 1000).toISOString(),
+  };
+}
+
+export async function googleCalendarRequest(env, connection, path, options = {}) {
+  const calendarId = encodeURIComponent(connection.calendar_id || env.googleCalendarId);
+  const response = await fetch(`${GOOGLE_CALENDAR_API_URL}/calendars/${calendarId}${path}`, {
+    ...options,
+    headers: {
+      authorization: `Bearer ${connection.access_token}`,
+      "content-type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  if (response.status === 204) return null;
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new HttpError(response.status, data?.error?.message || data?.error || "Google Calendar request failed.");
+  }
+
+  return data;
+}
+
+export function taskToGoogleEvent(task) {
+  const endDate = new Date(`${task.dueDate}T00:00:00.000Z`);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+
+  return {
+    summary: task.title,
+    description: [
+      task.description || "",
+      "",
+      "Synced from Align.",
+      `Priority: ${task.priority}`,
+      `Status: ${task.status}`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    start: { date: task.dueDate },
+    end: { date: endDate.toISOString().slice(0, 10) },
+    extendedProperties: {
+      private: {
+        alignTaskId: task.id,
+      },
+    },
+  };
+}
+
+export function googleEventToCalendarEvent(event) {
+  const startDate = event.start?.date || event.start?.dateTime?.slice(0, 10);
+  const endDate = event.end?.date || event.end?.dateTime?.slice(0, 10);
+
+  return {
+    id: `google:${event.id}`,
+    title: event.summary || "Untitled Google event",
+    description: event.description || undefined,
+    startDate,
+    endDate,
+    source: "google",
+  };
+}
+
+export async function findTaskLinks(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_task_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "task_id,google_event_id");
+
+  const response = await serviceFetch(env, url);
+  const rows = await response.json();
+  return new Map(rows.map((row) => [row.task_id, row.google_event_id]));
+}
+
+export async function upsertTaskLink(env, userId, taskId, googleEventId) {
+  const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_calendar_task_links`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      task_id: taskId,
+      google_event_id: googleEventId,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+
+  await response.text();
+}
+
+export async function deleteTaskLink(env, userId, taskId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_task_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("task_id", `eq.${taskId}`);
+  await serviceFetch(env, url, { method: "DELETE" });
+}
+
+export async function deleteGoogleConnection(env, userId) {
+  const connectionUrl = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_connections`);
+  connectionUrl.searchParams.set("user_id", `eq.${userId}`);
+  await serviceFetch(env, connectionUrl, { method: "DELETE" });
+
+  const linksUrl = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_task_links`);
+  linksUrl.searchParams.set("user_id", `eq.${userId}`);
+  await serviceFetch(env, linksUrl, { method: "DELETE" });
+}
+
+export async function revokeGoogleToken(token) {
+  if (!token) return;
+
+  await fetch(GOOGLE_REVOKE_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token }),
+  });
+}
+
+export async function serviceFetch(env, input, options = {}) {
+  const response = await fetch(input, {
+    ...options,
+    headers: {
+      apikey: env.supabaseServiceRoleKey,
+      authorization: `Bearer ${env.supabaseServiceRoleKey}`,
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new HttpError(response.status, detail || "Supabase service request failed.");
+  }
+
+  return response;
+}
+
 export function handleApiError(res, error) {
   const status = error instanceof HttpError ? error.status : 500;
   res.status(status).json({ error: error.message || "Unexpected server error." });
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(status, message) {
     super(message);
     this.status = status;
