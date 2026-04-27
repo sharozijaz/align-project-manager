@@ -32,7 +32,7 @@ export function Settings() {
   const exportData = () => {
     const backup = createWorkspaceBackup({ tasks, projects, events });
     const dateStamp = new Date().toISOString().slice(0, 10);
-    downloadJson(`priority-workspace-${dateStamp}.json`, backup);
+    downloadJson(`align-workspace-${dateStamp}.json`, backup);
     setDataMessage("Workspace backup exported.");
   };
 
@@ -90,12 +90,16 @@ export function Settings() {
   const uploadWorkspace = async () => {
     setSyncing(true);
     setSyncMessage("");
+    syncState.setSyncState("pushing", "Uploading local workspace...");
 
     try {
       await pushWorkspaceToSupabase({ tasks, projects, events });
+      syncState.setSynced("Local workspace uploaded to cloud.");
       setSyncMessage("Local workspace uploaded to Supabase.");
     } catch (error) {
-      setSyncMessage(errorMessage(error, "Could not upload workspace."));
+      const message = errorMessage(error, "Could not upload workspace.");
+      syncState.setSyncState("error", message);
+      setSyncMessage(message);
     } finally {
       setSyncing(false);
     }
@@ -107,15 +111,19 @@ export function Settings() {
 
     setSyncing(true);
     setSyncMessage("");
+    syncState.setSyncState("pulling", "Downloading cloud workspace...");
 
     try {
       const workspace = await pullWorkspaceFromSupabase();
       replaceTasks(workspace.tasks);
       replaceProjects(workspace.projects);
       replaceEvents(workspace.events);
+      syncState.setSynced("Workspace downloaded from cloud.");
       setSyncMessage("Workspace downloaded from Supabase.");
     } catch (error) {
-      setSyncMessage(errorMessage(error, "Could not download workspace."));
+      const message = errorMessage(error, "Could not download workspace.");
+      syncState.setSyncState("error", message);
+      setSyncMessage(message);
     } finally {
       setSyncing(false);
     }
@@ -126,22 +134,22 @@ export function Settings() {
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
-          <h2 className="flex items-center gap-2 font-bold text-slate-950"><UserRound size={18} /> Profile</h2>
-          <p className="mt-3 text-sm text-slate-500">User name</p>
-          <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">Sharoz</div>
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">User name</p>
+          <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text)]">Sharoz</div>
         </Card>
         <Card className="p-5">
-          <h2 className="flex items-center gap-2 font-bold text-slate-950"><Palette size={18} /> Theme</h2>
-          <p className="mt-3 text-sm text-slate-500">Dark workspace theme is enabled across the app.</p>
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Theme</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">Dark workspace theme is enabled across the app.</p>
         </Card>
         <Card className="p-5">
-          <h2 className="flex items-center gap-2 font-bold text-slate-950"><CalendarDays size={18} /> Google Calendar</h2>
-          <p className="mt-3 text-sm text-slate-500">OAuth credentials and API calls will be added in `src/integrations/googleCalendar`.</p>
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CalendarDays size={18} /> Google Calendar</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">OAuth credentials and API calls will be added in `src/integrations/googleCalendar`.</p>
           <Button className="mt-4" variant="secondary">Connect Google Calendar</Button>
         </Card>
         <Card className="p-5">
-          <h2 className="font-bold text-slate-950">Data</h2>
-          <p className="mt-3 text-sm text-slate-500">Back up or restore tasks, projects, and local calendar events.</p>
+          <h2 className="font-bold text-[var(--text)]">Data</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">Back up or restore tasks, projects, and local calendar events.</p>
           <div className="mt-4 flex gap-2">
             <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export</Button>
             <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import</Button>
@@ -153,51 +161,51 @@ export function Settings() {
             className="hidden"
             onChange={(event) => void importData(event.target.files?.[0])}
           />
-          {dataMessage ? <p className="mt-3 text-sm text-slate-300">{dataMessage}</p> : null}
+          {dataMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{dataMessage}</p> : null}
         </Card>
         <Card className="p-5 lg:col-span-2">
-          <h2 className="flex items-center gap-2 font-bold text-slate-950">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
             <Cloud size={18} /> Supabase Sync
           </h2>
-          <p className="mt-3 text-sm text-slate-500">
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
             Prepare multi-device sync before the subdomain is ready. LocalStorage stays active as the offline fallback.
           </p>
           {isSupabaseConfigured ? (
-            <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 p-4 text-sm text-slate-300">
+            <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--text-muted)]">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  Connected config: <span className="font-semibold text-slate-100">{supabaseUrl.replace(/^https:\/\//u, "")}</span>
-                  {supabaseConfigIssue ? <p className="mt-2 text-amber-100">{supabaseConfigIssue}</p> : null}
+                  Connected config: <span className="font-semibold text-[var(--text)]">{supabaseUrl.replace(/^https:\/\//u, "")}</span>
+                  {supabaseConfigIssue ? <p className="mt-2 text-[var(--warning)]">{supabaseConfigIssue}</p> : null}
                 </div>
                 <Badge tone={syncState.state === "error" ? "red" : syncState.state === "synced" ? "emerald" : "blue"}>
                   {syncState.state}
                 </Badge>
               </div>
-              <p className="mt-3 text-slate-300">{syncState.message}</p>
+              <p className="mt-3 text-[var(--text-muted)]">{syncState.message}</p>
               {syncState.lastSyncedAt ? (
-                <p className="mt-1 text-xs text-slate-500">Last synced {new Date(syncState.lastSyncedAt).toLocaleString()}</p>
+                <p className="mt-1 text-xs text-[var(--text-soft)]">Last synced {new Date(syncState.lastSyncedAt).toLocaleString()}</p>
               ) : null}
             </div>
           ) : null}
           {!isSupabaseConfigured ? (
-            <div className="mt-4 rounded-lg border border-dashed border-slate-700 bg-slate-950 p-4 text-sm text-slate-400">
+            <div className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--text-muted)]">
               Supabase is not configured yet. Create a Supabase project, run `supabase/schema.sql`, then add values to `.env.local`.
-              {supabaseConfigIssue ? <p className="mt-2 text-amber-100">{supabaseConfigIssue}</p> : null}
+              {supabaseConfigIssue ? <p className="mt-2 text-[var(--warning)]">{supabaseConfigIssue}</p> : null}
             </div>
           ) : (
             <div className="mt-4 grid gap-3">
               {session ? (
-                <div className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-950 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-100">{session.user.email}</p>
-                    <p className="text-sm text-slate-400">Signed in for hosted sync.</p>
+                    <p className="text-sm font-semibold text-[var(--text)]">{session.user.email}</p>
+                    <p className="text-sm text-[var(--text-muted)]">Signed in for hosted sync.</p>
                   </div>
                   <Button variant="secondary" onClick={() => void signOut()}>Sign Out</Button>
                 </div>
               ) : (
-                <div className="grid gap-3 rounded-lg border border-slate-700 bg-slate-950 p-4 md:grid-cols-[1fr_auto]">
+                <div className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 md:grid-cols-[1fr_auto]">
                   <input
-                    className="min-h-11 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm font-medium text-slate-50 placeholder:text-slate-400"
+                    className="min-h-11 w-full rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)] placeholder:text-[var(--input-placeholder)]"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="Email for magic link"
@@ -216,21 +224,21 @@ export function Settings() {
                   Download Now
                 </Button>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--text-soft)]">
                 After sign-in, the app downloads cloud data automatically. Local edits are saved to Supabase after a short delay.
               </p>
             </div>
           )}
-          {syncMessage ? <p className="mt-3 text-sm text-slate-300">{syncMessage}</p> : null}
+          {syncMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{syncMessage}</p> : null}
         </Card>
       </div>
       <Card className="p-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div>
-            <h2 className="flex items-center gap-2 font-bold text-slate-950">
+            <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
               <Trash2 size={18} /> Deleted Tasks
             </h2>
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-3 text-sm text-[var(--text-muted)]">
               Restore accidentally deleted tasks or permanently remove them from this workspace.
             </p>
           </div>
@@ -244,10 +252,10 @@ export function Settings() {
               return (
                 <div
                   key={task.id}
-                  className="flex flex-col justify-between gap-4 rounded-lg border border-slate-700 bg-slate-950 p-4 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center"
                 >
                   <div>
-                    <h3 className="font-semibold text-slate-50">{task.title}</h3>
+                    <h3 className="font-semibold text-[var(--text)]">{task.title}</h3>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Badge tone={priorityTone(task.priority)}>{task.priority}</Badge>
                       <Badge>{project?.name ?? task.category}</Badge>
@@ -275,7 +283,7 @@ export function Settings() {
               );
             })
           ) : (
-            <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950 p-8 text-center text-sm text-slate-400">
+            <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center text-sm text-[var(--text-muted)]">
               No deleted tasks. When you delete a task, it will appear here for recovery.
             </div>
           )}
