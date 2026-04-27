@@ -9,7 +9,7 @@ import { Input } from "../ui/Input";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { session, loading } = useSupabaseSession();
-  const [email, setEmail] = useState(allowedEmails[0] ?? "");
+  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -94,9 +94,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
         </Button>
       </form>
       {message ? <p className="mt-4 text-sm text-[var(--text-muted)]">{message}</p> : null}
-      {allowedEmails.length ? (
-        <p className="mt-4 text-xs text-[var(--text-soft)]">Allowed emails are controlled by VITE_ALLOWED_EMAILS.</p>
-      ) : null}
     </AuthShell>
   );
 }
