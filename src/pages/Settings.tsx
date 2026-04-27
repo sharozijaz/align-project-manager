@@ -11,6 +11,9 @@ import { useTaskStore } from "../store/taskStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
+import { connectGoogleCalendar, getGoogleCalendarReadiness } from "../integrations/googleCalendar/googleCalendarClient";
+import { previewGoogleCalendarSync } from "../integrations/googleCalendar/sync";
+import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { dateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
 import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup } from "../utils/storage";
@@ -20,13 +23,17 @@ export function Settings() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [dataMessage, setDataMessage] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
+  const [calendarMessage, setCalendarMessage] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
+  const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
   const { projects, replaceProjects } = useProjectStore();
   const { tasks, restoreTask, permanentlyDeleteTask, replaceTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
   const syncState = useSyncStore();
+  const googleReadiness = getGoogleCalendarReadiness();
+  const googlePreview = previewGoogleCalendarSync(tasks);
   const deletedTasks = tasks.filter((task) => task.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
 
   const exportData = () => {
@@ -59,7 +66,7 @@ export function Settings() {
   };
 
   const signIn = async () => {
-    if (!supabase || !email.trim()) return;
+    if (!supabase || !email.trim() || magicLinkCooldown.isCoolingDown) return;
 
     setSyncing(true);
     setSyncMessage("");
@@ -73,9 +80,14 @@ export function Settings() {
       });
 
       if (error) throw error;
+      magicLinkCooldown.startCooldown();
       setSyncMessage("Magic link sent. Open it to finish sign in.");
     } catch (error) {
-      setSyncMessage(errorMessage(error, "Could not send magic link."));
+      const message = errorMessage(error, "Could not send magic link.");
+      if (isRateLimitMessage(message)) {
+        magicLinkCooldown.startRateLimitCooldown();
+      }
+      setSyncMessage(message);
     } finally {
       setSyncing(false);
     }
@@ -129,6 +141,16 @@ export function Settings() {
     }
   };
 
+  const handleGoogleCalendarConnect = async () => {
+    setCalendarMessage("");
+
+    try {
+      await connectGoogleCalendar();
+    } catch (error) {
+      setCalendarMessage(errorMessage(error, "Google Calendar is not ready yet."));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
@@ -144,8 +166,28 @@ export function Settings() {
         </Card>
         <Card className="p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CalendarDays size={18} /> Google Calendar</h2>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">OAuth credentials and API calls will be added in `src/integrations/googleCalendar`.</p>
-          <Button className="mt-4" variant="secondary">Connect Google Calendar</Button>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            {googlePreview.reason}
+          </p>
+          <div className="mt-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[var(--text-muted)]">OAuth config</span>
+              <Badge tone={googleReadiness.ready ? "emerald" : "amber"}>{googleReadiness.ready ? "ready" : "missing"}</Badge>
+            </div>
+            <p className="text-[var(--text-soft)]">
+              Scope: <span className="text-[var(--text-muted)]">{googleReadiness.config.scopes[0]}</span>
+            </p>
+            <p className="text-[var(--text-soft)]">
+              Calendar: <span className="text-[var(--text-muted)]">{googleReadiness.config.calendarId}</span>
+            </p>
+            {googleReadiness.missing.length ? (
+              <p className="text-[var(--warning)]">Missing {googleReadiness.missing.join(", ")}.</p>
+            ) : null}
+          </div>
+          <Button className="mt-4" variant="secondary" onClick={() => void handleGoogleCalendarConnect()}>
+            Connect Google Calendar
+          </Button>
+          {calendarMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{calendarMessage}</p> : null}
         </Card>
         <Card className="p-5">
           <h2 className="font-bold text-[var(--text)]">Data</h2>
@@ -211,8 +253,8 @@ export function Settings() {
                     placeholder="Email for magic link"
                     type="email"
                   />
-                  <Button onClick={() => void signIn()} disabled={syncing || sessionLoading || !email.trim()}>
-                    Send Magic Link
+                  <Button onClick={() => void signIn()} disabled={syncing || sessionLoading || magicLinkCooldown.isCoolingDown || !email.trim()}>
+                    {magicLinkCooldown.label}
                   </Button>
                 </div>
               )}

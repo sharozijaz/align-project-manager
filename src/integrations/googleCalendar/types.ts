@@ -3,9 +3,29 @@ import type { CalendarEvent } from "../../types/calendar";
 export interface GoogleCalendarConnection {
   connected: boolean;
   accountEmail?: string;
-  accessToken?: string;
+  calendarId?: string;
+  connectedAt?: string;
 }
 
 export interface GoogleCalendarEvent extends CalendarEvent {
   googleEventId?: string;
+}
+
+export interface GoogleCalendarConfig {
+  clientId: string;
+  redirectUri: string;
+  calendarId: string;
+  scopes: string[];
+}
+
+export interface GoogleCalendarReadiness {
+  ready: boolean;
+  missing: string[];
+  config: GoogleCalendarConfig;
+}
+
+export interface GoogleCalendarSyncPreview {
+  syncableTasks: number;
+  skippedTasks: number;
+  reason: string;
 }

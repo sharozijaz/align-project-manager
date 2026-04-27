@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { LockKeyhole } from "lucide-react";
 import { getAuthRedirectUrl, isEmailAllowed, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
+import { isRateLimitMessage, useMagicLinkCooldown } from "../../hooks/useMagicLinkCooldown";
 import { errorMessage } from "../../utils/errors";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -12,6 +13,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const magicLinkCooldown = useMagicLinkCooldown();
 
   if (!isSupabaseConfigured) return children;
 
@@ -29,7 +31,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (session && allowed) return children;
 
   const sendMagicLink = async () => {
-    if (!supabase || !email.trim()) return;
+    if (!supabase || !email.trim() || magicLinkCooldown.isCoolingDown) return;
 
     if (!isEmailAllowed(email)) {
       setMessage("This email is not allowed for this Align workspace.");
@@ -48,9 +50,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
       });
 
       if (error) throw error;
+      magicLinkCooldown.startCooldown();
       setMessage("Magic link sent. Open it to access Align.");
     } catch (error) {
-      setMessage(errorMessage(error, "Could not send magic link."));
+      const message = errorMessage(error, "Could not send magic link.");
+      if (isRateLimitMessage(message)) {
+        magicLinkCooldown.startRateLimitCooldown();
+      }
+      setMessage(message);
     } finally {
       setSending(false);
     }
@@ -89,8 +96,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
         }}
       >
         <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-        <Button type="submit" disabled={sending || !email.trim()}>
-          {sending ? "Sending..." : "Send Magic Link"}
+        <Button type="submit" disabled={sending || magicLinkCooldown.isCoolingDown || !email.trim()}>
+          {sending ? "Sending..." : magicLinkCooldown.label}
         </Button>
       </form>
       {message ? <p className="mt-4 text-sm text-[var(--text-muted)]">{message}</p> : null}
