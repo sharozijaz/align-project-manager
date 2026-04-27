@@ -19,7 +19,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
             const complete = projectTasks.length - open;
 
             return (
-              <Link key={project.id} to={`/projects/${project.id}`} className="block rounded-lg border border-slate-700 bg-slate-950/55 p-4 transition hover:border-slate-500 hover:bg-slate-800/70">
+              <Link key={project.id} to={`/projects/${project.id}`} className="block rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="text-lg font-semibold text-slate-900">{project.name}</h3>
                   <Badge tone={priorityTone(project.priority)}>{project.priority}</Badge>
@@ -33,7 +33,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
             );
           })
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-700 p-10 text-center text-sm text-slate-400">No active projects yet.</div>
+          <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">No active projects yet.</div>
         )}
       </div>
     </Card>

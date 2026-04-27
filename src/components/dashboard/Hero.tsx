@@ -2,7 +2,7 @@ import { Glance } from "./Glance";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden rounded-lg bg-slate-950 px-4 pb-24 pt-4 text-white sm:px-8">
+    <section className="relative overflow-hidden rounded-lg bg-[#050817] px-4 pb-24 pt-4 text-white sm:px-8">
       <div className="absolute inset-0 opacity-45">
         <img src="/hero-texture.svg" alt="" className="h-full w-full object-cover" />
       </div>

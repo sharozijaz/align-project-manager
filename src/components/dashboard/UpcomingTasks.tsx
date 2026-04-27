@@ -55,7 +55,7 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
         {items.length ? (
           items.map((item) => {
             const content = (
-              <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-4 transition hover:border-slate-500 hover:bg-slate-800/70">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-semibold text-slate-950">{item.title}</h3>
@@ -76,7 +76,7 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
             );
           })
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-700 p-10 text-center text-sm text-slate-400">
+          <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
             No upcoming deadlines yet.
           </div>
         )}

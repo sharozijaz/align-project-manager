@@ -12,8 +12,8 @@ export function ProjectDetails() {
 
   if (!project) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900/75 p-8 text-center">
-        <p className="text-sm text-slate-400">Project not found.</p>
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center">
+        <p className="text-sm text-[var(--text-muted)]">Project not found.</p>
         <Link to="/projects">
           <Button className="mt-4">Back to Projects</Button>
         </Link>

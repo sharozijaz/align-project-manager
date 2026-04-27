@@ -18,7 +18,7 @@ export function TaskList({
   emptyText?: string;
 }) {
   if (!tasks.length) {
-    return <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/70 p-10 text-center text-sm text-slate-400">{emptyText}</div>;
+    return <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">{emptyText}</div>;
   }
 
   return (

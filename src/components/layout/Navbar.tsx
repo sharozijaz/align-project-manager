@@ -21,7 +21,7 @@ const links = [
 export function Navbar() {
   return (
     <header className="mx-auto flex w-full flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-3 text-[var(--text)] shadow-[var(--shadow-sm)]">
-      <NavLink to="/" className="flex h-11 w-44 shrink-0 items-center" aria-label="Align home">
+      <NavLink to="/" className="brand-logo-shell flex h-11 w-44 shrink-0 items-center rounded-[var(--radius-sm)] px-3" aria-label="Align home">
         <img src="/align-logo.png" alt="Align" className="h-9 w-auto object-contain" />
       </NavLink>
       <nav className="order-3 flex w-full min-w-0 items-center gap-2 overflow-x-auto md:order-none md:w-auto md:justify-center md:overflow-visible">

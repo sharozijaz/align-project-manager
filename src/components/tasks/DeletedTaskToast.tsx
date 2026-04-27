@@ -20,17 +20,17 @@ export function DeletedTaskToast() {
   if (!deletedTask) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-xl flex-col gap-3 rounded-lg border border-slate-700 bg-slate-950/95 p-4 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur sm:left-auto sm:right-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-xl flex-col gap-3 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 text-[var(--text)] shadow-[var(--shadow-lg)] backdrop-blur sm:left-auto sm:right-6 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-semibold">Task moved to Deleted Tasks</p>
-        <p className="text-sm text-slate-400">{deletedTask.title}</p>
+        <p className="text-sm text-[var(--text-muted)]">{deletedTask.title}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Button variant="secondary" onClick={() => restoreTask(deletedTask.id)}>
           Undo
         </Button>
         <button
-          className="grid h-10 w-10 place-items-center rounded-md text-slate-400 transition hover:bg-slate-800 hover:text-white"
+          className="grid h-10 w-10 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
           title="Dismiss"
           onClick={dismissDeleteNotice}
         >

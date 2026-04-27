@@ -47,14 +47,14 @@ export function ProjectDetail({
           </div>
           <strong className="text-2xl text-slate-950">{progress}%</strong>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
-          <div className="h-full bg-sky-300" style={{ width: `${progress}%` }} />
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+          <div className="h-full align-gradient" style={{ width: `${progress}%` }} />
         </div>
       </Card>
       <Card className="p-4">
         <TaskForm projects={projects} onSubmit={(input) => onAddTask({ ...input, projectId: project.id, category: "project" })} compact />
       </Card>
-      <div className="grid gap-3 rounded-lg border border-slate-700 bg-slate-900/75 p-3 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:grid-cols-2">
         <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
           <option value="all">All statuses</option>
           <option value="not-started">Not Started</option>

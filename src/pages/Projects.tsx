@@ -40,7 +40,7 @@ export function Projects() {
           />
         ))}
       </div>
-      {!projects.length ? <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/70 p-10 text-center text-sm text-slate-400">Create your first project to start grouping tasks.</div> : null}
+      {!projects.length ? <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">Create your first project to start grouping tasks.</div> : null}
       <Modal title="Create project" open={creating} onClose={() => setCreating(false)}>
         <ProjectForm
           onSubmit={(input) => {

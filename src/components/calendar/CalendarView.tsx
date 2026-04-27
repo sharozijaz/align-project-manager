@@ -59,10 +59,10 @@ export function CalendarView({
             const today = isDateToday(day);
             const inMonth = isSameMonth(day, visibleDate);
             const dayClass = selected
-              ? "!border-sky-300 !bg-sky-400/20 text-white shadow-[inset_0_0_0_1px_rgba(125,211,252,0.8)]"
+              ? "border-[var(--brand-primary)] bg-[var(--calendar-selected-bg)] text-[var(--calendar-selected-text)] shadow-[inset_0_0_0_1px_var(--brand-primary)]"
               : today
-                ? "!border-amber-300 !bg-amber-300/12 text-white shadow-[inset_0_0_0_1px_rgba(252,211,77,0.55)]"
-                : "border-slate-700 bg-slate-950/70 text-slate-100 hover:border-slate-500 hover:bg-slate-800/80";
+                ? "border-[var(--warning)] bg-[var(--calendar-today-bg)] text-[var(--text)]"
+                : "border-[var(--border)] bg-[var(--calendar-cell-bg)] text-[var(--text)] hover:border-[var(--border-strong)] hover:bg-[var(--calendar-cell-hover)]";
 
             return (
               <button
@@ -71,14 +71,14 @@ export function CalendarView({
                 onClick={() => setSelectedDate(key)}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className={`grid h-7 min-w-7 place-items-center rounded-full text-sm font-bold ${selected ? "bg-sky-300 text-slate-950" : today ? "bg-amber-300 text-slate-950" : ""}`}>
+                  <span className={`grid h-7 min-w-7 place-items-center rounded-full text-sm font-bold ${selected ? "align-gradient text-white" : today ? "bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]" : ""}`}>
                     {format(day, "d")}
                   </span>
-                  {today ? <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-100">Today</span> : null}
+                  {today ? <span className="rounded-full bg-[var(--priority-low-bg)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--priority-low-text)]">Today</span> : null}
                 </div>
                 <div className="mt-3 space-y-1 text-xs font-semibold">
-                  {taskCount ? <p className="rounded bg-sky-300/15 px-2 py-1 text-sky-100">{taskCount} task{taskCount === 1 ? "" : "s"}</p> : null}
-                  {eventCount ? <p className="rounded bg-purple-300/15 px-2 py-1 text-purple-100">{eventCount} event{eventCount === 1 ? "" : "s"}</p> : null}
+                  {taskCount ? <p className="rounded bg-[var(--status-in-progress-bg)] px-2 py-1 text-[var(--status-in-progress-text)]">{taskCount} task{taskCount === 1 ? "" : "s"}</p> : null}
+                  {eventCount ? <p className="rounded bg-[var(--priority-urgent-bg)] px-2 py-1 text-[var(--priority-urgent-text)]">{eventCount} event{eventCount === 1 ? "" : "s"}</p> : null}
                 </div>
               </button>
             );
@@ -103,17 +103,17 @@ export function CalendarView({
         </div>
         <div className="mt-5 space-y-3">
           {selectedTasks.map((task) => (
-            <div key={`task-${task.id}`} className="rounded-md border border-sky-300/25 bg-sky-300/10 p-3 text-sm text-sky-50">
+            <div key={`task-${task.id}`} className="rounded-md border border-[var(--border)] bg-[var(--status-in-progress-bg)] p-3 text-sm text-[var(--status-in-progress-text)]">
               <p className="font-semibold">{task.title}</p>
-              <p className="mt-1 text-xs text-sky-100/75">Task due</p>
+              <p className="mt-1 text-xs opacity-75">Task due</p>
             </div>
           ))}
           {selectedEvents.map((event) => (
-            <div key={`event-${event.id}`} className="rounded-md border border-purple-300/25 bg-purple-300/10 p-3 text-sm text-purple-50">
+            <div key={`event-${event.id}`} className="rounded-md border border-[var(--border)] bg-[var(--priority-urgent-bg)] p-3 text-sm text-[var(--priority-urgent-text)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{event.title}</p>
-                  <p className="mt-1 text-xs text-purple-100/75">Local event</p>
+                  <p className="mt-1 text-xs opacity-75">Local event</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <Button

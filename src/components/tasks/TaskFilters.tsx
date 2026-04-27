@@ -20,7 +20,7 @@ export function TaskFilters({
   onSortChange: (sort: TaskSort) => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-lg border border-slate-700 bg-slate-900/75 p-3 md:grid-cols-[1fr_180px_180px]">
+    <div className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 md:grid-cols-[1fr_180px_180px]">
       <Input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search tasks" />
       <Select value={filter} onChange={(event) => onFilterChange(event.target.value as TaskFilter)}>
         <option value="all">All</option>
