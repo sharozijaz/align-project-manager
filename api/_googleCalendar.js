@@ -310,26 +310,58 @@ export async function findTaskLinks(env, userId) {
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("select", "task_id,google_event_id,last_synced_at");
 
-  const response = await serviceFetch(env, url);
+  let response;
+  try {
+    response = await serviceFetch(env, url);
+  } catch (error) {
+    if (!String(error.message || "").includes("last_synced_at")) {
+      throw error;
+    }
+
+    const fallbackUrl = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_task_links`);
+    fallbackUrl.searchParams.set("user_id", `eq.${userId}`);
+    fallbackUrl.searchParams.set("select", "task_id,google_event_id");
+    response = await serviceFetch(env, fallbackUrl);
+  }
+
   const rows = await response.json();
   return new Map(rows.map((row) => [row.task_id, row]));
 }
 
 export async function upsertTaskLink(env, userId, taskId, googleEventId, lastSyncedAt = new Date().toISOString()) {
-  const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_calendar_task_links`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      prefer: "resolution=merge-duplicates,return=minimal",
-    },
-    body: JSON.stringify({
+  const row = {
       user_id: userId,
       task_id: taskId,
       google_event_id: googleEventId,
       last_synced_at: lastSyncedAt,
       updated_at: new Date().toISOString(),
-    }),
-  });
+    };
+  let response;
+
+  try {
+    response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_calendar_task_links`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(row),
+    });
+  } catch (error) {
+    if (!String(error.message || "").includes("last_synced_at")) {
+      throw error;
+    }
+
+    const { last_synced_at: _lastSyncedAt, ...fallbackRow } = row;
+    response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_calendar_task_links`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(fallbackRow),
+    });
+  }
 
   await response.text();
 }

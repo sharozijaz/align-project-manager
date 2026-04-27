@@ -56,13 +56,34 @@ export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace) {
   if (!user) throw new Error("Sign in before syncing your workspace.");
 
   const userId = user.id;
+  const projectIds = new Set(workspace.projects.map((project) => project.id));
+  const projectRows = workspace.projects.map((project) => projectToRow(project, userId));
+  const taskRows = workspace.tasks.map((task) =>
+    taskToRow(
+      {
+        ...task,
+        projectId: task.projectId && projectIds.has(task.projectId) ? task.projectId : undefined,
+      },
+      userId,
+    ),
+  );
 
-  await replaceProjects(workspace.projects.map((project) => projectToRow(project, userId)));
-  await replaceTasks(workspace.tasks.map((task) => taskToRow(task, userId)));
+  await upsertProjects(projectRows);
+  await replaceTasks(taskRows);
+  await deleteStaleProjects(projectRows);
   await replaceCalendarEvents(workspace.events.map((event) => calendarEventToRow(event, userId)));
 }
 
-async function replaceProjects(rows: ReturnType<typeof projectToRow>[]) {
+async function upsertProjects(rows: ReturnType<typeof projectToRow>[]) {
+  const client = requireClient();
+
+  if (rows.length) {
+    const { error: upsertError } = await client.from("projects").upsert(rows);
+    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload projects."));
+  }
+}
+
+async function deleteStaleProjects(rows: ReturnType<typeof projectToRow>[]) {
   const client = requireClient();
   const { data: existing, error: existingError } = await client.from("projects").select("id");
 
@@ -74,11 +95,6 @@ async function replaceProjects(rows: ReturnType<typeof projectToRow>[]) {
   if (staleIds.length) {
     const { error: deleteError } = await client.from("projects").delete().in("id", staleIds);
     if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale projects."));
-  }
-
-  if (rows.length) {
-    const { error: upsertError } = await client.from("projects").upsert(rows);
-    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload projects."));
   }
 }
 
