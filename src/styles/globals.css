@@ -1,0 +1,250 @@
+@import url("https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+
+  --brand-primary: #7c5cff;
+  --brand-primary-hover: #6b4df2;
+  --brand-secondary: #2f6bff;
+  --brand-accent: #9b7cff;
+  --brand-gradient: linear-gradient(135deg, #9b7cff 0%, #7c5cff 45%, #2f6bff 100%);
+
+  --bg: #f7f8fc;
+  --bg-soft: #ffffff;
+  --bg-muted: #eef1f7;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: #f1f4fa;
+
+  --border: #dde3ee;
+  --border-strong: #c6cfdd;
+
+  --text: #121826;
+  --text-muted: #667085;
+  --text-soft: #98a2b3;
+  --text-inverse: #ffffff;
+
+  --input-bg: #ffffff;
+  --input-border: #d6deea;
+  --input-placeholder: #98a2b3;
+  --dropdown-bg: #ffffff;
+  --dropdown-hover: #f2f4f8;
+
+  --shadow-sm: 0 1px 2px rgba(18, 24, 38, 0.06);
+  --shadow-md: 0 10px 30px rgba(18, 24, 38, 0.1);
+
+  --status-not-started-bg: #eef2f7;
+  --status-not-started-text: #475467;
+  --status-in-progress-bg: #eaf2ff;
+  --status-in-progress-text: #2f6bff;
+  --status-completed-bg: #eaf8f0;
+  --status-completed-text: #16a34a;
+  --status-paused-bg: #fff7e6;
+  --status-paused-text: #b76e00;
+
+  --priority-low-bg: #eaf8f0;
+  --priority-low-text: #15803d;
+  --priority-medium-bg: #fff4db;
+  --priority-medium-text: #b76e00;
+  --priority-high-bg: #ffe9e9;
+  --priority-high-text: #e5484d;
+  --priority-urgent-bg: #f2e8ff;
+  --priority-urgent-text: #7c3aed;
+
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #e5484d;
+  --info: #2f6bff;
+
+  --button-primary-bg: #7c5cff;
+  --button-primary-hover: #6b4df2;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #eef1f7;
+  --button-secondary-hover: #e3e8f2;
+  --button-secondary-text: #121826;
+  --button-danger-bg: #ffe9e9;
+  --button-danger-hover: #ffd6d6;
+  --button-danger-text: #e5484d;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --brand-primary: #8b6dff;
+  --brand-primary-hover: #a28bff;
+  --brand-secondary: #4f7dff;
+  --brand-accent: #b49cff;
+  --brand-gradient: linear-gradient(135deg, #b49cff 0%, #8b6dff 45%, #4f7dff 100%);
+
+  --bg: #050817;
+  --bg-soft: #080c1d;
+  --bg-muted: #0e1328;
+  --surface: #090d1f;
+  --surface-raised: #10162b;
+  --surface-hover: #151c33;
+
+  --border: #1f2a44;
+  --border-strong: #2b3858;
+
+  --text: #f5f7fb;
+  --text-muted: #a9b3c7;
+  --text-soft: #6f7a91;
+  --text-inverse: #050817;
+
+  --input-bg: #070b1a;
+  --input-border: #26324e;
+  --input-placeholder: #6f7a91;
+  --dropdown-bg: #0d1326;
+  --dropdown-hover: #171f38;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 18px 50px rgba(0, 0, 0, 0.35);
+
+  --status-not-started-bg: #1a2235;
+  --status-not-started-text: #b8c2d6;
+  --status-in-progress-bg: #10234a;
+  --status-in-progress-text: #7ba2ff;
+  --status-completed-bg: #10291d;
+  --status-completed-text: #4ade80;
+  --status-paused-bg: #34250d;
+  --status-paused-text: #fbbf24;
+
+  --priority-low-bg: #10291d;
+  --priority-low-text: #4ade80;
+  --priority-medium-bg: #34250d;
+  --priority-medium-text: #fbbf24;
+  --priority-high-bg: #3a1518;
+  --priority-high-text: #ff6b6b;
+  --priority-urgent-bg: #281847;
+  --priority-urgent-text: #b49cff;
+
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #ff6b6b;
+  --info: #7ba2ff;
+
+  --button-primary-bg: #8b6dff;
+  --button-primary-hover: #a28bff;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #151c33;
+  --button-secondary-hover: #1e2947;
+  --button-secondary-text: #f5f7fb;
+  --button-danger-bg: #3a1518;
+  --button-danger-hover: #4a1b20;
+  --button-danger-text: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: Jost, ui-sans-serif, system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand-primary) 16%, transparent), transparent 34rem),
+    var(--bg);
+  color: var(--text);
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: "Space Grotesk", Jost, ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand-primary) 42%, transparent);
+  outline-offset: 2px;
+}
+
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+  opacity: 0.82;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand-primary) 32%, transparent);
+}
+
+.align-gradient {
+  background: var(--brand-gradient);
+}
+
+[data-theme] .text-slate-950,
+[data-theme] .text-slate-900,
+[data-theme] .text-slate-800,
+[data-theme] .text-slate-700 {
+  color: var(--text);
+}
+
+[data-theme] .text-slate-600,
+[data-theme] .text-slate-500,
+[data-theme] .text-slate-400,
+[data-theme] .text-slate-300 {
+  color: var(--text-muted);
+}
+
+[data-theme] .text-slate-100,
+[data-theme] .text-slate-50,
+[data-theme] .text-white {
+  color: var(--text);
+}
+
+[data-theme] .bg-white,
+[data-theme] .bg-slate-50,
+[data-theme] .bg-slate-100,
+[data-theme] .bg-slate-900,
+[data-theme] .bg-slate-950 {
+  background-color: var(--surface);
+}
+
+[data-theme] .bg-black {
+  background-color: var(--bg-soft);
+}
+
+[data-theme] .border-slate-200,
+[data-theme] .border-slate-300,
+[data-theme] .border-slate-700,
+[data-theme] .border-slate-800 {
+  border-color: var(--border);
+}
+
+[data-theme] .hover\:bg-slate-50:hover,
+[data-theme] .hover\:bg-slate-100:hover,
+[data-theme] .hover\:bg-slate-800:hover {
+  background-color: var(--surface-hover);
+}
