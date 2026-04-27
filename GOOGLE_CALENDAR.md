@@ -62,11 +62,14 @@ Implemented behavior:
 - update events when tasks change
 - revoke/disconnect Google Calendar
 - prevent duplicate task events with `public.google_calendar_task_links`
+- auto-sync task changes after a short delay
+- show recent sync history in Settings
+- skip overwriting linked Google events that were edited after the last Align sync
 
 Still to add:
 
-- automatic background sync cadence
-- richer conflict handling if the Google event was manually edited
+- choosing whether Align or Google wins when a conflict is detected
+- background scheduled sync when the app is closed
 
 ## Frontend Files
 

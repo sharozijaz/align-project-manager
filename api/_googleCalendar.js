@@ -308,14 +308,14 @@ export function googleEventToCalendarEvent(event) {
 export async function findTaskLinks(env, userId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_task_links`);
   url.searchParams.set("user_id", `eq.${userId}`);
-  url.searchParams.set("select", "task_id,google_event_id");
+  url.searchParams.set("select", "task_id,google_event_id,last_synced_at");
 
   const response = await serviceFetch(env, url);
   const rows = await response.json();
-  return new Map(rows.map((row) => [row.task_id, row.google_event_id]));
+  return new Map(rows.map((row) => [row.task_id, row]));
 }
 
-export async function upsertTaskLink(env, userId, taskId, googleEventId) {
+export async function upsertTaskLink(env, userId, taskId, googleEventId, lastSyncedAt = new Date().toISOString()) {
   const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_calendar_task_links`, {
     method: "POST",
     headers: {
@@ -326,11 +326,23 @@ export async function upsertTaskLink(env, userId, taskId, googleEventId) {
       user_id: userId,
       task_id: taskId,
       google_event_id: googleEventId,
+      last_synced_at: lastSyncedAt,
       updated_at: new Date().toISOString(),
     }),
   });
 
   await response.text();
+}
+
+export function wasGoogleEventEditedAfterLastSync(link, googleEvent) {
+  if (!link?.last_synced_at || !googleEvent?.updated) return false;
+
+  const lastSyncedAt = new Date(link.last_synced_at).getTime();
+  const googleUpdatedAt = new Date(googleEvent.updated).getTime();
+
+  if (!Number.isFinite(lastSyncedAt) || !Number.isFinite(googleUpdatedAt)) return false;
+
+  return googleUpdatedAt > lastSyncedAt + 2000;
 }
 
 export async function deleteTaskLink(env, userId, taskId) {

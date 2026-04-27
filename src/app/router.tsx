@@ -1,23 +1,53 @@
 import { createBrowserRouter } from "react-router-dom";
 import { App } from "./App";
-import { Dashboard } from "../pages/Dashboard";
-import { Projects } from "../pages/Projects";
-import { ProjectDetails } from "../pages/ProjectDetails";
-import { Tasks } from "../pages/Tasks";
-import { Calendar } from "../pages/Calendar";
-import { Settings } from "../pages/Settings";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: "projects", element: <Projects /> },
-      { path: "projects/:projectId", element: <ProjectDetails /> },
-      { path: "tasks", element: <Tasks /> },
-      { path: "calendar", element: <Calendar /> },
-      { path: "settings", element: <Settings /> },
+      {
+        index: true,
+        lazy: async () => {
+          const { Dashboard } = await import("../pages/Dashboard");
+          return { Component: Dashboard };
+        },
+      },
+      {
+        path: "projects",
+        lazy: async () => {
+          const { Projects } = await import("../pages/Projects");
+          return { Component: Projects };
+        },
+      },
+      {
+        path: "projects/:projectId",
+        lazy: async () => {
+          const { ProjectDetails } = await import("../pages/ProjectDetails");
+          return { Component: ProjectDetails };
+        },
+      },
+      {
+        path: "tasks",
+        lazy: async () => {
+          const { Tasks } = await import("../pages/Tasks");
+          return { Component: Tasks };
+        },
+      },
+      {
+        path: "calendar",
+        lazy: async () => {
+          const { Calendar } = await import("../pages/Calendar");
+          return { Component: Calendar };
+        },
+      },
+      {
+        path: "settings",
+        lazy: async () => {
+          const { Settings } = await import("../pages/Settings");
+          return { Component: Settings };
+        },
+      },
     ],
   },
 ]);

@@ -10,6 +10,7 @@ import {
   requireMethod,
   taskToGoogleEvent,
   upsertTaskLink,
+  wasGoogleEventEditedAfterLastSync,
 } from "../_googleCalendar.js";
 
 export default async function handler(req, res) {
@@ -37,9 +38,11 @@ export default async function handler(req, res) {
     let updated = 0;
     let removed = 0;
     let skipped = 0;
+    const conflicts = [];
 
     for (const task of tasks) {
-      const linkedEventId = links.get(task.id);
+      const link = links.get(task.id);
+      const linkedEventId = link?.google_event_id;
       const shouldSync = task.dueDate && task.status !== "completed" && !task.deletedAt;
 
       if (!shouldSync) {
@@ -57,22 +60,36 @@ export default async function handler(req, res) {
       const eventPayload = taskToGoogleEvent(task);
 
       if (linkedEventId) {
-        await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`, {
+        const googleEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`);
+
+        if (wasGoogleEventEditedAfterLastSync(link, googleEvent)) {
+          conflicts.push({
+            taskId: task.id,
+            taskTitle: task.title,
+            googleEventId: linkedEventId,
+            googleUpdatedAt: googleEvent.updated,
+          });
+          skipped += 1;
+          continue;
+        }
+
+        const updatedEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`, {
           method: "PATCH",
           body: JSON.stringify(eventPayload),
         });
+        await upsertTaskLink(env, user.id, task.id, linkedEventId, updatedEvent.updated);
         updated += 1;
       } else {
         const createdEvent = await googleCalendarRequest(env, connection, "/events", {
           method: "POST",
           body: JSON.stringify(eventPayload),
         });
-        await upsertTaskLink(env, user.id, task.id, createdEvent.id);
+        await upsertTaskLink(env, user.id, task.id, createdEvent.id, createdEvent.updated);
         created += 1;
       }
     }
 
-    res.status(200).json({ created, updated, removed, skipped });
+    res.status(200).json({ created, updated, removed, skipped, conflicts });
   } catch (error) {
     handleApiError(res, error);
   }

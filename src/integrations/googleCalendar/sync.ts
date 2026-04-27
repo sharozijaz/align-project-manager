@@ -26,6 +26,7 @@ export async function syncLocalTasksWithGoogleCalendar(tasks: Task[]) {
     updated: result.updated,
     removed: result.removed,
     skipped: result.skipped,
+    conflicts: result.conflicts,
     googleEvents,
   };
 }

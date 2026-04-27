@@ -5,6 +5,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { useCalendarStore } from "../store/calendarStore";
+import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
 import { useSyncStore } from "../store/syncStore";
 import { useTaskStore } from "../store/taskStore";
@@ -41,6 +42,7 @@ export function Settings() {
   const { tasks, restoreTask, permanentlyDeleteTask, replaceTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
   const syncState = useSyncStore();
+  const googleSyncState = useGoogleCalendarSyncStore();
   const googleReadiness = getGoogleCalendarReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const deletedTasks = tasks.filter((task) => task.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
@@ -203,11 +205,23 @@ export function Settings() {
       const result = await syncLocalTasksWithGoogleCalendar(tasks);
       const localEvents = events.filter((event) => event.source !== "google");
       replaceEvents([...result.googleEvents, ...localEvents]);
+      googleSyncState.recordSuccess(
+        {
+          created: result.created,
+          updated: result.updated,
+          removed: result.removed,
+          importedEvents: result.importedEvents,
+          conflicts: result.conflicts,
+        },
+        "manual",
+      );
       setCalendarMessage(
-        `Calendar synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.importedEvents} imported.`,
+        `Calendar synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.importedEvents} imported, ${result.conflicts.length} conflicts.`,
       );
     } catch (error) {
-      setCalendarMessage(errorMessage(error, "Could not sync Google Calendar."));
+      const message = errorMessage(error, "Could not sync Google Calendar.");
+      googleSyncState.recordError(message);
+      setCalendarMessage(message);
     } finally {
       setSyncingCalendar(false);
     }
@@ -224,6 +238,7 @@ export function Settings() {
       await disconnectGoogleCalendar();
       setGoogleConnection({ connected: false });
       replaceEvents(events.filter((event) => event.source !== "google"));
+      googleSyncState.setStatus("idle", "Google Calendar disconnected.");
       setCalendarMessage("Google Calendar disconnected.");
     } catch (error) {
       setCalendarMessage(errorMessage(error, "Could not disconnect Google Calendar."));
@@ -271,6 +286,45 @@ export function Settings() {
               <p className="text-[var(--warning)]">Missing {googleReadiness.missing.join(", ")}.</p>
             ) : null}
           </div>
+          {googleConnection?.connected ? (
+            <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-[var(--text)]">Sync status</p>
+                  <p className="text-[var(--text-muted)]">{googleSyncState.message}</p>
+                </div>
+                <Badge tone={googleSyncState.status === "error" ? "red" : googleSyncState.status === "syncing" ? "blue" : "emerald"}>
+                  {googleSyncState.status}
+                </Badge>
+              </div>
+              {googleSyncState.lastSyncedAt ? (
+                <p className="mt-2 text-xs text-[var(--text-soft)]">
+                  Last synced {new Date(googleSyncState.lastSyncedAt).toLocaleString()}
+                </p>
+              ) : null}
+              {googleSyncState.lastSummary?.conflicts.length ? (
+                <div className="mt-3 rounded-[var(--radius-sm)] border border-[var(--priority-medium-bg)] bg-[var(--priority-medium-bg)] p-3 text-[var(--priority-medium-text)]">
+                  <p className="font-semibold">Google edits were not overwritten</p>
+                  <p className="mt-1">
+                    {googleSyncState.lastSummary.conflicts.map((conflict) => conflict.taskTitle).join(", ")}
+                  </p>
+                </div>
+              ) : null}
+              {googleSyncState.history.length ? (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-soft)]">Recent syncs</p>
+                  {googleSyncState.history.slice(0, 3).map((item) => (
+                    <div key={item.id} className="flex flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-[var(--text-muted)]">
+                        {item.mode} · {item.created} created · {item.updated} updated · {item.importedEvents} imported
+                      </span>
+                      <span className="text-xs text-[var(--text-soft)]">{new Date(item.syncedAt).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
             {googleConnection?.connected ? (
               <>

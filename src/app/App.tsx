@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { AuthGate } from "../components/auth/AuthGate";
 import { Navbar } from "../components/layout/Navbar";
+import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
 
@@ -19,6 +20,7 @@ export function App() {
               <Outlet />
             </main>
             <WorkspaceAutoSync />
+            <GoogleCalendarAutoSync />
             <DeletedTaskToast />
           </div>
         </div>

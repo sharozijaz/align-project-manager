@@ -38,4 +38,6 @@ export interface GoogleCalendarSyncResult {
   updated: number;
   removed: number;
   skipped: number;
+  conflicts: GoogleCalendarConflict[];
 }
+import type { GoogleCalendarConflict } from "../../store/googleCalendarSyncStore";

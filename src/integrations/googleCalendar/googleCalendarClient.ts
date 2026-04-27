@@ -111,6 +111,7 @@ export async function syncTasksToGoogleCalendar(tasks: Task[]): Promise<GoogleCa
     updated: data.updated ?? 0,
     removed: data.removed ?? 0,
     skipped: data.skipped ?? 0,
+    conflicts: data.conflicts ?? [],
   };
 }
 
