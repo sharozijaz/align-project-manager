@@ -26,6 +26,7 @@ npm run build
 ```
 
 Deployment notes live in `DEPLOYMENT.md`.
+Security notes live in `SECURITY.md`.
 
 ## Project Structure
 
