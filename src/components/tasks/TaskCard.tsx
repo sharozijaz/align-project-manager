@@ -1,12 +1,14 @@
 import { Check, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { getTaskPriorityOption, getTaskStatusOption } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Modal } from "../ui/Modal";
+import { OptionBadge } from "../ui/OptionBadge";
 import { TaskForm } from "./TaskForm";
 import { dateLabel } from "../../utils/date";
-import { priorityTone, taskAccentClass, taskDateTone } from "../../utils/taskVisuals";
+import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
 
@@ -28,14 +30,14 @@ export function TaskCard({
   const [editing, setEditing] = useState(false);
 
   return (
-    <Card className={`p-4 ${taskAccentClass(task)}`}>
+    <Card className={`p-4 ${taskAccentClass(task)}`} style={taskAccentStyle(task)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className={`font-semibold text-slate-950 ${task.status === "completed" ? "line-through opacity-60" : ""}`}>{task.title}</h3>
           {task.description ? <p className="mt-1 text-sm text-slate-500">{task.description}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            <Badge tone={priorityTone(task.priority)}>{task.priority}</Badge>
-            <Badge tone={task.status === "completed" ? "emerald" : "blue"}>{task.status.replace("-", " ")}</Badge>
+            <OptionBadge option={getTaskPriorityOption(task.priority)} />
+            <OptionBadge option={getTaskStatusOption(task.status)} />
             <Badge>{project?.name ?? task.category}</Badge>
             <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate)}</Badge>
           </div>

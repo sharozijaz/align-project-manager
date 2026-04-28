@@ -1,9 +1,10 @@
 import type { Task } from "../../types/task";
+import { isTerminalTaskStatus } from "../../config/taskOptions";
 import { fetchGoogleEvents, syncTasksToGoogleCalendar } from "./googleCalendarClient";
 import type { GoogleCalendarSyncPreview } from "./types";
 
 export function previewGoogleCalendarSync(tasks: Task[]): GoogleCalendarSyncPreview {
-  const activeTasks = tasks.filter((task) => !task.deletedAt && task.status !== "completed");
+  const activeTasks = tasks.filter((task) => !task.deletedAt && !isTerminalTaskStatus(task.status));
   const syncableTasks = activeTasks.filter((task) => Boolean(task.dueDate)).length;
 
   return {

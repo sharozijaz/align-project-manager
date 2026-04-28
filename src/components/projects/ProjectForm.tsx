@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
+import { taskPriorityOptions } from "../../config/taskOptions";
 import type { Project, ProjectInput } from "../../types/project";
 
 const blank: ProjectInput = {
@@ -43,10 +44,11 @@ export function ProjectForm({
           <option value="completed">Completed</option>
         </Select>
         <Select value={form.priority} onChange={(event) => update("priority", event.target.value)}>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
+          {taskPriorityOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </Select>
         <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
       </div>

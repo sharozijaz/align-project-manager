@@ -6,13 +6,14 @@ import { TodayTasks } from "../components/dashboard/TodayTasks";
 import { UpcomingTasks } from "../components/dashboard/UpcomingTasks";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
+import { isTerminalTaskStatus } from "../config/taskOptions";
 import { isOverdue, isToday } from "../utils/date";
 
 export function Dashboard() {
   const { projects } = useProjectStore();
   const { tasks, addTask, updateTask, deleteTask, completeTask } = useTaskStore();
   const activeTasks = tasks.filter((task) => !task.deletedAt);
-  const openTasks = activeTasks.filter((task) => task.status !== "completed");
+  const openTasks = activeTasks.filter((task) => !isTerminalTaskStatus(task.status));
   const todayTasks = openTasks.filter((task) => isToday(task.dueDate));
   const overdueTasks = openTasks.filter((task) => isOverdue(task.dueDate));
 

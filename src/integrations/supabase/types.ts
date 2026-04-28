@@ -1,3 +1,5 @@
+import type { TaskCategory, TaskPriority, TaskStatus } from "../../types/task";
+
 export interface Database {
   public: {
     Tables: {
@@ -8,7 +10,7 @@ export interface Database {
           name: string;
           description: string | null;
           status: "active" | "paused" | "completed";
-          priority: "low" | "medium" | "high" | "urgent";
+          priority: TaskPriority;
           due_date: string | null;
           created_at: string;
           updated_at: string;
@@ -19,7 +21,7 @@ export interface Database {
           name: string;
           description?: string | null;
           status: "active" | "paused" | "completed";
-          priority: "low" | "medium" | "high" | "urgent";
+          priority: TaskPriority;
           due_date?: string | null;
           created_at: string;
           updated_at: string;
@@ -34,9 +36,9 @@ export interface Database {
           title: string;
           description: string | null;
           project_id: string | null;
-          category: "personal" | "work" | "project" | "meeting" | "chore";
-          priority: "low" | "medium" | "high" | "urgent";
-          status: "not-started" | "in-progress" | "completed";
+          category: TaskCategory;
+          priority: TaskPriority;
+          status: TaskStatus;
           due_date: string | null;
           deleted_at: string | null;
           created_at: string;
@@ -48,9 +50,9 @@ export interface Database {
           title: string;
           description?: string | null;
           project_id?: string | null;
-          category: "personal" | "work" | "project" | "meeting" | "chore";
-          priority: "low" | "medium" | "high" | "urgent";
-          status: "not-started" | "in-progress" | "completed";
+          category: TaskCategory;
+          priority: TaskPriority;
+          status: TaskStatus;
           due_date?: string | null;
           deleted_at?: string | null;
           created_at: string;

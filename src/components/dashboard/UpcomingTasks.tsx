@@ -2,6 +2,7 @@ import { CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
+import { isTerminalTaskStatus } from "../../config/taskOptions";
 import { dateLabel, isUpcoming } from "../../utils/date";
 import { priorityTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
@@ -18,7 +19,7 @@ interface UpcomingItem {
 
 export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Project[] }) {
   const upcomingTasks: UpcomingItem[] = tasks
-    .filter((task) => task.status !== "completed" && isUpcoming(task.dueDate))
+    .filter((task) => !isTerminalTaskStatus(task.status) && isUpcoming(task.dueDate))
     .map((task) => ({
       id: task.id,
       title: task.title,

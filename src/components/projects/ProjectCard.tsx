@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Modal } from "../ui/Modal";
 import { ProjectForm } from "./ProjectForm";
+import { isTerminalTaskStatus } from "../../config/taskOptions";
 import { dateLabel } from "../../utils/date";
 import type { Project, ProjectInput } from "../../types/project";
 import type { Task } from "../../types/task";
@@ -23,7 +24,7 @@ export function ProjectCard({
 }) {
   const [editing, setEditing] = useState(false);
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
-  const open = projectTasks.filter((task) => task.status !== "completed").length;
+  const open = projectTasks.filter((task) => !isTerminalTaskStatus(task.status)).length;
   const complete = projectTasks.length - open;
 
   return (

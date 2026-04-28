@@ -1,6 +1,8 @@
-export type TaskCategory = "personal" | "work" | "project" | "meeting" | "chore";
-export type TaskPriority = "low" | "medium" | "high" | "urgent";
-export type TaskStatus = "not-started" | "in-progress" | "completed";
+import type { TaskCategoryValue, TaskPriorityValue, TaskStatusValue } from "../config/taskOptions";
+
+export type TaskCategory = TaskCategoryValue;
+export type TaskPriority = TaskPriorityValue;
+export type TaskStatus = TaskStatusValue;
 
 export interface Task {
   id: string;

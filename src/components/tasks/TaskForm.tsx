@@ -2,6 +2,14 @@ import { useState } from "react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
+import {
+  getTaskPriorityOption,
+  getTaskStatusOption,
+  isKnownTaskPriority,
+  isKnownTaskStatus,
+  taskPriorityOptions,
+  taskStatusOptions,
+} from "../../config/taskOptions";
 import type { Task, TaskInput } from "../../types/task";
 import type { Project } from "../../types/project";
 
@@ -55,15 +63,20 @@ export function TaskForm({
         ))}
       </Select>
       <Select value={form.priority} onChange={(event) => update("priority", event.target.value)}>
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="high">High</option>
-        <option value="urgent">Urgent</option>
+        {!isKnownTaskPriority(form.priority) ? <option value={form.priority}>{getTaskPriorityOption(form.priority).label}</option> : null}
+        {taskPriorityOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </Select>
       <Select value={form.status} onChange={(event) => update("status", event.target.value)}>
-        <option value="not-started">Not Started</option>
-        <option value="in-progress">In Progress</option>
-        <option value="completed">Completed</option>
+        {!isKnownTaskStatus(form.status) ? <option value={form.status}>{getTaskStatusOption(form.status).label}</option> : null}
+        {taskStatusOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </Select>
       <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
       <div className="flex gap-2">
