@@ -15,7 +15,6 @@ const links = [
   { to: "/projects", label: "Projects", icon: ListTodo },
   { to: "/tasks", label: "Tasks", icon: CheckCircle2 },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Navbar() {
@@ -45,10 +44,29 @@ export function Navbar() {
       <div className="flex items-center gap-2 text-sm">
         <SyncIndicator />
         <ThemeToggle />
-        <span className="hidden text-[var(--text-muted)] sm:inline">Sharoz</span>
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
-          <UserRound size={16} />
-        </span>
+        <details className="group relative">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-transparent px-2 py-1 text-[var(--text-muted)] transition hover:border-[var(--border)] hover:bg-[var(--button-secondary-bg)] hover:text-[var(--text)] [&::-webkit-details-marker]:hidden">
+            <span className="hidden sm:inline">Sharoz</span>
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
+              <UserRound size={16} />
+            </span>
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 w-48 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? "align-gradient text-white"
+                    : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
+                }`
+              }
+            >
+              <Settings size={16} />
+              Settings
+            </NavLink>
+          </div>
+        </details>
       </div>
     </header>
   );

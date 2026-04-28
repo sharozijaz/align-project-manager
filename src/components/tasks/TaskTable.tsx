@@ -1,5 +1,5 @@
 import { Check, Trash2 } from "lucide-react";
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   getTaskPriorityOption,
   getTaskStatusOption,
@@ -158,7 +158,12 @@ function TaskTableRow({
         )}
       </td>
       <td className="px-4 py-3">
-        <Select value={task.priority} onChange={(event) => onUpdate(task.id, { priority: event.target.value as Task["priority"] })} className="min-h-10">
+        <Select
+          value={task.priority}
+          onChange={(event) => onUpdate(task.id, { priority: event.target.value as Task["priority"] })}
+          className="min-h-10"
+          style={optionSelectStyle(priorityOption)}
+        >
           {!isKnownTaskPriority(task.priority) ? <option value={task.priority}>{priorityOption.label}</option> : null}
           {taskPriorityOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -166,12 +171,14 @@ function TaskTableRow({
             </option>
           ))}
         </Select>
-        <div className="mt-2">
-          <OptionBadge option={priorityOption} />
-        </div>
       </td>
       <td className="px-4 py-3">
-        <Select value={task.status} onChange={(event) => onUpdate(task.id, { status: event.target.value as Task["status"] })} className="min-h-10">
+        <Select
+          value={task.status}
+          onChange={(event) => onUpdate(task.id, { status: event.target.value as Task["status"] })}
+          className="min-h-10"
+          style={optionSelectStyle(statusOption)}
+        >
           {!isKnownTaskStatus(task.status) ? <option value={task.status}>{statusOption.label}</option> : null}
           {taskStatusOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -179,9 +186,6 @@ function TaskTableRow({
             </option>
           ))}
         </Select>
-        <div className="mt-2">
-          <OptionBadge option={statusOption} />
-        </div>
       </td>
       <td className="px-4 py-3">
         <Input
@@ -212,4 +216,12 @@ function projectCategoryUpdate(value: string): Partial<TaskInput> {
   }
 
   return { projectId: undefined, category: value.replace("category:", "") as TaskCategory };
+}
+
+function optionSelectStyle(option: { bg: string; text: string; border: string }): CSSProperties {
+  return {
+    backgroundColor: option.bg,
+    borderColor: option.border,
+    color: option.text,
+  };
 }

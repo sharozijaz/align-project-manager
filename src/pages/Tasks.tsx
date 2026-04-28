@@ -24,7 +24,7 @@ export function Tasks() {
         if (filter === "upcoming") return isUpcoming(task.dueDate);
         if (filter === "overdue") return !isTerminalTaskStatus(task.status) && isOverdue(task.dueDate);
         if (filter === "completed") return task.status === "completed";
-        return true;
+        return !isTerminalTaskStatus(task.status);
       })
       .filter((task) => task.title.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {

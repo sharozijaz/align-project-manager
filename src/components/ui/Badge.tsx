@@ -8,7 +8,7 @@ const toneMap = {
   purple: "border-transparent bg-[var(--priority-urgent-bg)] text-[var(--priority-urgent-text)]",
   red: "border-transparent bg-[var(--priority-high-bg)] text-[var(--priority-high-text)]",
   rose: "border-transparent bg-[var(--button-danger-bg)] text-[var(--button-danger-text)]",
-  emerald: "border-transparent bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]",
+  emerald: "border-transparent bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]",
 };
 
 export function Badge({ children, tone = "slate" }: { children: ReactNode; tone?: keyof typeof toneMap }) {
