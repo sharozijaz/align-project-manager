@@ -1,6 +1,6 @@
 import { Check, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { getTaskPriorityOption, getTaskStatusOption } from "../../config/taskOptions";
+import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -33,7 +33,7 @@ export function TaskCard({
     <Card className={`p-4 ${taskAccentClass(task)}`} style={taskAccentStyle(task)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className={`font-semibold text-slate-950 ${task.status === "completed" ? "line-through opacity-60" : ""}`}>{task.title}</h3>
+          <h3 className={`font-semibold text-slate-950 ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}>{task.title}</h3>
           {task.description ? <p className="mt-1 text-sm text-slate-500">{task.description}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <OptionBadge option={getTaskPriorityOption(task.priority)} />

@@ -4,7 +4,7 @@ import { TaskViewToggle } from "../tasks/TaskViewToggle";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { useMemo, useState } from "react";
-import { taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
+import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import { useTaskViewPreference } from "../../hooks/useTaskViewPreference";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
@@ -29,7 +29,7 @@ export function ProjectDetail({
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [view, setView] = useTaskViewPreference();
-  const complete = tasks.filter((task) => task.status === "completed").length;
+  const complete = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
   const progress = tasks.length ? Math.round((complete / tasks.length) * 100) : 0;
   const visibleTasks = useMemo(
     () =>

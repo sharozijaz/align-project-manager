@@ -1,8 +1,16 @@
 export const taskPriorityOptions = [
   {
+    value: "high",
+    label: "High",
+    rank: 1,
+    bg: "#ffedd5",
+    text: "#9a3412",
+    border: "#f97316",
+  },
+  {
     value: "low",
     label: "Low",
-    rank: 4,
+    rank: 3,
     bg: "#dcfce7",
     text: "#166534",
     border: "#22c55e",
@@ -10,101 +18,117 @@ export const taskPriorityOptions = [
   {
     value: "medium",
     label: "Medium",
-    rank: 3,
+    rank: 2,
     bg: "#fef3c7",
     text: "#92400e",
     border: "#f59e0b",
   },
   {
-    value: "high",
-    label: "High",
-    rank: 2,
-    bg: "#ffedd5",
-    text: "#9a3412",
-    border: "#f97316",
-  },
-  {
     value: "urgent",
     label: "Urgent",
-    rank: 1,
+    rank: 0,
     bg: "#f3e8ff",
     text: "#6b21a8",
     border: "#8b5cf6",
-  },
-  {
-    value: "critical",
-    label: "Critical",
-    rank: 0,
-    bg: "#fee2e2",
-    text: "#991b1b",
-    border: "#ef4444",
   },
 ] as const;
 
 export const taskStatusOptions = [
   {
-    value: "backlog",
-    label: "Backlog",
-    rank: 0,
-    bg: "#f1f5f9",
-    text: "#334155",
-    border: "#94a3b8",
-  },
-  {
-    value: "not-started",
-    label: "Not Started",
-    rank: 1,
-    bg: "#eff6ff",
-    text: "#1e3a8a",
-    border: "#60a5fa",
-  },
-  {
     value: "in-progress",
     label: "In Progress",
-    rank: 2,
+    rank: 1,
     bg: "#e0f2fe",
     text: "#075985",
     border: "#0ea5e9",
   },
   {
-    value: "review",
-    label: "Review",
-    rank: 3,
-    bg: "#ede9fe",
-    text: "#5b21b6",
-    border: "#8b5cf6",
+    value: "not-started",
+    label: "Not Started",
+    rank: 0,
+    bg: "#eff6ff",
+    text: "#1e3a8a",
+    border: "#60a5fa",
   },
   {
-    value: "blocked",
-    label: "Blocked",
-    rank: 4,
-    bg: "#fee2e2",
-    text: "#991b1b",
-    border: "#ef4444",
-  },
-  {
-    value: "waiting",
-    label: "Waiting",
+    value: "approval-pending",
+    label: "Approval Pending",
     rank: 5,
     bg: "#fef3c7",
     text: "#92400e",
     border: "#f59e0b",
   },
   {
-    value: "completed",
-    label: "Completed",
+    value: "under-review",
+    label: "Under Review",
+    rank: 4,
+    bg: "#ede9fe",
+    text: "#5b21b6",
+    border: "#8b5cf6",
+  },
+  {
+    value: "approved",
+    label: "Approved",
     rank: 6,
     bg: "#dcfce7",
     text: "#166534",
     border: "#22c55e",
   },
   {
+    value: "done",
+    label: "Done",
+    rank: 9,
+    bg: "#dcfce7",
+    text: "#166534",
+    border: "#22c55e",
+  },
+  {
+    value: "delivered",
+    label: "Delivered",
+    rank: 10,
+    bg: "#ccfbf1",
+    text: "#115e59",
+    border: "#14b8a6",
+  },
+  {
+    value: "postponed",
+    label: "Postponed",
+    rank: 8,
+    bg: "#f1f5f9",
+    text: "#334155",
+    border: "#94a3b8",
+  },
+  {
     value: "cancelled",
     label: "Cancelled",
-    rank: 7,
+    rank: 11,
     bg: "#f3f4f6",
     text: "#4b5563",
     border: "#9ca3af",
+  },
+  {
+    value: "waiting",
+    label: "Waiting",
+    rank: 7,
+    bg: "#fef3c7",
+    text: "#92400e",
+    border: "#f59e0b",
+  },
+  {
+    value: "blocked",
+    label: "Blocked",
+    rank: 3,
+    bg: "#fee2e2",
+    text: "#991b1b",
+    border: "#ef4444",
+  },
+  {
+    value: "review",
+    label: "Review",
+    rank: 2,
+    bg: "#ede9fe",
+    text: "#5b21b6",
+    border: "#8b5cf6",
   },
 ] as const;
 
@@ -166,7 +190,17 @@ export const isKnownTaskPriority = (priority: string) =>
 export const isKnownTaskStatus = (status: string) =>
   taskStatusOptions.some((option) => option.value === status);
 
-export const isTerminalTaskStatus = (status: string) => status === "completed" || status === "cancelled";
+export const normalizeTaskPriority = (priority: string): TaskPriorityValue =>
+  priority === "critical" ? "urgent" : isKnownTaskPriority(priority) ? (priority as TaskPriorityValue) : "medium";
+
+export const normalizeTaskStatus = (status: string): TaskStatusValue => {
+  if (status === "completed") return "done";
+  if (status === "backlog") return "not-started";
+  return isKnownTaskStatus(status) ? (status as TaskStatusValue) : "not-started";
+};
+
+export const isTerminalTaskStatus = (status: string) =>
+  status === "done" || status === "delivered" || status === "cancelled" || status === "completed";
 
 export const titleizeOption = (value: string) =>
   value

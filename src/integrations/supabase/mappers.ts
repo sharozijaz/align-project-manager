@@ -1,6 +1,7 @@
 import type { CalendarEvent } from "../../types/calendar";
 import type { Project } from "../../types/project";
 import type { Task } from "../../types/task";
+import { normalizeTaskPriority, normalizeTaskStatus } from "../../config/taskOptions";
 import type { Database } from "./types";
 
 type ProjectRow = Database["public"]["Tables"]["projects"]["Row"];
@@ -13,7 +14,7 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   name: project.name,
   description: project.description ?? null,
   status: project.status,
-  priority: project.priority,
+  priority: normalizeTaskPriority(project.priority),
   due_date: project.dueDate ?? null,
   created_at: project.createdAt,
   updated_at: project.updatedAt,
@@ -37,8 +38,8 @@ export const taskToRow = (task: Task, userId: string): TaskRow => ({
   description: task.description ?? null,
   project_id: task.projectId ?? null,
   category: task.category,
-  priority: task.priority,
-  status: task.status,
+  priority: normalizeTaskPriority(task.priority),
+  status: normalizeTaskStatus(task.status),
   due_date: task.dueDate ?? null,
   deleted_at: task.deletedAt ?? null,
   created_at: task.createdAt,
@@ -51,8 +52,8 @@ export const rowToTask = (row: TaskRow): Task => ({
   description: row.description ?? undefined,
   projectId: row.project_id ?? undefined,
   category: row.category,
-  priority: row.priority,
-  status: row.status,
+  priority: normalizeTaskPriority(row.priority),
+  status: normalizeTaskStatus(row.status),
   dueDate: row.due_date ?? undefined,
   deletedAt: row.deleted_at ?? undefined,
   createdAt: row.created_at,

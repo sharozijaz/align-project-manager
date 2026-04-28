@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { demoTasks } from "./demoData";
+import { normalizeTaskPriority, normalizeTaskStatus } from "../config/taskOptions";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
 
 interface TaskState {
@@ -65,12 +66,20 @@ export const useTaskStore = create<TaskState>()(
         set((state) => ({
           tasks: state.tasks.map((task) =>
             task.id === taskId
-              ? { ...task, status: "completed" satisfies TaskStatus, updatedAt: stamp() }
+              ? { ...task, status: "done" satisfies TaskStatus, updatedAt: stamp() }
               : task,
           ),
         })),
       dismissDeleteNotice: () => set({ lastDeletedTaskId: undefined }),
-      replaceTasks: (tasks) => set({ tasks, lastDeletedTaskId: undefined }),
+      replaceTasks: (tasks) =>
+        set({
+          tasks: tasks.map((task) => ({
+            ...task,
+            priority: normalizeTaskPriority(task.priority),
+            status: normalizeTaskStatus(task.status),
+          })),
+          lastDeletedTaskId: undefined,
+        }),
     }),
     { name: "priority-tasks-v1" },
   ),

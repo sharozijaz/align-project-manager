@@ -27,7 +27,7 @@ export function TaskFilters({
         <option value="today">Today</option>
         <option value="upcoming">Upcoming</option>
         <option value="overdue">Overdue</option>
-        <option value="completed">Completed</option>
+        <option value="completed">Done</option>
       </Select>
       <Select value={sort} onChange={(event) => onSortChange(event.target.value as TaskSort)}>
         <option value="dueDate">Due date</option>

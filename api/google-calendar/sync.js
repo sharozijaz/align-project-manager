@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     for (const task of tasks) {
       const link = links.get(task.id);
       const linkedEventId = link?.google_event_id;
-      const shouldSync = task.dueDate && !["completed", "cancelled"].includes(task.status) && !task.deletedAt;
+      const shouldSync = task.dueDate && !["done", "delivered", "cancelled"].includes(task.status) && !task.deletedAt;
 
       if (!shouldSync) {
         skipped += 1;

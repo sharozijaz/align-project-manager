@@ -5,6 +5,7 @@ import {
   getTaskStatusOption,
   isKnownTaskPriority,
   isKnownTaskStatus,
+  isTerminalTaskStatus,
   taskCategoryOptions,
   taskPriorityOptions,
   taskStatusOptions,
@@ -120,7 +121,7 @@ function TaskTableRow({
           onChange={(event) => setTitle(event.target.value)}
           onBlur={commitTitle}
           onKeyDown={handleTitleKeyDown}
-          className={`min-h-10 ${task.status === "completed" ? "line-through opacity-70" : ""}`}
+          className={`min-h-10 ${isTerminalTaskStatus(task.status) ? "line-through opacity-70" : ""}`}
         />
         {task.description ? <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{task.description}</p> : null}
       </td>
@@ -198,7 +199,7 @@ function TaskTableRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex justify-end gap-2">
-          <Button title="Mark complete" variant="secondary" className="px-3" onClick={() => onComplete(task.id)} disabled={task.status === "completed"}>
+          <Button title="Mark done" variant="secondary" className="px-3" onClick={() => onComplete(task.id)} disabled={isTerminalTaskStatus(task.status)}>
             <Check size={16} />
           </Button>
           <Button title="Delete task" variant="danger" className="px-3" onClick={() => onDelete(task.id)}>

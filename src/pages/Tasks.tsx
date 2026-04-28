@@ -23,7 +23,7 @@ export function Tasks() {
         if (filter === "today") return isToday(task.dueDate);
         if (filter === "upcoming") return isUpcoming(task.dueDate);
         if (filter === "overdue") return !isTerminalTaskStatus(task.status) && isOverdue(task.dueDate);
-        if (filter === "completed") return task.status === "completed";
+        if (filter === "completed") return isTerminalTaskStatus(task.status);
         return !isTerminalTaskStatus(task.status);
       })
       .filter((task) => task.title.toLowerCase().includes(search.toLowerCase()))

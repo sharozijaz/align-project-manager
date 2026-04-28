@@ -3,7 +3,6 @@ import { getTaskPriorityOption, isTerminalTaskStatus } from "../config/taskOptio
 import type { Task, TaskPriority } from "../types/task";
 
 export function priorityTone(priority: TaskPriority) {
-  if (priority === "critical") return "red";
   if (priority === "urgent") return "purple";
   if (priority === "high") return "orange";
   if (priority === "medium") return "amber";
