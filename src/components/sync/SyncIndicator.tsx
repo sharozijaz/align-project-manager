@@ -12,7 +12,7 @@ const statusCopy = {
   error: "Sync issue",
 };
 
-export function SyncIndicator() {
+export function SyncIndicator({ className = "" }: { className?: string }) {
   const { session, loading } = useSupabaseSession();
   const syncState = useSyncStore((state) => state.state);
   const message = useSyncStore((state) => state.message);
@@ -21,7 +21,7 @@ export function SyncIndicator() {
     return (
       <Link
         to="/settings"
-        className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className={`inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] ${className}`}
         title="Supabase is not configured"
       >
         <CloudOff size={14} />
@@ -34,7 +34,7 @@ export function SyncIndicator() {
     return (
       <Link
         to="/settings"
-        className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className={`inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] ${className}`}
         title="Sign in to enable cloud sync"
       >
         <Cloud size={14} />
@@ -54,7 +54,7 @@ export function SyncIndicator() {
         isError
           ? "border-[var(--danger)] bg-[var(--button-danger-bg)] text-[var(--button-danger-text)]"
           : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
-      }`}
+      } ${className}`}
       title={message}
     >
       <Icon size={14} className={isBusy ? "animate-spin" : ""} />

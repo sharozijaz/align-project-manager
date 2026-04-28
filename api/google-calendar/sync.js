@@ -33,6 +33,7 @@ export default async function handler(req, res) {
     const user = await getSupabaseUser(req, env);
     const connection = await requireGoogleConnection(env, user.id);
     const tasks = Array.isArray(req.body?.tasks) ? req.body.tasks : [];
+    const forceTaskIds = new Set(Array.isArray(req.body?.forceTaskIds) ? req.body.forceTaskIds : []);
     const links = await findTaskLinks(env, user.id);
     let created = 0;
     let updated = 0;
@@ -43,7 +44,7 @@ export default async function handler(req, res) {
     for (const task of tasks) {
       const link = links.get(task.id);
       const linkedEventId = link?.google_event_id;
-      const shouldSync = task.dueDate && !["done", "delivered", "cancelled"].includes(task.status) && !task.deletedAt;
+      const shouldSync = task.dueDate && !["done", "delivered", "cancelled", "completed"].includes(task.status) && !task.deletedAt;
 
       if (!shouldSync) {
         skipped += 1;
@@ -62,7 +63,7 @@ export default async function handler(req, res) {
       if (linkedEventId) {
         const googleEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`);
 
-        if (wasGoogleEventEditedAfterLastSync(link, googleEvent)) {
+        if (wasGoogleEventEditedAfterLastSync(link, googleEvent) && !forceTaskIds.has(task.id)) {
           conflicts.push({
             taskId: task.id,
             taskTitle: task.title,

@@ -6,6 +6,7 @@ import type {
   GoogleCalendarConnection,
   GoogleCalendarEvent,
   GoogleCalendarReadiness,
+  GoogleCalendarSyncOptions,
   GoogleCalendarSyncResult,
 } from "./types";
 
@@ -90,7 +91,7 @@ export async function fetchGoogleEvents(): Promise<GoogleCalendarEvent[]> {
   return (data.events ?? []) as GoogleCalendarEvent[];
 }
 
-export async function syncTasksToGoogleCalendar(tasks: Task[]): Promise<GoogleCalendarSyncResult> {
+export async function syncTasksToGoogleCalendar(tasks: Task[], options: GoogleCalendarSyncOptions = {}): Promise<GoogleCalendarSyncResult> {
   const token = await getAccessToken();
   const response = await fetch("/api/google-calendar/sync", {
     method: "POST",
@@ -98,7 +99,7 @@ export async function syncTasksToGoogleCalendar(tasks: Task[]): Promise<GoogleCa
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ tasks }),
+    body: JSON.stringify({ tasks, forceTaskIds: options.forceTaskIds ?? [] }),
   });
   const data = (await response.json()) as Partial<GoogleCalendarSyncResult> & { error?: string };
 

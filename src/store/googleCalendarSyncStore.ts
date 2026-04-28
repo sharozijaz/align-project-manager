@@ -30,6 +30,7 @@ interface GoogleCalendarSyncState {
   setStatus: (status: GoogleCalendarSyncState["status"], message: string) => void;
   recordSuccess: (summary: GoogleCalendarSyncSummary, mode: GoogleCalendarSyncHistoryItem["mode"]) => void;
   recordError: (message: string) => void;
+  clearConflicts: () => void;
 }
 
 export const useGoogleCalendarSyncStore = create<GoogleCalendarSyncState>((set) => ({
@@ -60,4 +61,10 @@ export const useGoogleCalendarSyncStore = create<GoogleCalendarSyncState>((set) 
       };
     }),
   recordError: (message) => set({ status: "error", message }),
+  clearConflicts: () =>
+    set((state) => ({
+      status: state.status === "error" ? "idle" : state.status,
+      message: "Google Calendar conflict dismissed. Google's edited event is being kept.",
+      lastSummary: state.lastSummary ? { ...state.lastSummary, conflicts: [] } : state.lastSummary,
+    })),
 }));

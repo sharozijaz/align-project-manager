@@ -1,4 +1,5 @@
 import type { CalendarEvent } from "../../types/calendar";
+import type { GoogleCalendarConflict } from "../../store/googleCalendarSyncStore";
 
 export interface GoogleCalendarConnection {
   connected: boolean;
@@ -40,4 +41,7 @@ export interface GoogleCalendarSyncResult {
   skipped: number;
   conflicts: GoogleCalendarConflict[];
 }
-import type { GoogleCalendarConflict } from "../../store/googleCalendarSyncStore";
+
+export interface GoogleCalendarSyncOptions {
+  forceTaskIds?: string[];
+}

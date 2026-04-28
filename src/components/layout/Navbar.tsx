@@ -66,14 +66,15 @@ export function Navbar() {
             </span>
           </button>
           {isProfileMenuOpen ? (
-          <div className="absolute right-0 z-30 mt-2 w-56 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
+          <div className="absolute right-0 top-full z-30 w-60 pt-2">
+          <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
             <div className="border-b border-[var(--border)] px-3 py-2">
               <p className="text-sm font-semibold text-[var(--text)]">Sharoz</p>
               <p className="text-xs text-[var(--text-soft)]">Workspace profile</p>
             </div>
             <div className="mt-2 grid gap-2">
-              <SyncIndicator />
-              <ThemeToggle showLabel />
+              <SyncIndicator className="w-full justify-center rounded-md" />
+              <ThemeToggle showLabel className="w-full rounded-md" />
             </div>
             <NavLink
               to="/settings"
@@ -97,6 +98,7 @@ export function Navbar() {
               <X size={16} />
               Close menu
             </button>
+          </div>
           </div>
           ) : null}
         </div>

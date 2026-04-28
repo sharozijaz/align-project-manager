@@ -27,6 +27,7 @@ import { dateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
 import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup } from "../utils/storage";
 import { priorityTone } from "../utils/taskVisuals";
+import { appBuild, appVersion } from "../utils/appVersion";
 
 export function Settings() {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -230,6 +231,42 @@ export function Settings() {
     }
   };
 
+  const handleGoogleCalendarOverwriteConflicts = async () => {
+    const forceTaskIds = googleSyncState.lastSummary?.conflicts.map((conflict) => conflict.taskId) ?? [];
+    if (!forceTaskIds.length) return;
+
+    const shouldOverwrite = window.confirm("Overwrite the conflicting Google Calendar events with Align task details?");
+    if (!shouldOverwrite) return;
+
+    setSyncingCalendar(true);
+    setCalendarMessage("");
+
+    try {
+      const result = await syncLocalTasksWithGoogleCalendar(tasks, { forceTaskIds });
+      const localEvents = events.filter((event) => event.source !== "google");
+      replaceEvents([...result.googleEvents, ...localEvents]);
+      googleSyncState.recordSuccess(
+        {
+          created: result.created,
+          updated: result.updated,
+          removed: result.removed,
+          importedEvents: result.importedEvents,
+          conflicts: result.conflicts,
+        },
+        "manual",
+      );
+      setCalendarMessage(
+        `Conflicts overwritten. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.importedEvents} imported.`,
+      );
+    } catch (error) {
+      const message = errorMessage(error, "Could not overwrite Google Calendar conflicts.");
+      googleSyncState.recordError(message);
+      setCalendarMessage(message);
+    } finally {
+      setSyncingCalendar(false);
+    }
+  };
+
   const handleGoogleCalendarDisconnect = async () => {
     const shouldDisconnect = window.confirm("Disconnect Google Calendar from Align?");
     if (!shouldDisconnect) return;
@@ -317,6 +354,14 @@ export function Settings() {
                   <p className="mt-1">
                     {googleSyncState.lastSummary.conflicts.map((conflict) => conflict.taskTitle).join(", ")}
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={googleSyncState.clearConflicts}>
+                      Keep Google
+                    </Button>
+                    <Button onClick={() => void handleGoogleCalendarOverwriteConflicts()} disabled={syncingCalendar}>
+                      Overwrite with Align
+                    </Button>
+                  </div>
                 </div>
               ) : null}
               {googleSyncState.history.length ? (
@@ -494,6 +539,9 @@ export function Settings() {
           )}
         </div>
       </Card>
+      <p className="pb-2 text-center text-xs text-[var(--text-soft)]">
+        Align v{appVersion} · Build {appBuild}
+      </p>
     </div>
   );
 }

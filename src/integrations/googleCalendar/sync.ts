@@ -1,7 +1,7 @@
 import type { Task } from "../../types/task";
 import { isTerminalTaskStatus } from "../../config/taskOptions";
 import { fetchGoogleEvents, syncTasksToGoogleCalendar } from "./googleCalendarClient";
-import type { GoogleCalendarSyncPreview } from "./types";
+import type { GoogleCalendarSyncOptions, GoogleCalendarSyncPreview } from "./types";
 
 export function previewGoogleCalendarSync(tasks: Task[]): GoogleCalendarSyncPreview {
   const activeTasks = tasks.filter((task) => !task.deletedAt && !isTerminalTaskStatus(task.status));
@@ -16,9 +16,9 @@ export function previewGoogleCalendarSync(tasks: Task[]): GoogleCalendarSyncPrev
   };
 }
 
-export async function syncLocalTasksWithGoogleCalendar(tasks: Task[]) {
+export async function syncLocalTasksWithGoogleCalendar(tasks: Task[], options: GoogleCalendarSyncOptions = {}) {
   const googleEvents = await fetchGoogleEvents();
-  const result = await syncTasksToGoogleCalendar(tasks);
+  const result = await syncTasksToGoogleCalendar(tasks, options);
 
   return {
     syncedTasks: result.created + result.updated,
