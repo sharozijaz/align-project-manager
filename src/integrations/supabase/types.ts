@@ -11,6 +11,7 @@ export interface Database {
           description: string | null;
           status: "active" | "paused" | "completed";
           priority: TaskPriority;
+          start_date: string | null;
           due_date: string | null;
           created_at: string;
           updated_at: string;
@@ -22,6 +23,7 @@ export interface Database {
           description?: string | null;
           status: "active" | "paused" | "completed";
           priority: TaskPriority;
+          start_date?: string | null;
           due_date?: string | null;
           created_at: string;
           updated_at: string;
@@ -39,6 +41,7 @@ export interface Database {
           category: TaskCategory;
           priority: TaskPriority;
           status: TaskStatus;
+          start_date: string | null;
           due_date: string | null;
           reminder: TaskReminder;
           recurrence: TaskRecurrence;
@@ -56,6 +59,7 @@ export interface Database {
           category: TaskCategory;
           priority: TaskPriority;
           status: TaskStatus;
+          start_date?: string | null;
           due_date?: string | null;
           reminder?: TaskReminder;
           recurrence?: TaskRecurrence;

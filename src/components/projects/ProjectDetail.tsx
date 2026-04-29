@@ -8,6 +8,7 @@ import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "..
 import { useTaskViewPreference } from "../../hooks/useTaskViewPreference";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
+import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
 export function ProjectDetail({
   project,
@@ -48,6 +49,11 @@ export function ProjectDetail({
           <div>
             <h1 className="text-2xl font-bold text-slate-950">{project.name}</h1>
             <p className="mt-1 text-sm text-slate-500">{project.description || "Project details and tasks."}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-muted)]">
+              <span>{startDateLabel(project.startDate)}</span>
+              <span>{dateLabel(project.dueDate)}</span>
+              {project.startDate ? <span>{durationLabel(project.startDate, project.dueDate)}</span> : null}
+            </div>
           </div>
           <strong className="text-2xl text-slate-950">{progress}%</strong>
         </div>

@@ -7,7 +7,7 @@ import { Card } from "../ui/Card";
 import { Modal } from "../ui/Modal";
 import { ProjectForm } from "./ProjectForm";
 import { isTerminalTaskStatus } from "../../config/taskOptions";
-import { dateLabel } from "../../utils/date";
+import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import type { Project, ProjectInput } from "../../types/project";
 import type { Task } from "../../types/task";
 
@@ -47,7 +47,9 @@ export function ProjectCard({
       </div>
       <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         <Badge tone={project.status === "completed" ? "emerald" : project.status === "paused" ? "amber" : "blue"}>{project.status}</Badge>
+        {project.startDate ? <Badge>{startDateLabel(project.startDate)}</Badge> : null}
         <Badge>{dateLabel(project.dueDate)}</Badge>
+        {project.startDate ? <Badge>{durationLabel(project.startDate, project.dueDate)}</Badge> : null}
         <Badge>{projectTasks.length} tasks</Badge>
         <Badge>{open} open</Badge>
         <Badge>{complete} done</Badge>

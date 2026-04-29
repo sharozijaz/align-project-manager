@@ -22,6 +22,7 @@ const blank: TaskInput = {
   category: "personal",
   priority: "medium",
   status: "not-started",
+  startDate: "",
   dueDate: "",
   reminder: "none",
   recurrence: "none",
@@ -54,11 +55,11 @@ export function TaskForm({
 
   return (
     <form
-      className={compact ? "grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
+      className={compact ? "grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_0.9fr_0.9fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
-        onSubmit({ ...form, title: form.title.trim(), projectId: form.projectId || undefined, dueDate: form.dueDate || undefined });
+        onSubmit({ ...form, title: form.title.trim(), projectId: form.projectId || undefined, startDate: form.startDate || undefined, dueDate: form.dueDate || undefined });
         if (!initialTask) setForm(blank);
       }}
     >
@@ -98,6 +99,7 @@ export function TaskForm({
           </option>
         ))}
       </Select>
+      <Input type="date" value={form.startDate ?? ""} onChange={(event) => update("startDate", event.target.value)} aria-label="Start date" />
       <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
       <Select value={form.reminder} onChange={(event) => update("reminder", event.target.value)}>
         {taskReminderOptions.map((option) => (

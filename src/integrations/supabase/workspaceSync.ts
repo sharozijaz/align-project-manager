@@ -79,7 +79,16 @@ async function upsertProjects(rows: ReturnType<typeof projectToRow>[]) {
 
   if (rows.length) {
     const { error: upsertError } = await client.from("projects").upsert(rows);
-    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload projects."));
+    if (upsertError) {
+      if (isMissingColumn(upsertError, "start_date")) {
+        const legacyRows = rows.map(({ start_date: _startDate, ...row }) => row);
+        const { error: retryError } = await client.from("projects").upsert(legacyRows);
+        if (!retryError) return;
+        throw new Error(errorMessage(retryError, "Could not upload projects."));
+      }
+
+      throw new Error(errorMessage(upsertError, "Could not upload projects."));
+    }
   }
 }
 
@@ -129,9 +138,21 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
         throw new Error(errorMessage(retryError, "Could not upload tasks."));
       }
 
+      if (isMissingColumn(upsertError, "start_date")) {
+        const legacyRows = rows.map(({ start_date: _startDate, ...row }) => row);
+        const { error: retryError } = await client.from("tasks").upsert(legacyRows);
+        if (!retryError) return;
+        throw new Error(errorMessage(retryError, "Could not upload tasks."));
+      }
+
       throw new Error(errorMessage(upsertError, "Could not upload tasks."));
     }
   }
+}
+
+function isMissingColumn(error: { message?: string; code?: string }, column: string) {
+  const message = String(error.message ?? "").toLowerCase();
+  return error.code === "PGRST204" || message.includes(column.toLowerCase());
 }
 
 async function replaceCalendarEvents(rows: ReturnType<typeof calendarEventToRow>[]) {

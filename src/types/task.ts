@@ -14,6 +14,7 @@ export interface Task {
   category: TaskCategory;
   priority: TaskPriority;
   status: TaskStatus;
+  startDate?: string;
   dueDate?: string;
   reminder: TaskReminder;
   recurrence: TaskRecurrence;

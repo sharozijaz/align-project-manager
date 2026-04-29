@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { addDays, addMonths, addWeeks, addYears, formatISO, parseISO } from "date-fns";
+import { addDays, addMonths, addWeeks, addYears, differenceInCalendarDays, formatISO, parseISO } from "date-fns";
 import { demoTasks } from "./demoData";
 import { isTerminalTaskStatus, normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
@@ -118,12 +118,24 @@ function createNextRecurringTask(task: Task, createdAt: string): Task | null {
     ...task,
     id: id(),
     status: "not-started",
+    startDate: nextRecurringStartDate(task.startDate, task.dueDate, nextDueDate) ?? undefined,
     dueDate: nextDueDate,
     recurringParentId: task.recurringParentId ?? task.id,
     createdAt,
     updatedAt: createdAt,
     deletedAt: undefined,
   };
+}
+
+function nextRecurringStartDate(startDate: string | undefined, dueDate: string, nextDueDate: string) {
+  if (!startDate) return null;
+  const parsedStart = parseISO(startDate);
+  const parsedDue = parseISO(dueDate);
+  const parsedNextDue = parseISO(nextDueDate);
+  if ([parsedStart, parsedDue, parsedNextDue].some((date) => Number.isNaN(date.getTime()))) return null;
+
+  const duration = Math.max(0, differenceInCalendarDays(parsedDue, parsedStart));
+  return formatISO(addDays(parsedNextDue, -duration), { representation: "date" });
 }
 
 function nextRecurringDate(dueDate: string, recurrence: Task["recurrence"]) {

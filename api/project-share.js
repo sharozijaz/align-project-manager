@@ -64,7 +64,7 @@ async function findProject(env, userId, projectId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/projects`);
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("id", `eq.${projectId}`);
-  url.searchParams.set("select", "id,name,description,status,priority,due_date,created_at,updated_at");
+  url.searchParams.set("select", "id,name,description,status,priority,start_date,due_date,created_at,updated_at");
   url.searchParams.set("limit", "1");
 
   const response = await serviceFetch(env, url);
@@ -77,7 +77,7 @@ async function findProjectTasks(env, userId, projectId) {
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("project_id", `eq.${projectId}`);
   url.searchParams.set("deleted_at", "is.null");
-  url.searchParams.set("select", "id,title,description,category,priority,status,due_date,reminder,recurrence,created_at,updated_at");
+  url.searchParams.set("select", "id,title,description,category,priority,status,start_date,due_date,reminder,recurrence,created_at,updated_at");
   url.searchParams.set("order", "due_date.asc.nullslast");
 
   const response = await serviceFetch(env, url);
@@ -91,6 +91,7 @@ function rowToProject(row) {
     description: row.description || "",
     status: row.status,
     priority: row.priority,
+    startDate: row.start_date || "",
     dueDate: row.due_date || "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -105,6 +106,7 @@ function rowToTask(row) {
     category: row.category,
     priority: row.priority,
     status: row.status,
+    startDate: row.start_date || "",
     dueDate: row.due_date || "",
     reminder: row.reminder || "none",
     recurrence: row.recurrence || "none",

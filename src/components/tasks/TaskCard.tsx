@@ -7,7 +7,7 @@ import { Card } from "../ui/Card";
 import { Modal } from "../ui/Modal";
 import { OptionBadge } from "../ui/OptionBadge";
 import { TaskForm } from "./TaskForm";
-import { dateLabel } from "../../utils/date";
+import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
@@ -39,7 +39,9 @@ export function TaskCard({
             <OptionBadge option={getTaskPriorityOption(task.priority)} />
             <OptionBadge option={getTaskStatusOption(task.status)} />
             <Badge>{project?.name ?? task.category}</Badge>
+            {task.startDate ? <Badge>{startDateLabel(task.startDate)}</Badge> : null}
             <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate)}</Badge>
+            {task.startDate ? <Badge>{durationLabel(task.startDate, task.dueDate)}</Badge> : null}
             {task.reminder !== "none" ? (
               <Badge>
                 <Bell size={12} />

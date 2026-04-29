@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
-import { dateLabel } from "../utils/date";
+import { dateLabel, durationLabel } from "../utils/date";
 
 interface SharedProject {
   id: string;
@@ -12,6 +12,7 @@ interface SharedProject {
   description?: string;
   status: string;
   priority: string;
+  startDate?: string;
   dueDate?: string;
 }
 
@@ -21,6 +22,7 @@ interface SharedTask {
   description?: string;
   priority: string;
   status: string;
+  startDate?: string;
   dueDate?: string;
 }
 
@@ -159,7 +161,7 @@ export function PublicClientShare() {
                         <div className="mt-4 grid gap-2 text-sm text-[var(--text-muted)] sm:grid-cols-3">
                           <span>{open} open</span>
                           <span>{completed} completed</span>
-                          <span>{dateLabel(project.dueDate)}</span>
+                          <span>{durationLabel(project.startDate, project.dueDate)}</span>
                         </div>
                         <Link to={`/share/${tokens[projects.findIndex((item) => item.project.id === project.id)]}`} className="mt-4 inline-flex text-sm font-semibold text-[var(--text-brand)] hover:underline">
                           Open project details

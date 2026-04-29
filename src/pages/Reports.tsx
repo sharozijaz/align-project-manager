@@ -11,7 +11,7 @@ import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project } from "../types/project";
 import type { Task } from "../types/task";
-import { dateLabel, isOverdue } from "../utils/date";
+import { dateLabel, durationLabel, isOverdue, startDateLabel } from "../utils/date";
 
 export function Reports() {
   const [copied, setCopied] = useState(false);
@@ -96,7 +96,10 @@ export function Reports() {
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <div>
                     <h3 className="font-semibold text-[var(--text)]">{row.project.name}</h3>
-                    <p className="text-sm text-[var(--text-muted)]">{row.open} open · {row.completed} done · {dateLabel(row.project.dueDate)}</p>
+                    <p className="text-sm text-[var(--text-muted)]">
+                      {row.open} open · {row.completed} done · {dateLabel(row.project.dueDate)}
+                      {row.project.startDate ? ` · ${durationLabel(row.project.startDate, row.project.dueDate)}` : ""}
+                    </p>
                   </div>
                   <Badge tone={row.overdue ? "red" : row.progress === 100 ? "emerald" : "blue"}>{row.progress}%</Badge>
                 </div>
@@ -230,6 +233,11 @@ function TaskPreviewCard({
               <div className="min-w-0">
                 <h3 className="break-words font-semibold text-[var(--text)]">{task.title}</h3>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">{dateLabel(task.dueDate)}</p>
+                {task.startDate ? (
+                  <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">
+                    {startDateLabel(task.startDate)} · {durationLabel(task.startDate, task.dueDate)}
+                  </p>
+                ) : null}
                 {showRecurrence ? (
                   <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">
                     {getTaskRecurrenceLabel(task)}

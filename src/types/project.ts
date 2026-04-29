@@ -8,6 +8,7 @@ export interface Project {
   description?: string;
   status: ProjectStatus;
   priority: TaskPriority;
+  startDate?: string;
   dueDate?: string;
   createdAt: string;
   updatedAt: string;

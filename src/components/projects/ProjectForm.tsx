@@ -10,6 +10,7 @@ const blank: ProjectInput = {
   description: "",
   status: "active",
   priority: "medium",
+  startDate: "",
   dueDate: "",
 };
 
@@ -31,13 +32,13 @@ export function ProjectForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.name.trim()) return;
-        onSubmit({ ...form, name: form.name.trim(), dueDate: form.dueDate || undefined });
+        onSubmit({ ...form, name: form.name.trim(), startDate: form.startDate || undefined, dueDate: form.dueDate || undefined });
         if (!initialProject) setForm(blank);
       }}
     >
       <Input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Project name" required />
       <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Description" />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Select value={form.status} onChange={(event) => update("status", event.target.value)}>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
@@ -50,6 +51,7 @@ export function ProjectForm({
             </option>
           ))}
         </Select>
+        <Input type="date" value={form.startDate ?? ""} onChange={(event) => update("startDate", event.target.value)} aria-label="Start date" />
         <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
       </div>
       <div className="flex gap-2">

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
-import { dateLabel } from "../utils/date";
+import { dateLabel, durationLabel, startDateLabel } from "../utils/date";
 
 interface SharedProject {
   id: string;
@@ -12,6 +12,7 @@ interface SharedProject {
   description?: string;
   status: string;
   priority: string;
+  startDate?: string;
   dueDate?: string;
 }
 
@@ -22,6 +23,7 @@ interface SharedTask {
   category: string;
   priority: string;
   status: string;
+  startDate?: string;
   dueDate?: string;
   recurrence?: string;
   updatedAt?: string;
@@ -146,6 +148,7 @@ export function PublicProjectShare() {
                   <ShareStat label="Open Tasks" value={stats.open} icon={<Clock size={16} />} />
                   <ShareStat label="Completed" value={stats.completed} icon={<CheckCircle2 size={16} />} />
                   <ShareStat label="Due Date" value={dateLabel(data.project.dueDate)} icon={<CalendarDays size={16} />} />
+                  <ShareStat label="Duration" value={durationLabel(data.project.startDate, data.project.dueDate)} icon={<Clock size={16} />} />
                 </div>
               </section>
 
@@ -154,6 +157,8 @@ export function PublicProjectShare() {
                   <h2 className="text-lg font-bold text-[var(--text)]">Client Summary</h2>
                   <div className="mt-4 space-y-3 text-sm text-[var(--text-muted)]">
                     <SummaryRow label="Current status" value={getTaskStatusOption(data.project.status).label} />
+                    <SummaryRow label="Started" value={startDateLabel(data.project.startDate)} />
+                    <SummaryRow label="Duration" value={durationLabel(data.project.startDate, data.project.dueDate)} />
                     <SummaryRow label="Progress" value={`${stats.progress}% complete`} />
                     <SummaryRow label="Open work" value={`${stats.open} tasks remaining`} />
                     <SummaryRow label="Last updated" value={lastUpdated ? dateLabel(lastUpdated.slice(0, 10)) : "No task updates yet"} />
@@ -199,6 +204,7 @@ export function PublicProjectShare() {
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-soft)]">
                         <span>{dateLabel(task.dueDate)}</span>
+                        {task.startDate ? <span>{durationLabel(task.startDate, task.dueDate)}</span> : null}
                         {task.recurrence && task.recurrence !== "none" ? (
                           <span className="inline-flex items-center gap-1">
                             <Repeat2 size={12} />
