@@ -44,7 +44,7 @@ export function PublicProjectShare() {
       setError("");
 
       try {
-        const response = await fetch(`/api/project-share/${token}`);
+        const response = await fetch(`/api/project-share?token=${encodeURIComponent(token || "")}`);
         const contentType = response.headers.get("content-type") || "";
 
         if (!contentType.includes("application/json")) {

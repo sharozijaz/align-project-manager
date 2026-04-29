@@ -1,4 +1,4 @@
-import { getEnv, handleApiError, requireMethod, serviceFetch } from "../_googleCalendar.js";
+import { getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
 
 export default async function handler(req, res) {
   if (requireMethod(req, res, "GET")) return;
