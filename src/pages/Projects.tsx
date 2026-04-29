@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
+import { ClientProjectsSharePanel } from "../components/projects/ClientProjectsSharePanel";
 import { ProjectCard } from "../components/projects/ProjectCard";
 import { ProjectForm } from "../components/projects/ProjectForm";
 import { Button } from "../components/ui/Button";
@@ -24,6 +25,7 @@ export function Projects() {
           </Button>
         }
       />
+      <ClientProjectsSharePanel projects={projects} />
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         {projects.map((project) => (
           <ProjectCard
