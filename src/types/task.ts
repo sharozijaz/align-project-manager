@@ -1,9 +1,10 @@
-import type { TaskCategoryValue, TaskPriorityValue, TaskReminderValue, TaskStatusValue } from "../config/taskOptions";
+import type { TaskCategoryValue, TaskPriorityValue, TaskRecurrenceValue, TaskReminderValue, TaskStatusValue } from "../config/taskOptions";
 
 export type TaskCategory = TaskCategoryValue;
 export type TaskPriority = TaskPriorityValue;
 export type TaskStatus = TaskStatusValue;
 export type TaskReminder = TaskReminderValue;
+export type TaskRecurrence = TaskRecurrenceValue;
 
 export interface Task {
   id: string;
@@ -15,9 +16,11 @@ export interface Task {
   status: TaskStatus;
   dueDate?: string;
   reminder: TaskReminder;
+  recurrence: TaskRecurrence;
+  recurringParentId?: string;
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type TaskInput = Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt">;
+export type TaskInput = Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "recurringParentId">;

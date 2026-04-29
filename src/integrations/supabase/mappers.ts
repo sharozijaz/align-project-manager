@@ -1,7 +1,7 @@
 import type { CalendarEvent } from "../../types/calendar";
 import type { Project } from "../../types/project";
 import type { Task } from "../../types/task";
-import { normalizeTaskPriority, normalizeTaskReminder, normalizeTaskStatus } from "../../config/taskOptions";
+import { normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../../config/taskOptions";
 import type { Database } from "./types";
 
 type ProjectRow = Database["public"]["Tables"]["projects"]["Row"];
@@ -42,6 +42,8 @@ export const taskToRow = (task: Task, userId: string): TaskRow => ({
   status: normalizeTaskStatus(task.status),
   due_date: task.dueDate ?? null,
   reminder: normalizeTaskReminder(task.reminder),
+  recurrence: normalizeTaskRecurrence(task.recurrence),
+  recurring_parent_id: task.recurringParentId ?? null,
   deleted_at: task.deletedAt ?? null,
   created_at: task.createdAt,
   updated_at: task.updatedAt,
@@ -57,6 +59,8 @@ export const rowToTask = (row: TaskRow): Task => ({
   status: normalizeTaskStatus(row.status),
   dueDate: row.due_date ?? undefined,
   reminder: normalizeTaskReminder(row.reminder),
+  recurrence: normalizeTaskRecurrence(row.recurrence),
+  recurringParentId: row.recurring_parent_id ?? undefined,
   deletedAt: row.deleted_at ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,

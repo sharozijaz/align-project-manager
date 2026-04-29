@@ -122,6 +122,13 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
         throw new Error(errorMessage(retryError, "Could not upload tasks."));
       }
 
+      if (String(upsertError.message).toLowerCase().includes("recurrence") || String(upsertError.message).toLowerCase().includes("recurring_parent_id")) {
+        const rowsWithoutRecurrence = rows.map(({ recurrence: _recurrence, recurring_parent_id: _recurringParentId, ...row }) => row);
+        const { error: retryError } = await client.from("tasks").upsert(rowsWithoutRecurrence);
+        if (!retryError) return;
+        throw new Error(errorMessage(retryError, "Could not upload tasks."));
+      }
+
       throw new Error(errorMessage(upsertError, "Could not upload tasks."));
     }
   }

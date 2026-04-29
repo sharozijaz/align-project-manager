@@ -1,4 +1,4 @@
-import type { TaskCategory, TaskPriority, TaskReminder, TaskStatus } from "../../types/task";
+import type { TaskCategory, TaskPriority, TaskRecurrence, TaskReminder, TaskStatus } from "../../types/task";
 
 export interface Database {
   public: {
@@ -41,6 +41,8 @@ export interface Database {
           status: TaskStatus;
           due_date: string | null;
           reminder: TaskReminder;
+          recurrence: TaskRecurrence;
+          recurring_parent_id: string | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -56,6 +58,8 @@ export interface Database {
           status: TaskStatus;
           due_date?: string | null;
           reminder?: TaskReminder;
+          recurrence?: TaskRecurrence;
+          recurring_parent_id?: string | null;
           deleted_at?: string | null;
           created_at: string;
           updated_at: string;
@@ -139,6 +143,22 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["project_shares"]["Insert"]>;
+        Relationships: [];
+      };
+      user_preferences: {
+        Row: {
+          user_id: string;
+          email_reminders_enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          email_reminders_enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_preferences"]["Insert"]>;
         Relationships: [];
       };
     };

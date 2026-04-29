@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  BarChart3,
   CheckCircle2,
   Home,
   ListTodo,
@@ -19,6 +20,7 @@ const links = [
   { to: "/projects", label: "Projects", icon: ListTodo },
   { to: "/tasks", label: "Tasks", icon: CheckCircle2 },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 export function Navbar() {

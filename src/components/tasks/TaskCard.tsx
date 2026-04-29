@@ -1,6 +1,6 @@
 import { Bell, Check, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { getTaskPriorityOption, getTaskReminderOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
+import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskReminderOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -46,6 +46,7 @@ export function TaskCard({
                 {getTaskReminderOption(task.reminder).label}
               </Badge>
             ) : null}
+            {task.recurrence && task.recurrence !== "none" ? <Badge>{getTaskRecurrenceOption(task.recurrence).label}</Badge> : null}
           </div>
         </div>
         <div className="flex shrink-0 gap-2">

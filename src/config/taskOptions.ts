@@ -148,10 +148,19 @@ export const taskReminderOptions = [
   { value: "week-before", label: "1 week before", offsetDays: 7 },
 ] as const;
 
+export const taskRecurrenceOptions = [
+  { value: "none", label: "Does not repeat" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+] as const;
+
 export type TaskPriorityValue = (typeof taskPriorityOptions)[number]["value"];
 export type TaskStatusValue = (typeof taskStatusOptions)[number]["value"];
 export type TaskCategoryValue = (typeof taskCategoryOptions)[number]["value"];
 export type TaskReminderValue = (typeof taskReminderOptions)[number]["value"];
+export type TaskRecurrenceValue = (typeof taskRecurrenceOptions)[number]["value"];
 export type TaskOption = {
   value: string;
   label: string;
@@ -216,6 +225,15 @@ export const normalizeTaskReminder = (reminder?: string): TaskReminderValue =>
 
 export const getTaskReminderOption = (reminder?: string) =>
   taskReminderOptions.find((option) => option.value === normalizeTaskReminder(reminder)) ?? taskReminderOptions[0];
+
+export const isKnownTaskRecurrence = (recurrence: string) =>
+  taskRecurrenceOptions.some((option) => option.value === recurrence);
+
+export const normalizeTaskRecurrence = (recurrence?: string): TaskRecurrenceValue =>
+  recurrence && isKnownTaskRecurrence(recurrence) ? (recurrence as TaskRecurrenceValue) : "none";
+
+export const getTaskRecurrenceOption = (recurrence?: string) =>
+  taskRecurrenceOptions.find((option) => option.value === normalizeTaskRecurrence(recurrence)) ?? taskRecurrenceOptions[0];
 
 export const isTerminalTaskStatus = (status: string) =>
   status === "done" || status === "delivered" || status === "cancelled" || status === "completed";

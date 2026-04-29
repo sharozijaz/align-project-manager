@@ -1,4 +1,4 @@
-import { CalendarDays, Cloud, Download, Palette, RotateCcw, Trash2, Upload, UserRound } from "lucide-react";
+import { CalendarDays, Cloud, Download, Mail, Palette, RotateCcw, Trash2, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Button } from "../components/ui/Button";
@@ -12,6 +12,7 @@ import { useSyncStore } from "../store/syncStore";
 import { useTaskStore } from "../store/taskStore";
 import { useThemeStore } from "../store/themeStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
+import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import {
@@ -39,6 +40,8 @@ export function Settings() {
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
+  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
+  const [preferenceMessage, setPreferenceMessage] = useState("");
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
   const { projects, replaceProjects } = useProjectStore();
@@ -85,6 +88,23 @@ export function Settings() {
       cancelled = true;
     };
   }, [googleReadiness.ready, session]);
+
+  useEffect(() => {
+    if (!session || !isSupabaseConfigured) return;
+
+    let cancelled = false;
+    void getUserPreferences()
+      .then((preferences) => {
+        if (!cancelled) setEmailRemindersEnabled(preferences.emailRemindersEnabled);
+      })
+      .catch((error) => {
+        if (!cancelled) setPreferenceMessage(errorMessage(error, "Could not load reminder preferences."));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const exportData = () => {
     const backup = createWorkspaceBackup({ tasks, projects, events });
@@ -287,6 +307,19 @@ export function Settings() {
     }
   };
 
+  const updateEmailReminderPreference = async (enabled: boolean) => {
+    setEmailRemindersEnabled(enabled);
+    setPreferenceMessage("");
+
+    try {
+      await saveUserPreferences({ emailRemindersEnabled: enabled });
+      setPreferenceMessage(enabled ? "Email reminders enabled." : "Email reminders paused.");
+    } catch (error) {
+      setEmailRemindersEnabled(!enabled);
+      setPreferenceMessage(errorMessage(error, "Could not save reminder preference."));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
@@ -412,6 +445,28 @@ export function Settings() {
             onChange={(event) => void importData(event.target.files?.[0])}
           />
           {dataMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{dataMessage}</p> : null}
+        </Card>
+        <Card className="p-5 lg:col-span-2">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Mail size={18} /> Reminder Email</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            Email reminders use the same due reminder rules as the notification bell. The template is branded for Align and links back to your workspace.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold text-[var(--text)]">Send reminder emails</p>
+              <p className="text-sm text-[var(--text-muted)]">
+                {session ? "Saved to Supabase for cron delivery." : "Sign in to save email delivery preferences."}
+              </p>
+            </div>
+            <Button
+              variant={emailRemindersEnabled ? "secondary" : "ghost"}
+              onClick={() => void updateEmailReminderPreference(!emailRemindersEnabled)}
+              disabled={!session}
+            >
+              {emailRemindersEnabled ? "Enabled" : "Paused"}
+            </Button>
+          </div>
+          {preferenceMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{preferenceMessage}</p> : null}
         </Card>
         <Card className="p-5 lg:col-span-2">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">

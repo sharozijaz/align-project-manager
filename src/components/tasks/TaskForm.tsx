@@ -9,6 +9,7 @@ import {
   isKnownTaskStatus,
   taskReminderOptions,
   taskPriorityOptions,
+  taskRecurrenceOptions,
   taskStatusOptions,
 } from "../../config/taskOptions";
 import type { Task, TaskInput } from "../../types/task";
@@ -22,6 +23,7 @@ const blank: TaskInput = {
   status: "not-started",
   dueDate: "",
   reminder: "none",
+  recurrence: "none",
   projectId: "",
 };
 
@@ -38,13 +40,18 @@ export function TaskForm({
   onCancel?: () => void;
   compact?: boolean;
 }) {
-  const [form, setForm] = useState<TaskInput>(initialTask ?? blank);
+  const [form, setForm] = useState<TaskInput>({
+    ...blank,
+    ...initialTask,
+    reminder: initialTask?.reminder ?? "none",
+    recurrence: initialTask?.recurrence ?? "none",
+  });
 
   const update = (key: keyof TaskInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
     <form
-      className={compact ? "grid gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
+      className={compact ? "grid gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
@@ -83,6 +90,13 @@ export function TaskForm({
       <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
       <Select value={form.reminder} onChange={(event) => update("reminder", event.target.value)}>
         {taskReminderOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+      <Select value={form.recurrence} onChange={(event) => update("recurrence", event.target.value)}>
+        {taskRecurrenceOptions.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>

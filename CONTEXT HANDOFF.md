@@ -405,7 +405,7 @@ CalendarEvent {
 - Read-only client project share links have been added in this working tree:
   - owner controls live on the project details page
   - public share route is `/share/:token`
-  - public share data is served by `api/project-share/[token].js`
+  - public share data is served by `api/project-share.js`
   - clients can only see the shared project and its non-deleted tasks
   - clients cannot edit the workspace
 
@@ -415,7 +415,7 @@ CalendarEvent {
 - `src/integrations/supabase/projectShares.ts`
 - `src/components/projects/ProjectSharePanel.tsx`
 - `src/pages/PublicProjectShare.tsx`
-- `api/project-share/[token].js`
+- `api/project-share.js`
 - `supabase/project-shares.sql`
 
 ### Modified Files For Client Share Links
@@ -437,12 +437,32 @@ CalendarEvent {
 
 ### Remaining Product Work
 
-1. Recurring tasks.
-2. Reports/dashboard insights.
-3. Better email templates and reminder preferences.
-4. Browser/mobile push notifications later.
-5. Optional client collaboration upgrades after read-only sharing is tested:
+1. Browser/mobile push notifications later.
+2. Optional client collaboration upgrades after read-only sharing is tested:
    - comments
    - approvals
    - client-visible milestones
    - file attachments
+
+### Completed In Latest Working Session
+
+- Recurring tasks are implemented:
+  - recurrence options: none, daily, weekly, monthly, yearly
+  - available in task forms and table view
+  - completing a recurring dated task marks the current task done and creates the next occurrence
+  - recurring child tasks track `recurringParentId`
+- Reports page is implemented at `/reports`:
+  - open tasks
+  - completion rate
+  - overdue count
+  - completed in last 30 days
+  - project progress
+  - upcoming 14-day deadlines
+  - priority/status breakdowns
+- Reminder email template was upgraded with a calmer branded Align email layout.
+- Reminder email preferences are implemented in Settings:
+  - users can pause/resume reminder emails while keeping in-app notifications
+  - server reminder delivery respects `public.user_preferences.email_reminders_enabled`
+- Required Supabase migrations before full cloud sync/preferences support:
+  - run `supabase/recurring-tasks.sql`
+  - run `supabase/email-preferences.sql`

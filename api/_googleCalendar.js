@@ -517,6 +517,11 @@ export async function sendReminderEmailsForUser(env, userId) {
     return { emails: 0, emailFailed: 0, emailSkipped: true };
   }
 
+  const preferences = await findUserPreferences(env, userId);
+  if (preferences && preferences.email_reminders_enabled === false) {
+    return { emails: 0, emailFailed: 0, emailSkipped: true };
+  }
+
   const notifications = await findDueReminderNotificationsForUser(env, userId);
 
   if (!notifications.length) {
@@ -544,6 +549,22 @@ export async function sendReminderEmailsForUser(env, userId) {
   }
 
   return { emails, emailFailed };
+}
+
+async function findUserPreferences(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/user_preferences`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "email_reminders_enabled");
+  url.searchParams.set("limit", "1");
+
+  try {
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    return rows[0] || null;
+  } catch (error) {
+    if (String(error.message || "").includes("user_preferences")) return null;
+    throw error;
+  }
 }
 
 export async function findDueReminderNotificationsForUser(env, userId) {
@@ -612,13 +633,20 @@ function reminderEmailHtml(env, notification) {
 
   return `<!doctype html>
 <html>
-  <body style="margin:0;background:#f6f7fb;font-family:Arial,sans-serif;color:#111827;">
-    <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
-      <div style="border-radius:18px;background:#ffffff;border:1px solid #e5e7eb;padding:28px;">
-        <p style="margin:0 0 8px;color:#8b5cf6;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Align Reminder</p>
-        <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;">${title}</h1>
-        <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">${message}</p>
-        <a href="${appUrl}" style="display:inline-block;border-radius:10px;background:#8b5cf6;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 16px;">Open Align</a>
+  <body style="margin:0;background:#f4f5fb;font-family:Arial,sans-serif;color:#111827;">
+    <div style="display:none;max-height:0;overflow:hidden;">${message}</div>
+    <div style="max-width:600px;margin:0 auto;padding:32px 20px;">
+      <div style="border-radius:22px;background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 18px 45px rgba(15,23,42,.08);overflow:hidden;">
+        <div style="background:#111425;padding:22px 26px;">
+          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-.02em;">Align</p>
+          <p style="margin:6px 0 0;color:#c4b5fd;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Task Reminder</p>
+        </div>
+        <div style="padding:28px 26px;">
+          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#111827;">${title}</h1>
+          <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.65;">${message}</p>
+          <a href="${appUrl}" style="display:inline-block;border-radius:12px;background:#8b5cf6;color:#ffffff;text-decoration:none;font-weight:800;padding:13px 18px;">Open Align</a>
+          <p style="margin:22px 0 0;color:#94a3b8;font-size:12px;line-height:1.5;">You are receiving this because a task reminder is due in Align.</p>
+        </div>
       </div>
     </div>
   </body>

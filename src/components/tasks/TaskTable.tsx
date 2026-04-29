@@ -2,6 +2,7 @@ import { Check, Trash2 } from "lucide-react";
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   getTaskPriorityOption,
+  getTaskRecurrenceOption,
   getTaskReminderOption,
   getTaskStatusOption,
   isKnownTaskPriority,
@@ -9,6 +10,7 @@ import {
   isTerminalTaskStatus,
   taskCategoryOptions,
   taskPriorityOptions,
+  taskRecurrenceOptions,
   taskReminderOptions,
   taskStatusOptions,
 } from "../../config/taskOptions";
@@ -47,6 +49,7 @@ export function TaskTable({
               <th className="w-[15%] px-4 py-3">Status</th>
               <th className="w-[12%] px-4 py-3">Due Date</th>
               <th className="w-[12%] px-4 py-3">Reminder</th>
+              <th className="w-[12%] px-4 py-3">Repeats</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -208,6 +211,20 @@ function TaskTableRow({
           title={getTaskReminderOption(task.reminder).label}
         >
           {taskReminderOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      </td>
+      <td className="px-4 py-3">
+        <Select
+          value={task.recurrence ?? "none"}
+          onChange={(event) => onUpdate(task.id, { recurrence: event.target.value as Task["recurrence"] })}
+          className="min-h-10"
+          title={getTaskRecurrenceOption(task.recurrence).label}
+        >
+          {taskRecurrenceOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

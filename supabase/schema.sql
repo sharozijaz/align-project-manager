@@ -21,6 +21,8 @@ create table if not exists public.tasks (
   status text not null check (status in ('in-progress', 'not-started', 'approval-pending', 'under-review', 'approved', 'done', 'delivered', 'postponed', 'cancelled', 'waiting', 'blocked', 'review')),
   due_date date,
   reminder text not null default 'none' check (reminder in ('none', 'due-date', 'day-before', 'two-days-before', 'week-before')),
+  recurrence text not null default 'none' check (recurrence in ('none', 'daily', 'weekly', 'monthly', 'yearly')),
+  recurring_parent_id text,
   deleted_at timestamptz,
   created_at timestamptz not null,
   updated_at timestamptz not null
@@ -52,6 +54,13 @@ create table if not exists public.notifications (
   unique (user_id, task_id, type, scheduled_for)
 );
 
+create table if not exists public.user_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email_reminders_enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.project_shares (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -68,6 +77,7 @@ alter table public.tasks enable row level security;
 alter table public.calendar_events enable row level security;
 alter table public.notifications enable row level security;
 alter table public.project_shares enable row level security;
+alter table public.user_preferences enable row level security;
 
 create policy "Users can manage their own projects"
 on public.projects
@@ -99,6 +109,12 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create policy "Users can manage their own preferences"
+on public.user_preferences
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
 create index if not exists projects_user_id_idx on public.projects(user_id);
 create index if not exists tasks_user_id_idx on public.tasks(user_id);
 create index if not exists tasks_due_date_idx on public.tasks(due_date);
@@ -112,6 +128,7 @@ create index if not exists project_shares_user_id_idx on public.project_shares(u
 create index if not exists project_shares_project_id_idx on public.project_shares(project_id);
 create index if not exists project_shares_token_idx on public.project_shares(token);
 create index if not exists project_shares_enabled_idx on public.project_shares(enabled);
+create index if not exists user_preferences_email_reminders_idx on public.user_preferences(email_reminders_enabled);
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.projects to authenticated;
@@ -119,8 +136,10 @@ grant select, insert, update, delete on public.tasks to authenticated;
 grant select, insert, update, delete on public.calendar_events to authenticated;
 grant select, insert, update, delete on public.notifications to authenticated;
 grant select, insert, update, delete on public.project_shares to authenticated;
+grant select, insert, update, delete on public.user_preferences to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
 grant select, insert, update, delete on public.tasks to service_role;
 grant select, insert, update, delete on public.calendar_events to service_role;
 grant select, insert, update, delete on public.notifications to service_role;
 grant select, insert, update, delete on public.project_shares to service_role;
+grant select, insert, update, delete on public.user_preferences to service_role;
