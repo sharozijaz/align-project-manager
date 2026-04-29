@@ -114,7 +114,16 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
 
   if (rows.length) {
     const { error: upsertError } = await client.from("tasks").upsert(rows);
-    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload tasks."));
+    if (upsertError) {
+      if (String(upsertError.message).toLowerCase().includes("reminder")) {
+        const rowsWithoutReminder = rows.map(({ reminder: _reminder, ...row }) => row);
+        const { error: retryError } = await client.from("tasks").upsert(rowsWithoutReminder);
+        if (!retryError) return;
+        throw new Error(errorMessage(retryError, "Could not upload tasks."));
+      }
+
+      throw new Error(errorMessage(upsertError, "Could not upload tasks."));
+    }
   }
 }
 

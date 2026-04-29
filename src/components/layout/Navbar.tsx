@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { SyncIndicator } from "../sync/SyncIndicator";
+import { NotificationBell } from "../notifications/NotificationBell";
 import { ThemeToggle } from "../ui/ThemeToggle";
 
 const links = [
@@ -48,6 +49,7 @@ export function Navbar() {
         ))}
       </nav>
       <div className="flex items-center gap-2 text-sm">
+        <NotificationBell />
         <div
           className="relative"
           onMouseEnter={() => setMenuHovered(true)}

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { demoTasks } from "./demoData";
-import { normalizeTaskPriority, normalizeTaskStatus } from "../config/taskOptions";
+import { normalizeTaskPriority, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
 
 interface TaskState {
@@ -30,6 +30,7 @@ export const useTaskStore = create<TaskState>()(
           tasks: [
             {
               ...input,
+              reminder: normalizeTaskReminder(input.reminder),
               id: id(),
               createdAt: stamp(),
               updatedAt: stamp(),
@@ -40,7 +41,14 @@ export const useTaskStore = create<TaskState>()(
       updateTask: (taskId, updates) =>
         set((state) => ({
           tasks: state.tasks.map((task) =>
-            task.id === taskId ? { ...task, ...updates, updatedAt: stamp() } : task,
+            task.id === taskId
+              ? {
+                  ...task,
+                  ...updates,
+                  ...(updates.reminder ? { reminder: normalizeTaskReminder(updates.reminder) } : {}),
+                  updatedAt: stamp(),
+                }
+              : task,
           ),
         })),
       deleteTask: (taskId) =>
@@ -77,6 +85,7 @@ export const useTaskStore = create<TaskState>()(
             ...task,
             priority: normalizeTaskPriority(task.priority),
             status: normalizeTaskStatus(task.status),
+            reminder: normalizeTaskReminder(task.reminder),
           })),
           lastDeletedTaskId: undefined,
         }),

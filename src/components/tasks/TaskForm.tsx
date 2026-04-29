@@ -7,6 +7,7 @@ import {
   getTaskStatusOption,
   isKnownTaskPriority,
   isKnownTaskStatus,
+  taskReminderOptions,
   taskPriorityOptions,
   taskStatusOptions,
 } from "../../config/taskOptions";
@@ -20,6 +21,7 @@ const blank: TaskInput = {
   priority: "medium",
   status: "not-started",
   dueDate: "",
+  reminder: "none",
   projectId: "",
 };
 
@@ -42,7 +44,7 @@ export function TaskForm({
 
   return (
     <form
-      className={compact ? "grid gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_auto]" : "grid gap-3"}
+      className={compact ? "grid gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
@@ -79,6 +81,13 @@ export function TaskForm({
         ))}
       </Select>
       <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
+      <Select value={form.reminder} onChange={(event) => update("reminder", event.target.value)}>
+        {taskReminderOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
       <div className="flex gap-2">
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>

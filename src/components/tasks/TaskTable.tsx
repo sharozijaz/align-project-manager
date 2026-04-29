@@ -2,12 +2,14 @@ import { Check, Trash2 } from "lucide-react";
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   getTaskPriorityOption,
+  getTaskReminderOption,
   getTaskStatusOption,
   isKnownTaskPriority,
   isKnownTaskStatus,
   isTerminalTaskStatus,
   taskCategoryOptions,
   taskPriorityOptions,
+  taskReminderOptions,
   taskStatusOptions,
 } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
@@ -36,14 +38,15 @@ export function TaskTable({
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
       <div className="overflow-x-auto">
-        <table className="min-w-[980px] w-full border-collapse text-left text-sm">
+        <table className="min-w-[1120px] w-full border-collapse text-left text-sm">
           <thead className="bg-[var(--surface-raised)] text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
             <tr>
               <th className="w-[32%] px-4 py-3">Task</th>
               <th className="w-[20%] px-4 py-3">Project / Category</th>
               <th className="w-[14%] px-4 py-3">Priority</th>
               <th className="w-[15%] px-4 py-3">Status</th>
-              <th className="w-[13%] px-4 py-3">Due Date</th>
+              <th className="w-[12%] px-4 py-3">Due Date</th>
+              <th className="w-[12%] px-4 py-3">Reminder</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -196,6 +199,20 @@ function TaskTableRow({
           className="min-h-10"
         />
         <p className="mt-2 text-xs text-[var(--text-muted)]">{dateLabel(task.dueDate)}</p>
+      </td>
+      <td className="px-4 py-3">
+        <Select
+          value={task.reminder ?? "none"}
+          onChange={(event) => onUpdate(task.id, { reminder: event.target.value as Task["reminder"] })}
+          className="min-h-10"
+          title={getTaskReminderOption(task.reminder).label}
+        >
+          {taskReminderOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
       </td>
       <td className="px-4 py-3">
         <div className="flex justify-end gap-2">

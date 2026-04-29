@@ -1,4 +1,4 @@
-import type { TaskCategory, TaskPriority, TaskStatus } from "../../types/task";
+import type { TaskCategory, TaskPriority, TaskReminder, TaskStatus } from "../../types/task";
 
 export interface Database {
   public: {
@@ -40,6 +40,7 @@ export interface Database {
           priority: TaskPriority;
           status: TaskStatus;
           due_date: string | null;
+          reminder: TaskReminder;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -54,6 +55,7 @@ export interface Database {
           priority: TaskPriority;
           status: TaskStatus;
           due_date?: string | null;
+          reminder?: TaskReminder;
           deleted_at?: string | null;
           created_at: string;
           updated_at: string;
@@ -83,6 +85,32 @@ export interface Database {
           source: "local" | "google";
         };
         Update: Partial<Database["public"]["Tables"]["calendar_events"]["Insert"]>;
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          task_id: string | null;
+          type: "task-reminder";
+          title: string;
+          message: string;
+          scheduled_for: string;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          task_id?: string | null;
+          type: "task-reminder";
+          title: string;
+          message: string;
+          scheduled_for: string;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
         Relationships: [];
       };
     };

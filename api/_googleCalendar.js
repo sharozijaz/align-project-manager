@@ -345,19 +345,49 @@ export async function findTaskLinks(env, userId) {
 
 export async function findGoogleCalendarConnections(env) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_connections`);
-  url.searchParams.set("select", "user_id");
+  url.searchParams.set("select", "user_id,calendar_id,access_token,refresh_token,expires_at,updated_at,scopes");
 
   const response = await serviceFetch(env, url);
   return response.json();
 }
 
+export async function findWorkspaceUserIds(env) {
+  const userIds = new Set();
+
+  for (const table of ["tasks", "projects", "google_calendar_connections"]) {
+    const url = new URL(`${env.supabaseUrl}/rest/v1/${table}`);
+    url.searchParams.set("select", "user_id");
+
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    rows.forEach((row) => {
+      if (row.user_id) userIds.add(row.user_id);
+    });
+  }
+
+  return [...userIds];
+}
+
 export async function findTasksForUser(env, userId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/tasks`);
   url.searchParams.set("user_id", `eq.${userId}`);
-  url.searchParams.set("select", "id,title,description,project_id,category,priority,status,due_date,deleted_at,created_at,updated_at");
+  url.searchParams.set("select", "id,title,description,project_id,category,priority,status,due_date,reminder,deleted_at,created_at,updated_at");
   url.searchParams.set("order", "due_date.asc.nullslast");
 
-  const response = await serviceFetch(env, url);
+  let response;
+  try {
+    response = await serviceFetch(env, url);
+  } catch (error) {
+    if (!String(error.message || "").includes("reminder")) {
+      throw error;
+    }
+
+    const fallbackUrl = new URL(`${env.supabaseUrl}/rest/v1/tasks`);
+    fallbackUrl.searchParams.set("user_id", `eq.${userId}`);
+    fallbackUrl.searchParams.set("select", "id,title,description,project_id,category,priority,status,due_date,deleted_at,created_at,updated_at");
+    fallbackUrl.searchParams.set("order", "due_date.asc.nullslast");
+    response = await serviceFetch(env, fallbackUrl);
+  }
   const rows = await response.json();
 
   return rows.map((row) => ({
@@ -369,6 +399,7 @@ export async function findTasksForUser(env, userId) {
     priority: normalizeTaskPriority(row.priority),
     status: normalizeTaskStatus(row.status),
     dueDate: row.due_date || undefined,
+    reminder: normalizeTaskReminder(row.reminder),
     deletedAt: row.deleted_at || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -435,6 +466,86 @@ export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, optio
   }
 
   return { created, updated, removed, skipped, conflicts };
+}
+
+export async function createReminderNotificationsForUser(env, userId, tasks, now = new Date()) {
+  const today = toDateKey(now);
+  const rows = tasks
+    .filter((task) => task.dueDate && !task.deletedAt && !isTerminalTaskStatus(task.status))
+    .map((task) => buildReminderNotification(userId, task, today))
+    .filter(Boolean);
+
+  if (!rows.length) {
+    return { reminders: 0 };
+  }
+
+  let response;
+  try {
+    response = await serviceFetch(
+      env,
+      `${env.supabaseUrl}/rest/v1/notifications?on_conflict=user_id,task_id,type,scheduled_for`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          prefer: "resolution=ignore-duplicates,return=minimal",
+        },
+        body: JSON.stringify(rows),
+      },
+    );
+  } catch (error) {
+    if (String(error.message || "").includes("notifications")) {
+      return { reminders: 0, reminderSkipped: true };
+    }
+
+    throw error;
+  }
+  await response.text();
+
+  return { reminders: rows.length };
+}
+
+function buildReminderNotification(userId, task, today) {
+  const reminder = normalizeTaskReminder(task.reminder);
+  const offsetDays = reminderOffsetDays(reminder);
+
+  if (offsetDays === null || !task.dueDate) return null;
+
+  const scheduledDate = shiftDateKey(task.dueDate, -offsetDays);
+  if (scheduledDate > today || task.dueDate < today) return null;
+
+  const id = crypto
+    .createHash("sha256")
+    .update(`${userId}:${task.id}:task-reminder:${scheduledDate}`)
+    .digest("hex")
+    .slice(0, 32);
+
+  return {
+    id,
+    user_id: userId,
+    task_id: task.id,
+    type: "task-reminder",
+    title: `Reminder: ${task.title}`,
+    message: reminderMessage(task, today),
+    scheduled_for: `${scheduledDate}T05:00:00.000Z`,
+    created_at: new Date().toISOString(),
+  };
+}
+
+function reminderMessage(task, today) {
+  if (task.dueDate === today) return `${task.title} is due today.`;
+  if (task.dueDate === shiftDateKey(today, 1)) return `${task.title} is due tomorrow.`;
+
+  return `${task.title} is due on ${task.dueDate}.`;
+}
+
+function reminderOffsetDays(reminder) {
+  if (reminder === "due-date") return 0;
+  if (reminder === "day-before") return 1;
+  if (reminder === "two-days-before") return 2;
+  if (reminder === "week-before") return 7;
+
+  return null;
 }
 
 export async function upsertTaskLink(env, userId, taskId, googleEventId, lastSyncedAt = new Date().toISOString()) {
@@ -569,8 +680,22 @@ function normalizeTaskStatus(status) {
     : "not-started";
 }
 
+function normalizeTaskReminder(reminder) {
+  return ["none", "due-date", "day-before", "two-days-before", "week-before"].includes(reminder) ? reminder : "none";
+}
+
 function isTerminalTaskStatus(status) {
   return status === "done" || status === "delivered" || status === "cancelled" || status === "completed";
+}
+
+function toDateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function shiftDateKey(value, offsetDays) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return toDateKey(date);
 }
 
 function signState(env, encodedPayload) {

@@ -1,6 +1,6 @@
-import { Check, Pencil, Trash2 } from "lucide-react";
+import { Bell, Check, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
+import { getTaskPriorityOption, getTaskReminderOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -40,6 +40,12 @@ export function TaskCard({
             <OptionBadge option={getTaskStatusOption(task.status)} />
             <Badge>{project?.name ?? task.category}</Badge>
             <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate)}</Badge>
+            {task.reminder !== "none" ? (
+              <Badge>
+                <Bell size={12} />
+                {getTaskReminderOption(task.reminder).label}
+              </Badge>
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 gap-2">

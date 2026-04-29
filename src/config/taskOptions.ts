@@ -140,9 +140,18 @@ export const taskCategoryOptions = [
   { value: "chore", label: "Chore" },
 ] as const;
 
+export const taskReminderOptions = [
+  { value: "none", label: "No reminder", offsetDays: null },
+  { value: "due-date", label: "Due date", offsetDays: 0 },
+  { value: "day-before", label: "1 day before", offsetDays: 1 },
+  { value: "two-days-before", label: "2 days before", offsetDays: 2 },
+  { value: "week-before", label: "1 week before", offsetDays: 7 },
+] as const;
+
 export type TaskPriorityValue = (typeof taskPriorityOptions)[number]["value"];
 export type TaskStatusValue = (typeof taskStatusOptions)[number]["value"];
 export type TaskCategoryValue = (typeof taskCategoryOptions)[number]["value"];
+export type TaskReminderValue = (typeof taskReminderOptions)[number]["value"];
 export type TaskOption = {
   value: string;
   label: string;
@@ -198,6 +207,15 @@ export const normalizeTaskStatus = (status: string): TaskStatusValue => {
   if (status === "backlog") return "not-started";
   return isKnownTaskStatus(status) ? (status as TaskStatusValue) : "not-started";
 };
+
+export const isKnownTaskReminder = (reminder: string) =>
+  taskReminderOptions.some((option) => option.value === reminder);
+
+export const normalizeTaskReminder = (reminder?: string): TaskReminderValue =>
+  reminder && isKnownTaskReminder(reminder) ? (reminder as TaskReminderValue) : "none";
+
+export const getTaskReminderOption = (reminder?: string) =>
+  taskReminderOptions.find((option) => option.value === normalizeTaskReminder(reminder)) ?? taskReminderOptions[0];
 
 export const isTerminalTaskStatus = (status: string) =>
   status === "done" || status === "delivered" || status === "cancelled" || status === "completed";
