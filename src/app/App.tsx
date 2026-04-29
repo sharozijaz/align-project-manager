@@ -12,8 +12,8 @@ export function App() {
   return (
     <AuthGate>
       <div data-theme={theme}>
-        <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-          <div className="w-full p-2 sm:p-4">
+        <div className="min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
+          <div className="w-full overflow-x-hidden p-2 sm:p-4">
             <div className="mx-auto max-w-[1440px] space-y-4">
               <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-soft)] p-2 shadow-[var(--shadow-sm)] sm:p-3">
                 <Navbar />

@@ -28,10 +28,10 @@ export function ProjectCard({
   const complete = projectTasks.length - open;
 
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3 sm:gap-4">
-        <div className="min-w-0">
-          <Link to={`/projects/${project.id}`} className="text-lg font-bold text-slate-950 hover:underline">
+    <Card className="overflow-hidden p-4 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 overflow-hidden">
+          <Link to={`/projects/${project.id}`} className="break-words text-lg font-bold text-slate-950 hover:underline">
             {project.name}
           </Link>
           <p className="mt-1 text-sm text-slate-500">{project.description || "No description yet."}</p>
@@ -45,7 +45,7 @@ export function ProjectCard({
           </Button>
         </div>
       </div>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         <Badge tone={project.status === "completed" ? "emerald" : project.status === "paused" ? "amber" : "blue"}>{project.status}</Badge>
         <Badge>{dateLabel(project.dueDate)}</Badge>
         <Badge>{projectTasks.length} tasks</Badge>

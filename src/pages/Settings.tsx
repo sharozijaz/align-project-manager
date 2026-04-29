@@ -323,7 +323,7 @@ export function Settings() {
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">User name</p>
@@ -479,7 +479,7 @@ export function Settings() {
             <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  Connected config: <span className="font-semibold text-[var(--text)]">{supabaseUrl.replace(/^https:\/\//u, "")}</span>
+                  Connected config: <span className="break-all font-semibold text-[var(--text)]">{supabaseUrl.replace(/^https:\/\//u, "")}</span>
                   {supabaseConfigIssue ? <p className="mt-2 text-[var(--warning)]">{supabaseConfigIssue}</p> : null}
                 </div>
                 <Badge tone={syncState.state === "error" ? "red" : syncState.state === "synced" ? "emerald" : "blue"}>
@@ -501,8 +501,8 @@ export function Settings() {
             <div className="mt-4 grid gap-3">
               {session ? (
                 <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--text)]">{session.user.email}</p>
+                  <div className="min-w-0">
+                    <p className="break-all text-sm font-semibold text-[var(--text)]">{session.user.email}</p>
                     <p className="text-sm text-[var(--text-muted)]">Signed in for hosted sync.</p>
                   </div>
                   <Button variant="secondary" onClick={() => void signOut()}>Sign Out</Button>
@@ -559,8 +559,8 @@ export function Settings() {
                   key={task.id}
                   className="flex flex-col justify-between gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:p-4"
                 >
-                  <div>
-                    <h3 className="font-semibold text-[var(--text)]">{task.title}</h3>
+                  <div className="min-w-0 overflow-hidden">
+                    <h3 className="break-words font-semibold text-[var(--text)]">{task.title}</h3>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Badge tone={priorityTone(task.priority)}>{task.priority}</Badge>
                       <Badge>{project?.name ?? task.category}</Badge>

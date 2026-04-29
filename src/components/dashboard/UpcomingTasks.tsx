@@ -44,7 +44,7 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
     .slice(0, 6);
 
   return (
-    <Card className="p-6">
+    <Card className="overflow-hidden p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-slate-950">Upcoming Deadlines</h2>
@@ -56,10 +56,10 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
         {items.length ? (
           items.map((item) => {
             const content = (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
+              <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-slate-950">{item.title}</h3>
+                  <div className="min-w-0">
+                    <h3 className="break-words font-semibold text-slate-950">{item.title}</h3>
                     <p className="mt-1 text-sm text-slate-500">{item.meta}</p>
                   </div>
                   <Badge tone={priorityTone(item.priority)}>{item.priority}</Badge>

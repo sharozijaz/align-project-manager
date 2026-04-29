@@ -9,14 +9,22 @@ import {
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import type { AppNotification } from "../../types/notification";
 
-export function NotificationBell() {
+export function NotificationBell({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const { session, loading, isConfigured } = useSupabaseSession();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const canLoad = isConfigured && Boolean(session) && !loading;
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
 
   const load = useCallback(async () => {
     if (!canLoad) {
@@ -63,7 +71,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => {
-          setOpen((current) => !current);
+          setOpen(!open);
           void load();
         }}
         className="relative grid h-10 w-10 place-items-center rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
@@ -79,7 +87,7 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full z-30 w-80 pt-2">
+        <div className="absolute right-0 top-full z-30 w-[min(20rem,calc(100vw-2rem))] pt-2">
           <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
               <div>
