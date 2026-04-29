@@ -1,7 +1,7 @@
 import { CalendarDays, CheckCircle2, Clock, LockKeyhole, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { dateLabel, durationLabel } from "../utils/date";
@@ -32,11 +32,13 @@ interface SharePayload {
 }
 
 export function PublicClientShare() {
+  const { token } = useParams();
   const [projects, setProjects] = useState<SharePayload[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [savedClientName, setSavedClientName] = useState("");
   const params = new URLSearchParams(window.location.search);
-  const clientName = params.get("client")?.trim() || "Client Project Overview";
+  const clientName = savedClientName || params.get("client")?.trim() || "Client Project Overview";
   const tokens = (params.get("projects") || "")
     .split(",")
     .map((token) => token.trim())
@@ -50,6 +52,19 @@ export function PublicClientShare() {
       setError("");
 
       try {
+        if (token) {
+          const response = await fetch(`/api/client-share?token=${encodeURIComponent(token)}`);
+          const contentType = response.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) throw new Error("Client overview API is unavailable.");
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || "Client overview link is unavailable.");
+          if (mounted) {
+            setSavedClientName(payload.clientName || "");
+            setProjects(payload.projects || []);
+          }
+          return;
+        }
+
         if (!tokens.length) throw new Error("No projects were included in this share link.");
 
         const results = await Promise.all(
@@ -76,7 +91,7 @@ export function PublicClientShare() {
     return () => {
       mounted = false;
     };
-  }, [tokens.join(",")]);
+  }, [token, tokens.join(",")]);
 
   const stats = useMemo(() => {
     const allTasks = projects.flatMap((item) => item.tasks);

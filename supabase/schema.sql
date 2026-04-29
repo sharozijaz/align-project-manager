@@ -74,11 +74,24 @@ create table if not exists public.project_shares (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.client_share_links (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text,
+  token text not null unique,
+  project_ids text[] not null default '{}',
+  project_tokens text[] not null default '{}',
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.projects enable row level security;
 alter table public.tasks enable row level security;
 alter table public.calendar_events enable row level security;
 alter table public.notifications enable row level security;
 alter table public.project_shares enable row level security;
+alter table public.client_share_links enable row level security;
 alter table public.user_preferences enable row level security;
 
 create policy "Users can manage their own projects"
@@ -111,6 +124,12 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create policy "Users can manage their own client share links"
+on public.client_share_links
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
 create policy "Users can manage their own preferences"
 on public.user_preferences
 for all
@@ -132,6 +151,9 @@ create index if not exists project_shares_user_id_idx on public.project_shares(u
 create index if not exists project_shares_project_id_idx on public.project_shares(project_id);
 create index if not exists project_shares_token_idx on public.project_shares(token);
 create index if not exists project_shares_enabled_idx on public.project_shares(enabled);
+create index if not exists client_share_links_user_id_idx on public.client_share_links(user_id);
+create index if not exists client_share_links_token_idx on public.client_share_links(token);
+create index if not exists client_share_links_enabled_idx on public.client_share_links(enabled);
 create index if not exists user_preferences_email_reminders_idx on public.user_preferences(email_reminders_enabled);
 
 grant usage on schema public to authenticated;
@@ -140,10 +162,12 @@ grant select, insert, update, delete on public.tasks to authenticated;
 grant select, insert, update, delete on public.calendar_events to authenticated;
 grant select, insert, update, delete on public.notifications to authenticated;
 grant select, insert, update, delete on public.project_shares to authenticated;
+grant select, insert, update, delete on public.client_share_links to authenticated;
 grant select, insert, update, delete on public.user_preferences to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
 grant select, insert, update, delete on public.tasks to service_role;
 grant select, insert, update, delete on public.calendar_events to service_role;
 grant select, insert, update, delete on public.notifications to service_role;
 grant select, insert, update, delete on public.project_shares to service_role;
+grant select, insert, update, delete on public.client_share_links to service_role;
 grant select, insert, update, delete on public.user_preferences to service_role;

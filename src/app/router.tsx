@@ -3,6 +3,13 @@ import { App } from "./App";
 
 export const router = createBrowserRouter([
   {
+    path: "/share/client/:token",
+    lazy: async () => {
+      const { PublicClientShare } = await import("../pages/PublicClientShare");
+      return { Component: PublicClientShare };
+    },
+  },
+  {
     path: "/share/client",
     lazy: async () => {
       const { PublicClientShare } = await import("../pages/PublicClientShare");

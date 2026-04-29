@@ -149,6 +149,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["project_shares"]["Insert"]>;
         Relationships: [];
       };
+      client_share_links: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string | null;
+          token: string;
+          project_ids: string[];
+          project_tokens: string[];
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name?: string | null;
+          token: string;
+          project_ids: string[];
+          project_tokens: string[];
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["client_share_links"]["Insert"]>;
+        Relationships: [];
+      };
       user_preferences: {
         Row: {
           user_id: string;

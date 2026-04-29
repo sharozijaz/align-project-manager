@@ -7,3 +7,14 @@ export interface ProjectShare {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ClientShareLink {
+  id: string;
+  name?: string;
+  token: string;
+  projectIds: string[];
+  projectTokens: string[];
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
