@@ -117,6 +117,30 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
         Relationships: [];
       };
+      project_shares: {
+        Row: {
+          id: string;
+          user_id: string;
+          project_id: string;
+          token: string;
+          enabled: boolean;
+          expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          project_id: string;
+          token: string;
+          enabled?: boolean;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["project_shares"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {};
     Functions: {};

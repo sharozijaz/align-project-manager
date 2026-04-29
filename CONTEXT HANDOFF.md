@@ -393,3 +393,56 @@ CalendarEvent {
   - Test one dated task with a due-date reminder.
   - Add/verify Resend environment variables in Vercel.
   - Keep browser/mobile push notifications out of v1.
+
+## Latest Implementation State - April 29, 2026
+
+### Completed Since Previous Handoff
+
+- PWA/mobile install support is implemented and committed.
+- Email reminder delivery through Resend is implemented and confirmed working.
+- In-app reminders are confirmed working through the notification bell.
+- Vercel Cron background Google Calendar sync is configured and confirmed working after Supabase service-role grants were fixed.
+- Read-only client project share links have been added in this working tree:
+  - owner controls live on the project details page
+  - public share route is `/share/:token`
+  - public share data is served by `api/project-share/[token].js`
+  - clients can only see the shared project and its non-deleted tasks
+  - clients cannot edit the workspace
+
+### New Files For Client Share Links
+
+- `src/types/projectShare.ts`
+- `src/integrations/supabase/projectShares.ts`
+- `src/components/projects/ProjectSharePanel.tsx`
+- `src/pages/PublicProjectShare.tsx`
+- `api/project-share/[token].js`
+- `supabase/project-shares.sql`
+
+### Modified Files For Client Share Links
+
+- `src/app/router.tsx`
+- `src/pages/ProjectDetails.tsx`
+- `src/integrations/supabase/types.ts`
+- `supabase/schema.sql`
+- `CONTEXT HANDOFF.md`
+
+### Required Supabase SQL Before Testing Share Links
+
+- Run `supabase/project-shares.sql` in Supabase SQL Editor.
+- This creates `public.project_shares`, enables RLS, grants authenticated owner access, and grants `service_role` access for the public read-only API route.
+
+### Validation
+
+- `npm run build` passes with the client share link implementation.
+
+### Remaining Product Work
+
+1. Recurring tasks.
+2. Reports/dashboard insights.
+3. Better email templates and reminder preferences.
+4. Browser/mobile push notifications later.
+5. Optional client collaboration upgrades after read-only sharing is tested:
+   - comments
+   - approvals
+   - client-visible milestones
+   - file attachments
