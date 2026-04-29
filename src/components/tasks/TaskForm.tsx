@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import {
@@ -33,12 +34,14 @@ export function TaskForm({
   onSubmit,
   onCancel,
   compact = false,
+  lockedProject,
 }: {
   projects: Project[];
   initialTask?: Task;
   onSubmit: (input: TaskInput) => void;
   onCancel?: () => void;
   compact?: boolean;
+  lockedProject?: Project;
 }) {
   const [form, setForm] = useState<TaskInput>({
     ...blank,
@@ -63,14 +66,22 @@ export function TaskForm({
       {!compact ? (
         <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Short description" />
       ) : null}
-      <Select className={compact ? "col-span-2 sm:col-span-1" : ""} value={form.projectId ?? ""} onChange={(event) => update("projectId", event.target.value)}>
-        <option value="">Personal Task</option>
-        {projects.map((project) => (
-          <option key={project.id} value={project.id}>
-            {project.name}
-          </option>
-        ))}
-      </Select>
+      {lockedProject ? (
+        <div className={`flex min-h-10 min-w-0 items-center rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 ${compact ? "col-span-2 sm:col-span-1" : ""}`}>
+          <Badge tone="blue">
+            <span className="max-w-full truncate">{lockedProject.name}</span>
+          </Badge>
+        </div>
+      ) : (
+        <Select className={compact ? "col-span-2 sm:col-span-1" : ""} value={form.projectId ?? ""} onChange={(event) => update("projectId", event.target.value)}>
+          <option value="">Personal Task</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </Select>
+      )}
       <Select value={form.priority} onChange={(event) => update("priority", event.target.value)}>
         {!isKnownTaskPriority(form.priority) ? <option value={form.priority}>{getTaskPriorityOption(form.priority).label}</option> : null}
         {taskPriorityOptions.map((option) => (

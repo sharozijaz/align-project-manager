@@ -56,7 +56,12 @@ export function ProjectDetail({
         </div>
       </Card>
       <Card className="p-4">
-        <TaskForm projects={projects} onSubmit={(input) => onAddTask({ ...input, projectId: project.id, category: "project" })} compact />
+        <TaskForm
+          projects={projects}
+          lockedProject={project}
+          onSubmit={(input) => onAddTask({ ...input, projectId: project.id, category: "project" })}
+          compact
+        />
       </Card>
       <div className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:grid-cols-[1fr_1fr_auto]">
         <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
