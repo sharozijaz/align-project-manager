@@ -1,6 +1,12 @@
 node_modules/
 dist/
+.vercel/
+coverage/
+
 .env
-.env.local
+.env.*
+!.env.example
+
 *.tsbuildinfo
+*.log
 vite-dev.log

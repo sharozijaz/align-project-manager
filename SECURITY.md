@@ -10,6 +10,28 @@
 
 Frontend environment variables are visible in browser builds, so `VITE_ALLOWED_EMAILS` is only a UX guard. Use database-level allowlisting for real enforcement.
 
+## GitHub Secret Safety
+
+Never commit real `.env` files or Vercel local metadata. The repo intentionally ignores `.env`, `.env.*`, `.vercel/`, build output, logs, and TypeScript build info.
+
+Safe to expose:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_GOOGLE_CLIENT_ID`
+- `VITE_GOOGLE_REDIRECT_URI`
+- `VITE_GOOGLE_CALENDAR_ID`
+
+Never expose:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GOOGLE_CLIENT_SECRET`
+- `RESEND_API_KEY`
+- `CRON_SECRET`
+- Any database password or OAuth refresh token
+
+If one of those secrets is ever pushed to GitHub, rotate it in the provider dashboard immediately. Removing it from a later commit is not enough because Git history may still contain it.
+
 Run:
 
 ```text
