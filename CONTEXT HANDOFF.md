@@ -344,6 +344,7 @@ CalendarEvent {
   - expanded priority/status options
   - Supabase hosted sync
   - Google Calendar connection and manual sync
+  - PWA/mobile install support
 
 ### Background Sync And Reminders Status
 
@@ -367,10 +368,10 @@ CalendarEvent {
 ### Next Product Priorities
 
 1. Finish/verify email reminders in production.
-2. PWA/mobile polish.
-3. Read-only client project share links.
-4. Recurring tasks.
-5. Better reports.
+2. Read-only client project share links.
+3. Recurring tasks.
+4. Better reports.
+5. Better email templates/preferences.
 6. Browser/mobile push notifications later.
 
 ### Feature Notes To Preserve
@@ -380,7 +381,7 @@ CalendarEvent {
 - Client collaboration should start with read-only project share links. Client editing, comments, approvals, and uploads are later upgrades.
 - Recurring tasks are for repeated routines like weekly client updates, monthly invoices, maintenance checks, and recurring client operations.
 - Reports should focus first on completed work, overdue work, project progress, upcoming deadlines, and client/monthly summaries.
-- Mobile should be handled as a responsive PWA first. Do not build native mobile first. The goal is to install/use Align from phone, tablet, and laptop through the same domain.
+- Mobile is handled as a responsive PWA first. Do not build native mobile first. Align has a manifest, service worker, mobile app metadata, and an install prompt in the profile menu when supported by the browser.
 
 ### Next Implementation Default
 

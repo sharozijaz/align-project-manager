@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { InstallAppButton } from "../pwa/InstallAppButton";
 import { SyncIndicator } from "../sync/SyncIndicator";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { ThemeToggle } from "../ui/ThemeToggle";
@@ -78,6 +79,7 @@ export function Navbar() {
               <SyncIndicator className="w-full justify-center rounded-md" />
               <ThemeToggle showLabel className="w-full rounded-md" />
             </div>
+            <InstallAppButton className="mt-2 w-full" />
             <NavLink
               to="/settings"
               className={({ isActive }) =>
