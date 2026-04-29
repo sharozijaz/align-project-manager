@@ -105,7 +105,7 @@ function DateTimeField({
       <span>{label}</span>
       <div className="grid grid-cols-[1fr_92px] gap-2">
         <Input type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
-        <Input type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} disabled={!date} />
+        <Input type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
       </div>
     </label>
   );

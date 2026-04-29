@@ -261,20 +261,24 @@ select option:hover {
   color: var(--text);
 }
 
-input[type="date"] {
+input[type="date"],
+input[type="time"] {
   color-scheme: light;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.82;
 }
 
-[data-theme="dark"] input[type="date"] {
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="time"] {
   color-scheme: dark;
 }
 
-[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 

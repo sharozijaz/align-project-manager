@@ -58,7 +58,7 @@ export function TaskForm({
 
   return (
     <form
-      className={compact ? "grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_0.9fr_0.9fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
+      className={compact ? "grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-[1.4fr_1fr_0.75fr_0.85fr_1.15fr_1.15fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
@@ -72,7 +72,7 @@ export function TaskForm({
           dueDate: form.dueDate || undefined,
           dueTime: form.dueDate && form.dueTime ? form.dueTime : undefined,
         });
-        if (!initialTask) setForm(blank);
+        if (!initialTask) setForm(lockedProject ? { ...blank, projectId: lockedProject.id, category: "project" } : blank);
       }}
     >
       <Input className={compact ? "col-span-2 lg:col-span-1" : ""} value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Add a task, goal, or personal chore" required />
@@ -169,7 +169,7 @@ function DateTimeField({
       <span>{label}</span>
       <div className="grid grid-cols-[1fr_92px] gap-2">
         <Input type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
-        <Input type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} disabled={!date} />
+        <Input type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
       </div>
     </label>
   );

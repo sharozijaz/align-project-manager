@@ -40,18 +40,18 @@ export function TaskTable({
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
       <div className="overflow-x-auto">
-        <table className="min-w-[1580px] w-full border-collapse text-left text-sm">
+        <table className="min-w-[1880px] w-full table-fixed border-collapse text-left text-sm">
           <thead className="bg-[var(--surface-raised)] text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
             <tr>
-              <th className="w-[32%] px-4 py-3">Task</th>
-              <th className="w-[20%] px-4 py-3">Project / Category</th>
-              <th className="w-[14%] px-4 py-3">Priority</th>
-              <th className="w-[15%] px-4 py-3">Status</th>
-              <th className="w-[16%] px-4 py-3">Start</th>
-              <th className="w-[16%] px-4 py-3">Due</th>
-              <th className="w-[14%] px-4 py-3">Reminder</th>
-              <th className="w-[14%] px-4 py-3">Repeats</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="w-[300px] px-4 py-3">Task</th>
+              <th className="w-[230px] px-4 py-3">Project / Category</th>
+              <th className="w-[170px] px-4 py-3">Priority</th>
+              <th className="w-[190px] px-4 py-3">Status</th>
+              <th className="w-[300px] px-4 py-3">Start</th>
+              <th className="w-[300px] px-4 py-3">Due</th>
+              <th className="w-[190px] px-4 py-3">Reminder</th>
+              <th className="w-[190px] px-4 py-3">Repeats</th>
+              <th className="w-[130px] px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -196,7 +196,7 @@ function TaskTableRow({
         </Select>
       </td>
       <td className="px-4 py-3">
-        <div className="grid grid-cols-[1fr_92px] gap-2">
+        <div className="grid grid-cols-[1fr_112px] gap-2">
           <Input
             type="date"
             value={task.startDate ?? ""}
@@ -210,13 +210,12 @@ function TaskTableRow({
             onChange={(event) => onUpdate(task.id, { startTime: event.target.value || undefined })}
             className="min-h-10"
             aria-label="Start time"
-            disabled={!task.startDate}
           />
         </div>
         <p className="mt-2 text-xs text-[var(--text-muted)]">{startDateLabel(task.startDate, task.startTime)}</p>
       </td>
       <td className="px-4 py-3">
-        <div className="grid grid-cols-[1fr_92px] gap-2">
+        <div className="grid grid-cols-[1fr_112px] gap-2">
           <Input
             type="date"
             value={task.dueDate ?? ""}
@@ -230,7 +229,6 @@ function TaskTableRow({
             onChange={(event) => onUpdate(task.id, { dueTime: event.target.value || undefined })}
             className="min-h-10"
             aria-label="Due time"
-            disabled={!task.dueDate}
           />
         </div>
         <p className="mt-2 text-xs text-[var(--text-muted)]">{dateLabel(task.dueDate, task.dueTime)}</p>
@@ -240,7 +238,7 @@ function TaskTableRow({
         <Select
           value={task.reminder ?? "none"}
           onChange={(event) => onUpdate(task.id, { reminder: event.target.value as Task["reminder"] })}
-          className="min-h-10"
+          className="min-h-10 min-w-[170px]"
           title={getTaskReminderOption(task.reminder).label}
         >
           {taskReminderOptions.map((option) => (
@@ -254,7 +252,7 @@ function TaskTableRow({
         <Select
           value={task.recurrence ?? "none"}
           onChange={(event) => onUpdate(task.id, { recurrence: event.target.value as Task["recurrence"] })}
-          className="min-h-10"
+          className="min-h-10 min-w-[170px]"
           title={getTaskRecurrenceOption(task.recurrence).label}
         >
           {taskRecurrenceOptions.map((option) => (

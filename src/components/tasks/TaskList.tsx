@@ -39,12 +39,6 @@ export function TaskList({
       {tasks.map((task) => (
         <div
           key={task.id}
-          draggable={Boolean(onReorder)}
-          onDragStart={(event) => {
-            if (!onReorder) return;
-            setDraggedId(task.id);
-            event.dataTransfer.effectAllowed = "move";
-          }}
           onDragOver={(event) => {
             if (!onReorder || draggedId === task.id) return;
             event.preventDefault();
@@ -62,21 +56,33 @@ export function TaskList({
             setDraggedId(null);
             setDragOverId(null);
           }}
-          className={`relative rounded-[var(--radius-md)] transition ${onReorder ? "cursor-grab active:cursor-grabbing" : ""} ${dragOverId === task.id ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
+          className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-all duration-200 ${draggedId === task.id ? "scale-[0.99] opacity-45" : ""} ${dragOverId === task.id ? "translate-y-1 border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
         >
           {onReorder ? (
-            <div className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-md border border-[var(--border)] bg-[var(--surface-raised)] p-1 text-[var(--text-soft)] opacity-70">
+            <button
+              type="button"
+              draggable
+              title="Drag to reorder"
+              aria-label="Drag to reorder task"
+              onDragStart={(event) => {
+                setDraggedId(task.id);
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              className="flex w-8 shrink-0 cursor-grab items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing"
+            >
               <GripVertical size={16} />
-            </div>
+            </button>
           ) : null}
-          <TaskCard
-            task={task}
-            projects={projects}
-            project={projects.find((project) => project.id === task.projectId)}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-            onComplete={onComplete}
-          />
+          <div className="min-w-0 flex-1">
+            <TaskCard
+              task={task}
+              projects={projects}
+              project={projects.find((project) => project.id === task.projectId)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              onComplete={onComplete}
+            />
+          </div>
         </div>
       ))}
     </div>

@@ -32,11 +32,6 @@ export function Projects() {
         {projects.map((project) => (
           <div
             key={project.id}
-            draggable
-            onDragStart={(event) => {
-              setDraggedProjectId(project.id);
-              event.dataTransfer.effectAllowed = "move";
-            }}
             onDragOver={(event) => {
               if (draggedProjectId === project.id) return;
               event.preventDefault();
@@ -54,22 +49,34 @@ export function Projects() {
               setDraggedProjectId(null);
               setDragOverProjectId(null);
             }}
-            className={`relative cursor-grab rounded-[var(--radius-md)] transition active:cursor-grabbing ${dragOverProjectId === project.id ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
+            className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-all duration-200 ${draggedProjectId === project.id ? "scale-[0.99] opacity-45" : ""} ${dragOverProjectId === project.id ? "translate-y-1 border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
           >
-            <div className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-md border border-[var(--border)] bg-[var(--surface-raised)] p-1 text-[var(--text-soft)] opacity-70">
-              <GripVertical size={16} />
-            </div>
-            <ProjectCard
-              project={project}
-              tasks={tasks.filter((task) => !task.deletedAt)}
-              onUpdate={updateProject}
-              onDelete={(projectId) => {
-                const project = projects.find((item) => item.id === projectId);
-                if (window.confirm(`Delete "${project?.name ?? "this project"}"? Tasks will stay in your workspace.`)) {
-                  deleteProject(projectId);
-                }
+            <button
+              type="button"
+              draggable
+              title="Drag to reorder"
+              aria-label="Drag to reorder project"
+              onDragStart={(event) => {
+                setDraggedProjectId(project.id);
+                event.dataTransfer.effectAllowed = "move";
               }}
-            />
+              className="flex w-8 shrink-0 cursor-grab items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing"
+            >
+              <GripVertical size={16} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <ProjectCard
+                project={project}
+                tasks={tasks.filter((task) => !task.deletedAt)}
+                onUpdate={updateProject}
+                onDelete={(projectId) => {
+                  const project = projects.find((item) => item.id === projectId);
+                  if (window.confirm(`Delete "${project?.name ?? "this project"}"? Tasks will stay in your workspace.`)) {
+                    deleteProject(projectId);
+                  }
+                }}
+              />
+            </div>
           </div>
         ))}
       </div>
