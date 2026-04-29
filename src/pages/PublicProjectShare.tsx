@@ -45,6 +45,12 @@ export function PublicProjectShare() {
 
       try {
         const response = await fetch(`/api/project-share/${token}`);
+        const contentType = response.headers.get("content-type") || "";
+
+        if (!contentType.includes("application/json")) {
+          throw new Error("Share API is unavailable. Please redeploy Align and try again.");
+        }
+
         const payload = await response.json();
 
         if (!response.ok) {
