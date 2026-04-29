@@ -317,3 +317,66 @@ CalendarEvent {
 - One global top navbar only.
 - Dark-only theme for now.
 - Dashboard should keep the dark hero/header direction with the live glance section.
+
+## Remaining Product Roadmap
+
+### Current Product State
+
+- Align is now an MVP-plus project management app, not just a prototype.
+- Supabase sync works while the app is open.
+- Google Calendar sync works while the app is open.
+- Security gating is in place with approved-email access.
+- Custom domain is connected and working.
+- Core app areas are complete:
+  - dashboard
+  - projects
+  - project details
+  - tasks
+  - calendar
+  - settings
+- Product polish already completed:
+  - Align branding/logo
+  - light/dark theme support
+  - cleaned top navbar
+  - settings moved under profile menu
+  - task card/table view
+  - deleted task recovery
+  - expanded priority/status options
+  - Supabase hosted sync
+  - Google Calendar connection and manual sync
+
+### Major Remaining Infrastructure Gap
+
+- The only major infrastructure feature still missing is true background sync while Align is closed.
+- Current sync runs while the browser/app is open because frontend JavaScript must be running.
+- True closed-app sync needs a server-side scheduled job, likely a Vercel Cron endpoint.
+- That cron foundation should also power reliable reminders, email digests, and overdue alerts.
+
+### Next Product Priorities
+
+1. Background sync + reminders.
+2. Email and in-app notifications.
+3. PWA/mobile polish.
+4. Read-only client project share links.
+5. Recurring tasks.
+6. Better reports.
+7. Browser/mobile push notifications later.
+
+### Feature Notes To Preserve
+
+- Notifications should start with in-app + email because they are reliable and lower complexity. Browser/mobile push can come later.
+- Reminders are essential. Reliable reminders require server cron if Align is closed.
+- Client collaboration should start with read-only project share links. Client editing, comments, approvals, and uploads are later upgrades.
+- Recurring tasks are for repeated routines like weekly client updates, monthly invoices, maintenance checks, and recurring client operations.
+- Reports should focus first on completed work, overdue work, project progress, upcoming deadlines, and client/monthly summaries.
+- Mobile should be handled as a responsive PWA first. Do not build native mobile first. The goal is to install/use Align from phone, tablet, and laptop through the same domain.
+
+### Next Implementation Default
+
+- If future context is lost, resume with the background sync + reminders track first.
+- Recommended first implementation:
+  - Add a Vercel Cron API route.
+  - Store reminder preferences per task.
+  - Generate in-app notification records.
+  - Add email delivery through a provider such as Resend, Postmark, or SendGrid.
+  - Keep browser/mobile push notifications out of v1.

@@ -30,6 +30,7 @@ GOOGLE_CLIENT_ID=your-google-oauth-client-id
 GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 GOOGLE_REDIRECT_URI=https://your-deployed-url/api/google-calendar/callback
 GOOGLE_CALENDAR_ID=primary
+CRON_SECRET=generate-a-long-random-secret
 ```
 
 Use the same values that are currently working in `.env.local`.
@@ -38,6 +39,16 @@ Use the same values that are currently working in `.env.local`.
 
 Google Calendar sync will also need a backend/serverless callback for the OAuth code exchange before the Connect button can complete. Keep Google client secrets out of Vite environment variables.
 Run `supabase/google-calendar.sql` before using the Google Calendar Connect button.
+
+## Background Sync
+
+Vercel Cron calls:
+
+```text
+GET /api/cron/sync-google-calendar
+```
+
+The schedule is daily in `vercel.json` because Vercel Hobby allows daily cron jobs. Upgrade to Pro before changing it to hourly or more frequent sync. Add `CRON_SECRET` in Vercel so scheduled calls are authorized and direct/manual calls are rejected unless they include the same bearer token.
 
 ## Supabase Auth Redirect URLs
 

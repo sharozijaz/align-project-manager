@@ -27,6 +27,7 @@ GOOGLE_CLIENT_ID=your-google-oauth-client-id
 GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 GOOGLE_REDIRECT_URI=https://your-domain.com/api/google-calendar/callback
 GOOGLE_CALENDAR_ID=primary
+CRON_SECRET=generate-a-long-random-secret
 VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id
 VITE_GOOGLE_REDIRECT_URI=https://your-domain.com/api/google-calendar/callback
 VITE_GOOGLE_CALENDAR_ID=primary
@@ -65,11 +66,12 @@ Implemented behavior:
 - auto-sync task changes after a short delay
 - show recent sync history in Settings
 - skip overwriting linked Google events that were edited after the last Align sync
+- resolve conflicts by keeping Google or overwriting with Align
+- background scheduled sync through `GET /api/cron/sync-google-calendar`
 
 Still to add:
 
-- choosing whether Align or Google wins when a conflict is detected
-- background scheduled sync when the app is closed
+- reminder notifications using the same cron foundation
 
 ## Frontend Files
 
@@ -78,6 +80,10 @@ Still to add:
 - `src/integrations/googleCalendar/types.ts`
 - `src/pages/Settings.tsx`
 
-## Next Implementation Step
+## Background Sync
 
-Add Vercel serverless functions under `api/google-calendar/*`, then connect the existing frontend `connectGoogleCalendar`, `fetchGoogleEvents`, `syncTaskToGoogleCalendar`, and `disconnectGoogleCalendar` functions to those endpoints.
+`vercel.json` schedules `/api/cron/sync-google-calendar` daily. The endpoint reads every saved Google Calendar connection, downloads that user's tasks from Supabase, refreshes Google tokens when needed, and syncs dated active tasks.
+
+Vercel Hobby allows daily cron jobs. Upgrade to Pro before changing this to hourly or more frequent sync.
+
+Set `CRON_SECRET` in Vercel. Vercel sends it as `Authorization: Bearer <CRON_SECRET>` for scheduled calls, and the endpoint rejects manual calls with the wrong token.

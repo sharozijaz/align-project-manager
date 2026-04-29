@@ -20,6 +20,7 @@ export function getEnv() {
     `${appUrl}/api/google-calendar/callback`;
   const googleCalendarId = process.env.GOOGLE_CALENDAR_ID || process.env.VITE_GOOGLE_CALENDAR_ID || "primary";
   const stateSecret = process.env.GOOGLE_OAUTH_STATE_SECRET || supabaseServiceRoleKey || googleClientSecret;
+  const cronSecret = process.env.CRON_SECRET || "";
 
   return {
     supabaseUrl,
@@ -31,6 +32,7 @@ export function getEnv() {
     googleRedirectUri,
     googleCalendarId,
     stateSecret,
+    cronSecret,
   };
 }
 
@@ -46,6 +48,19 @@ export function requireMethod(req, res, method) {
   if (req.method === method) return false;
 
   res.status(405).json({ error: `Use ${method}.` });
+  return true;
+}
+
+export function requireCronAuthorization(req, res, env) {
+  if (!env.cronSecret) {
+    res.status(500).json({ error: "Missing server configuration: cronSecret." });
+    return true;
+  }
+
+  const token = req.headers.authorization?.replace(/^Bearer\s+/iu, "");
+  if (token === env.cronSecret) return false;
+
+  res.status(401).json({ error: "Invalid cron authorization." });
   return true;
 }
 
@@ -328,6 +343,100 @@ export async function findTaskLinks(env, userId) {
   return new Map(rows.map((row) => [row.task_id, row]));
 }
 
+export async function findGoogleCalendarConnections(env) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_calendar_connections`);
+  url.searchParams.set("select", "user_id");
+
+  const response = await serviceFetch(env, url);
+  return response.json();
+}
+
+export async function findTasksForUser(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/tasks`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "id,title,description,project_id,category,priority,status,due_date,deleted_at,created_at,updated_at");
+  url.searchParams.set("order", "due_date.asc.nullslast");
+
+  const response = await serviceFetch(env, url);
+  const rows = await response.json();
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    description: row.description || undefined,
+    projectId: row.project_id || undefined,
+    category: row.category,
+    priority: normalizeTaskPriority(row.priority),
+    status: normalizeTaskStatus(row.status),
+    dueDate: row.due_date || undefined,
+    deletedAt: row.deleted_at || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, options = {}) {
+  const connection = await requireGoogleConnection(env, userId);
+  const forceTaskIds = new Set(Array.isArray(options.forceTaskIds) ? options.forceTaskIds : []);
+  const links = await findTaskLinks(env, userId);
+  let created = 0;
+  let updated = 0;
+  let removed = 0;
+  let skipped = 0;
+  const conflicts = [];
+
+  for (const task of tasks) {
+    const link = links.get(task.id);
+    const linkedEventId = link?.google_event_id;
+    const shouldSync = task.dueDate && !isTerminalTaskStatus(task.status) && !task.deletedAt;
+
+    if (!shouldSync) {
+      skipped += 1;
+
+      if (linkedEventId) {
+        await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`, { method: "DELETE" });
+        await deleteTaskLink(env, userId, task.id);
+        removed += 1;
+      }
+
+      continue;
+    }
+
+    const eventPayload = taskToGoogleEvent(task);
+
+    if (linkedEventId) {
+      const googleEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`);
+
+      if (wasGoogleEventEditedAfterLastSync(link, googleEvent) && !forceTaskIds.has(task.id)) {
+        conflicts.push({
+          taskId: task.id,
+          taskTitle: task.title,
+          googleEventId: linkedEventId,
+          googleUpdatedAt: googleEvent.updated,
+        });
+        skipped += 1;
+        continue;
+      }
+
+      const updatedEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(eventPayload),
+      });
+      await upsertTaskLink(env, userId, task.id, linkedEventId, updatedEvent.updated);
+      updated += 1;
+    } else {
+      const createdEvent = await googleCalendarRequest(env, connection, "/events", {
+        method: "POST",
+        body: JSON.stringify(eventPayload),
+      });
+      await upsertTaskLink(env, userId, task.id, createdEvent.id, createdEvent.updated);
+      created += 1;
+    }
+  }
+
+  return { created, updated, removed, skipped, conflicts };
+}
+
 export async function upsertTaskLink(env, userId, taskId, googleEventId, lastSyncedAt = new Date().toISOString()) {
   const row = {
       user_id: userId,
@@ -432,6 +541,36 @@ export class HttpError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+function normalizeTaskPriority(priority) {
+  if (priority === "critical") return "urgent";
+  return ["high", "low", "medium", "urgent"].includes(priority) ? priority : "medium";
+}
+
+function normalizeTaskStatus(status) {
+  if (status === "completed") return "done";
+  if (status === "backlog") return "not-started";
+  return [
+    "in-progress",
+    "not-started",
+    "approval-pending",
+    "under-review",
+    "approved",
+    "done",
+    "delivered",
+    "postponed",
+    "cancelled",
+    "waiting",
+    "blocked",
+    "review",
+  ].includes(status)
+    ? status
+    : "not-started";
+}
+
+function isTerminalTaskStatus(status) {
+  return status === "done" || status === "delivered" || status === "cancelled" || status === "completed";
 }
 
 function signState(env, encodedPayload) {
