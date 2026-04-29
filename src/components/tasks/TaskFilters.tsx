@@ -2,7 +2,7 @@ import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 
 export type TaskFilter = "all" | "today" | "upcoming" | "overdue" | "completed";
-export type TaskSort = "dueDate" | "priority" | "status";
+export type TaskSort = "manual" | "dueDate" | "priority" | "status";
 
 export function TaskFilters({
   filter,
@@ -30,6 +30,7 @@ export function TaskFilters({
         <option value="completed">Done</option>
       </Select>
       <Select value={sort} onChange={(event) => onSortChange(event.target.value as TaskSort)}>
+        <option value="manual">Manual order</option>
         <option value="dueDate">Due date</option>
         <option value="priority">Priority</option>
         <option value="status">Status</option>

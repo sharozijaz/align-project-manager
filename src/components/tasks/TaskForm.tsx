@@ -23,7 +23,9 @@ const blank: TaskInput = {
   priority: "medium",
   status: "not-started",
   startDate: "",
+  startTime: "",
   dueDate: "",
+  dueTime: "",
   reminder: "none",
   recurrence: "none",
   projectId: "",
@@ -47,6 +49,7 @@ export function TaskForm({
   const [form, setForm] = useState<TaskInput>({
     ...blank,
     ...initialTask,
+    projectId: lockedProject?.id ?? initialTask?.projectId ?? "",
     reminder: initialTask?.reminder ?? "none",
     recurrence: initialTask?.recurrence ?? "none",
   });
@@ -59,7 +62,16 @@ export function TaskForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
-        onSubmit({ ...form, title: form.title.trim(), projectId: form.projectId || undefined, startDate: form.startDate || undefined, dueDate: form.dueDate || undefined });
+        onSubmit({
+          ...form,
+          title: form.title.trim(),
+          projectId: lockedProject?.id ?? (form.projectId || undefined),
+          category: lockedProject ? "project" : form.category,
+          startDate: form.startDate || undefined,
+          startTime: form.startDate && form.startTime ? form.startTime : undefined,
+          dueDate: form.dueDate || undefined,
+          dueTime: form.dueDate && form.dueTime ? form.dueTime : undefined,
+        });
         if (!initialTask) setForm(blank);
       }}
     >
@@ -99,8 +111,20 @@ export function TaskForm({
           </option>
         ))}
       </Select>
-      <Input type="date" value={form.startDate ?? ""} onChange={(event) => update("startDate", event.target.value)} aria-label="Start date" />
-      <Input type="date" value={form.dueDate ?? ""} onChange={(event) => update("dueDate", event.target.value)} />
+      <DateTimeField
+        label="Start"
+        date={form.startDate}
+        time={form.startTime}
+        onDateChange={(value) => update("startDate", value)}
+        onTimeChange={(value) => update("startTime", value)}
+      />
+      <DateTimeField
+        label="Due"
+        date={form.dueDate}
+        time={form.dueTime}
+        onDateChange={(value) => update("dueDate", value)}
+        onTimeChange={(value) => update("dueTime", value)}
+      />
       <Select value={form.reminder} onChange={(event) => update("reminder", event.target.value)}>
         {taskReminderOptions.map((option) => (
           <option key={option.value} value={option.value}>
@@ -124,5 +148,29 @@ export function TaskForm({
         <Button type="submit">{initialTask ? "Save" : "Add"}</Button>
       </div>
     </form>
+  );
+}
+
+function DateTimeField({
+  label,
+  date,
+  time,
+  onDateChange,
+  onTimeChange,
+}: {
+  label: string;
+  date?: string;
+  time?: string;
+  onDateChange: (value: string) => void;
+  onTimeChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+      <span>{label}</span>
+      <div className="grid grid-cols-[1fr_92px] gap-2">
+        <Input type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
+        <Input type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} disabled={!date} />
+      </div>
+    </label>
   );
 }

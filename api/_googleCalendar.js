@@ -289,9 +289,28 @@ export async function googleCalendarRequest(env, connection, path, options = {})
 }
 
 export function taskToGoogleEvent(task) {
+  if (task.dueTime) {
+    const start = timedEventStart(task);
+    const end = timedEventEnd(start, task);
+
+    return {
+      ...baseGoogleEvent(task),
+      start: { dateTime: start, timeZone: appTimeZone() },
+      end: { dateTime: end, timeZone: appTimeZone() },
+    };
+  }
+
   const endDate = new Date(`${task.dueDate}T00:00:00.000Z`);
   endDate.setUTCDate(endDate.getUTCDate() + 1);
 
+  return {
+    ...baseGoogleEvent(task),
+    start: { date: task.dueDate },
+    end: { date: endDate.toISOString().slice(0, 10) },
+  };
+}
+
+function baseGoogleEvent(task) {
   return {
     summary: task.title,
     description: [
@@ -303,14 +322,34 @@ export function taskToGoogleEvent(task) {
     ]
       .filter(Boolean)
       .join("\n"),
-    start: { date: task.dueDate },
-    end: { date: endDate.toISOString().slice(0, 10) },
     extendedProperties: {
       private: {
         alignTaskId: task.id,
       },
     },
   };
+}
+
+function timedEventStart(task) {
+  const startDate = task.startDate && task.startTime ? task.startDate : task.dueDate;
+  const startTime = task.startDate && task.startTime ? task.startTime : task.dueTime;
+  return `${startDate}T${normalizeTime(startTime)}`;
+}
+
+function timedEventEnd(startDateTime, task) {
+  const endDateTime = task.dueDate && task.dueTime ? `${task.dueDate}T${normalizeTime(task.dueTime)}` : startDateTime;
+  if (endDateTime > startDateTime) return endDateTime;
+  const fallbackEnd = new Date(`${startDateTime}.000Z`);
+  fallbackEnd.setMinutes(fallbackEnd.getMinutes() + 60);
+  return fallbackEnd.toISOString().slice(0, 19);
+}
+
+function normalizeTime(value) {
+  return `${value || "09:00"}:00`.slice(0, 8);
+}
+
+function appTimeZone() {
+  return process.env.APP_TIME_ZONE || "Asia/Karachi";
 }
 
 export function googleEventToCalendarEvent(event) {
@@ -378,20 +417,21 @@ export async function findWorkspaceUserIds(env) {
 export async function findTasksForUser(env, userId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/tasks`);
   url.searchParams.set("user_id", `eq.${userId}`);
-  url.searchParams.set("select", "id,title,description,project_id,category,priority,status,due_date,reminder,deleted_at,created_at,updated_at");
+  url.searchParams.set("select", "id,title,description,project_id,category,priority,status,start_date,start_time,due_date,due_time,reminder,deleted_at,created_at,updated_at");
   url.searchParams.set("order", "due_date.asc.nullslast");
 
   let response;
   try {
     response = await serviceFetch(env, url);
   } catch (error) {
-    if (!String(error.message || "").includes("reminder")) {
+    const message = String(error.message || "").toLowerCase();
+    if (!["reminder", "start_time", "due_time"].some((column) => message.includes(column))) {
       throw error;
     }
 
     const fallbackUrl = new URL(`${env.supabaseUrl}/rest/v1/tasks`);
     fallbackUrl.searchParams.set("user_id", `eq.${userId}`);
-    fallbackUrl.searchParams.set("select", "id,title,description,project_id,category,priority,status,due_date,deleted_at,created_at,updated_at");
+    fallbackUrl.searchParams.set("select", "id,title,description,project_id,category,priority,status,start_date,due_date,deleted_at,created_at,updated_at");
     fallbackUrl.searchParams.set("order", "due_date.asc.nullslast");
     response = await serviceFetch(env, fallbackUrl);
   }
@@ -405,7 +445,10 @@ export async function findTasksForUser(env, userId) {
     category: row.category,
     priority: normalizeTaskPriority(row.priority),
     status: normalizeTaskStatus(row.status),
+    startDate: row.start_date || undefined,
+    startTime: row.start_time || undefined,
     dueDate: row.due_date || undefined,
+    dueTime: row.due_time || undefined,
     reminder: normalizeTaskReminder(row.reminder),
     deletedAt: row.deleted_at || undefined,
     createdAt: row.created_at,
@@ -703,9 +746,13 @@ function buildReminderNotification(userId, task, today) {
     type: "task-reminder",
     title: `Reminder: ${task.title}`,
     message: reminderMessage(task, today),
-    scheduled_for: `${scheduledDate}T05:00:00.000Z`,
+    scheduled_for: scheduledReminderIso(scheduledDate, task.dueTime),
     created_at: new Date().toISOString(),
   };
+}
+
+function scheduledReminderIso(dateKey, time) {
+  return new Date(`${dateKey}T${normalizeTime(time || "09:00")}${process.env.APP_TIME_ZONE_OFFSET || "+05:00"}`).toISOString();
 }
 
 function reminderMessage(task, today) {

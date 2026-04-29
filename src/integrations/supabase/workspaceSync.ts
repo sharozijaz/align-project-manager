@@ -87,6 +87,14 @@ async function upsertProjects(rows: ReturnType<typeof projectToRow>[]) {
         throw new Error(errorMessage(retryError, "Could not upload projects."));
       }
 
+      const optionalColumn = optionalProjectColumns.find((column) => isMissingColumn(upsertError, column));
+      if (optionalColumn) {
+        const retryRows = stripColumns(rows, optionalProjectColumns);
+        const { error: retryError } = await client.from("projects").upsert(retryRows);
+        if (!retryError) return;
+        throw new Error(errorMessage(retryError, "Could not upload projects."));
+      }
+
       throw new Error(errorMessage(upsertError, "Could not upload projects."));
     }
   }
@@ -145,6 +153,14 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
         throw new Error(errorMessage(retryError, "Could not upload tasks."));
       }
 
+      const optionalColumn = optionalTaskColumns.find((column) => isMissingColumn(upsertError, column));
+      if (optionalColumn) {
+        const retryRows = stripColumns(rows, optionalTaskColumns);
+        const { error: retryError } = await client.from("tasks").upsert(retryRows);
+        if (!retryError) return;
+        throw new Error(errorMessage(retryError, "Could not upload tasks."));
+      }
+
       throw new Error(errorMessage(upsertError, "Could not upload tasks."));
     }
   }
@@ -153,6 +169,19 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
 function isMissingColumn(error: { message?: string; code?: string }, column: string) {
   const message = String(error.message ?? "").toLowerCase();
   return error.code === "PGRST204" || message.includes(column.toLowerCase());
+}
+
+const optionalProjectColumns = ["start_time", "due_time", "sort_order"];
+const optionalTaskColumns = ["start_time", "due_time", "sort_order"];
+
+function stripColumns<Row extends Record<string, unknown>>(rows: Row[], columns: string[]) {
+  return rows.map((row) => {
+    const next = { ...row };
+    columns.forEach((column) => {
+      delete next[column];
+    });
+    return next;
+  });
 }
 
 async function replaceCalendarEvents(rows: ReturnType<typeof calendarEventToRow>[]) {

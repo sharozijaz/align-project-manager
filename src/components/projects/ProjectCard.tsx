@@ -47,8 +47,8 @@ export function ProjectCard({
       </div>
       <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         <Badge tone={project.status === "completed" ? "emerald" : project.status === "paused" ? "amber" : "blue"}>{project.status}</Badge>
-        {project.startDate ? <Badge>{startDateLabel(project.startDate)}</Badge> : null}
-        <Badge>{dateLabel(project.dueDate)}</Badge>
+        {project.startDate ? <Badge>{startDateLabel(project.startDate, project.startTime)}</Badge> : null}
+        <Badge>{dateLabel(project.dueDate, project.dueTime)}</Badge>
         {project.startDate ? <Badge>{durationLabel(project.startDate, project.dueDate)}</Badge> : null}
         <Badge>{projectTasks.length} tasks</Badge>
         <Badge>{open} open</Badge>

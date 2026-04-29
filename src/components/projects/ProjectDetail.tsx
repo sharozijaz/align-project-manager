@@ -18,6 +18,7 @@ export function ProjectDetail({
   onUpdateTask,
   onDeleteTask,
   onCompleteTask,
+  onReorderTasks,
 }: {
   project: Project;
   tasks: Task[];
@@ -26,6 +27,7 @@ export function ProjectDetail({
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
+  onReorderTasks: (orderedIds: string[]) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -50,8 +52,8 @@ export function ProjectDetail({
             <h1 className="text-2xl font-bold text-slate-950">{project.name}</h1>
             <p className="mt-1 text-sm text-slate-500">{project.description || "Project details and tasks."}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-muted)]">
-              <span>{startDateLabel(project.startDate)}</span>
-              <span>{dateLabel(project.dueDate)}</span>
+              <span>{startDateLabel(project.startDate, project.startTime)}</span>
+              <span>{dateLabel(project.dueDate, project.dueTime)}</span>
               {project.startDate ? <span>{durationLabel(project.startDate, project.dueDate)}</span> : null}
             </div>
           </div>
@@ -96,6 +98,7 @@ export function ProjectDetail({
         onComplete={onCompleteTask}
         view={view}
         lockedProjectId={project.id}
+        onReorder={onReorderTasks}
       />
     </div>
   );

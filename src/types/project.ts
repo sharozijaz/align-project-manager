@@ -9,7 +9,10 @@ export interface Project {
   status: ProjectStatus;
   priority: TaskPriority;
   startDate?: string;
+  startTime?: string;
   dueDate?: string;
+  dueTime?: string;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -6,7 +6,10 @@ create table if not exists public.projects (
   status text not null check (status in ('active', 'paused', 'completed')),
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
   start_date date,
+  start_time time,
   due_date date,
+  due_time time,
+  sort_order numeric,
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
@@ -21,10 +24,13 @@ create table if not exists public.tasks (
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
   status text not null check (status in ('in-progress', 'not-started', 'approval-pending', 'under-review', 'approved', 'done', 'delivered', 'postponed', 'cancelled', 'waiting', 'blocked', 'review')),
   start_date date,
+  start_time time,
   due_date date,
+  due_time time,
   reminder text not null default 'none' check (reminder in ('none', 'due-date', 'day-before', 'two-days-before', 'week-before')),
   recurrence text not null default 'none' check (recurrence in ('none', 'daily', 'weekly', 'monthly', 'yearly')),
   recurring_parent_id text,
+  sort_order numeric,
   deleted_at timestamptz,
   created_at timestamptz not null,
   updated_at timestamptz not null
@@ -140,7 +146,9 @@ create index if not exists projects_user_id_idx on public.projects(user_id);
 create index if not exists tasks_user_id_idx on public.tasks(user_id);
 create index if not exists tasks_due_date_idx on public.tasks(due_date);
 create index if not exists tasks_start_date_idx on public.tasks(start_date);
+create index if not exists tasks_user_sort_order_idx on public.tasks(user_id, sort_order);
 create index if not exists projects_start_date_idx on public.projects(start_date);
+create index if not exists projects_user_sort_order_idx on public.projects(user_id, sort_order);
 create index if not exists calendar_events_user_id_idx on public.calendar_events(user_id);
 create index if not exists calendar_events_start_date_idx on public.calendar_events(start_date);
 create index if not exists notifications_user_id_idx on public.notifications(user_id);

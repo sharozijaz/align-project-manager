@@ -15,14 +15,22 @@ import {
 
 export const todayKey = () => format(new Date(), "yyyy-MM-dd");
 
-export const dateLabel = (value?: string) => {
-  if (!value) return "No due date";
-  return format(parseISO(value), "MMM d, yyyy");
+export const timeLabel = (value?: string) => {
+  if (!value) return "";
+  const [hours = "0", minutes = "0"] = value.split(":");
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return format(date, "h:mm a");
 };
 
-export const startDateLabel = (value?: string) => {
+export const dateLabel = (value?: string, time?: string) => {
+  if (!value) return "No due date";
+  return `Due ${format(parseISO(value), "MMM d, yyyy")}${time ? ` at ${timeLabel(time)}` : ""}`;
+};
+
+export const startDateLabel = (value?: string, time?: string) => {
   if (!value) return "No start date";
-  return `Start ${format(parseISO(value), "MMM d, yyyy")}`;
+  return `Start ${format(parseISO(value), "MMM d, yyyy")}${time ? ` at ${timeLabel(time)}` : ""}`;
 };
 
 export const durationLabel = (startDate?: string, endDate?: string) => {

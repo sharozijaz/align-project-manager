@@ -40,17 +40,17 @@ export function TaskTable({
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
       <div className="overflow-x-auto">
-        <table className="min-w-[1260px] w-full border-collapse text-left text-sm">
+        <table className="min-w-[1580px] w-full border-collapse text-left text-sm">
           <thead className="bg-[var(--surface-raised)] text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
             <tr>
               <th className="w-[32%] px-4 py-3">Task</th>
               <th className="w-[20%] px-4 py-3">Project / Category</th>
               <th className="w-[14%] px-4 py-3">Priority</th>
               <th className="w-[15%] px-4 py-3">Status</th>
-              <th className="w-[12%] px-4 py-3">Start Date</th>
-              <th className="w-[12%] px-4 py-3">Due Date</th>
-              <th className="w-[12%] px-4 py-3">Reminder</th>
-              <th className="w-[12%] px-4 py-3">Repeats</th>
+              <th className="w-[16%] px-4 py-3">Start</th>
+              <th className="w-[16%] px-4 py-3">Due</th>
+              <th className="w-[14%] px-4 py-3">Reminder</th>
+              <th className="w-[14%] px-4 py-3">Repeats</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -196,22 +196,44 @@ function TaskTableRow({
         </Select>
       </td>
       <td className="px-4 py-3">
-        <Input
-          type="date"
-          value={task.startDate ?? ""}
-          onChange={(event) => onUpdate(task.id, { startDate: event.target.value || undefined })}
-          className="min-h-10"
-        />
-        <p className="mt-2 text-xs text-[var(--text-muted)]">{startDateLabel(task.startDate)}</p>
+        <div className="grid grid-cols-[1fr_92px] gap-2">
+          <Input
+            type="date"
+            value={task.startDate ?? ""}
+            onChange={(event) => onUpdate(task.id, { startDate: event.target.value || undefined, startTime: event.target.value ? task.startTime : undefined })}
+            className="min-h-10"
+            aria-label="Start date"
+          />
+          <Input
+            type="time"
+            value={task.startTime ?? ""}
+            onChange={(event) => onUpdate(task.id, { startTime: event.target.value || undefined })}
+            className="min-h-10"
+            aria-label="Start time"
+            disabled={!task.startDate}
+          />
+        </div>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">{startDateLabel(task.startDate, task.startTime)}</p>
       </td>
       <td className="px-4 py-3">
-        <Input
-          type="date"
-          value={task.dueDate ?? ""}
-          onChange={(event) => onUpdate(task.id, { dueDate: event.target.value || undefined })}
-          className="min-h-10"
-        />
-        <p className="mt-2 text-xs text-[var(--text-muted)]">{dateLabel(task.dueDate)}</p>
+        <div className="grid grid-cols-[1fr_92px] gap-2">
+          <Input
+            type="date"
+            value={task.dueDate ?? ""}
+            onChange={(event) => onUpdate(task.id, { dueDate: event.target.value || undefined, dueTime: event.target.value ? task.dueTime : undefined })}
+            className="min-h-10"
+            aria-label="Due date"
+          />
+          <Input
+            type="time"
+            value={task.dueTime ?? ""}
+            onChange={(event) => onUpdate(task.id, { dueTime: event.target.value || undefined })}
+            className="min-h-10"
+            aria-label="Due time"
+            disabled={!task.dueDate}
+          />
+        </div>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">{dateLabel(task.dueDate, task.dueTime)}</p>
         {task.startDate ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{durationLabel(task.startDate, task.dueDate)}</p> : null}
       </td>
       <td className="px-4 py-3">

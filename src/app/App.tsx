@@ -14,12 +14,12 @@ export function App() {
       <div data-theme={theme}>
         <div className="min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
           <div className="w-full overflow-x-hidden p-2 sm:p-4">
-            <div className="mx-auto max-w-[1440px] space-y-4">
+            <div className="mx-auto max-w-[1760px] space-y-4">
               <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-soft)] p-2 shadow-[var(--shadow-sm)] sm:p-3">
                 <Navbar />
               </div>
             </div>
-            <main className="mx-auto mt-4 min-w-0 max-w-[1440px]">
+            <main className="mx-auto mt-4 min-w-0 max-w-[1760px]">
               <Outlet />
             </main>
             <WorkspaceAutoSync />

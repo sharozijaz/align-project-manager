@@ -12,7 +12,10 @@ create table public.projects (
   status text not null check (status in ('active', 'paused', 'completed')),
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
   start_date date,
+  start_time time,
   due_date date,
+  due_time time,
+  sort_order numeric,
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
@@ -27,7 +30,10 @@ create table public.tasks (
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
   status text not null check (status in ('in-progress', 'not-started', 'approval-pending', 'under-review', 'approved', 'done', 'delivered', 'postponed', 'cancelled', 'waiting', 'blocked', 'review')),
   start_date date,
+  start_time time,
   due_date date,
+  due_time time,
+  sort_order numeric,
   deleted_at timestamptz,
   created_at timestamptz not null,
   updated_at timestamptz not null
@@ -107,7 +113,9 @@ create index projects_user_id_idx on public.projects(user_id);
 create index tasks_user_id_idx on public.tasks(user_id);
 create index tasks_due_date_idx on public.tasks(due_date);
 create index tasks_start_date_idx on public.tasks(start_date);
+create index tasks_user_sort_order_idx on public.tasks(user_id, sort_order);
 create index projects_start_date_idx on public.projects(start_date);
+create index projects_user_sort_order_idx on public.projects(user_id, sort_order);
 create index calendar_events_user_id_idx on public.calendar_events(user_id);
 create index calendar_events_start_date_idx on public.calendar_events(start_date);
 create index project_shares_user_id_idx on public.project_shares(user_id);

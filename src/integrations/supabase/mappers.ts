@@ -16,7 +16,10 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   status: project.status,
   priority: normalizeTaskPriority(project.priority),
   start_date: project.startDate ?? null,
+  start_time: project.startTime ?? null,
   due_date: project.dueDate ?? null,
+  due_time: project.dueTime ?? null,
+  sort_order: project.sortOrder ?? null,
   created_at: project.createdAt,
   updated_at: project.updatedAt,
 });
@@ -28,7 +31,10 @@ export const rowToProject = (row: ProjectRow): Project => ({
   status: row.status,
   priority: row.priority,
   startDate: row.start_date ?? undefined,
+  startTime: normalizeTimeValue(row.start_time),
   dueDate: row.due_date ?? undefined,
+  dueTime: normalizeTimeValue(row.due_time),
+  sortOrder: row.sort_order ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -43,10 +49,13 @@ export const taskToRow = (task: Task, userId: string): TaskRow => ({
   priority: normalizeTaskPriority(task.priority),
   status: normalizeTaskStatus(task.status),
   start_date: task.startDate ?? null,
+  start_time: task.startTime ?? null,
   due_date: task.dueDate ?? null,
+  due_time: task.dueTime ?? null,
   reminder: normalizeTaskReminder(task.reminder),
   recurrence: normalizeTaskRecurrence(task.recurrence),
   recurring_parent_id: task.recurringParentId ?? null,
+  sort_order: task.sortOrder ?? null,
   deleted_at: task.deletedAt ?? null,
   created_at: task.createdAt,
   updated_at: task.updatedAt,
@@ -61,10 +70,13 @@ export const rowToTask = (row: TaskRow): Task => ({
   priority: normalizeTaskPriority(row.priority),
   status: normalizeTaskStatus(row.status),
   startDate: row.start_date ?? undefined,
+  startTime: normalizeTimeValue(row.start_time),
   dueDate: row.due_date ?? undefined,
+  dueTime: normalizeTimeValue(row.due_time),
   reminder: normalizeTaskReminder(row.reminder),
   recurrence: normalizeTaskRecurrence(row.recurrence),
   recurringParentId: row.recurring_parent_id ?? undefined,
+  sortOrder: row.sort_order ?? undefined,
   deletedAt: row.deleted_at ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -90,3 +102,7 @@ export const rowToCalendarEvent = (row: CalendarEventRow): CalendarEvent => ({
   linkedTaskId: row.linked_task_id ?? undefined,
   source: row.source,
 });
+
+function normalizeTimeValue(value?: string | null) {
+  return value ? value.slice(0, 5) : undefined;
+}

@@ -8,7 +8,7 @@ import { useTaskStore } from "../store/taskStore";
 export function ProjectDetails() {
   const { projectId } = useParams();
   const { projects } = useProjectStore();
-  const { tasks, addTask, updateTask, deleteTask, completeTask } = useTaskStore();
+  const { tasks, addTask, updateTask, deleteTask, completeTask, reorderTasks } = useTaskStore();
   const project = projects.find((item) => item.id === projectId);
 
   if (!project) {
@@ -32,6 +32,7 @@ export function ProjectDetails() {
         onUpdateTask={updateTask}
         onDeleteTask={deleteTask}
         onCompleteTask={completeTask}
+        onReorderTasks={reorderTasks}
       />
       <ProjectSharePanel project={project} />
     </div>

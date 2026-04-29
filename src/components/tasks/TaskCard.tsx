@@ -39,8 +39,8 @@ export function TaskCard({
             <OptionBadge option={getTaskPriorityOption(task.priority)} />
             <OptionBadge option={getTaskStatusOption(task.status)} />
             <Badge>{project?.name ?? task.category}</Badge>
-            {task.startDate ? <Badge>{startDateLabel(task.startDate)}</Badge> : null}
-            <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate)}</Badge>
+            {task.startDate ? <Badge>{startDateLabel(task.startDate, task.startTime)}</Badge> : null}
+            <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate, task.dueTime)}</Badge>
             {task.startDate ? <Badge>{durationLabel(task.startDate, task.dueDate)}</Badge> : null}
             {task.reminder !== "none" ? (
               <Badge>

@@ -10,10 +10,10 @@ import { useTaskStore } from "../store/taskStore";
 import { isOverdue, isToday, isUpcoming } from "../utils/date";
 export function Tasks() {
   const { projects } = useProjectStore();
-  const { tasks, updateTask, deleteTask, completeTask } = useTaskStore();
+  const { tasks, updateTask, deleteTask, completeTask, reorderTasks } = useTaskStore();
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<TaskSort>("dueDate");
+  const [sort, setSort] = useState<TaskSort>("manual");
   const [view, setView] = useTaskViewPreference();
 
   const visibleTasks = useMemo(() => {
@@ -30,7 +30,8 @@ export function Tasks() {
       .sort((a, b) => {
         if (sort === "priority") return getTaskPriorityOption(a.priority).rank - getTaskPriorityOption(b.priority).rank;
         if (sort === "status") return getTaskStatusOption(a.status).rank - getTaskStatusOption(b.status).rank;
-        return (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31");
+        if (sort === "dueDate") return (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31");
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || b.createdAt.localeCompare(a.createdAt);
       });
   }, [filter, search, sort, tasks]);
 
@@ -41,7 +42,7 @@ export function Tasks() {
         <TaskFilters filter={filter} search={search} sort={sort} onFilterChange={setFilter} onSearchChange={setSearch} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />
       </div>
-      <TaskList tasks={visibleTasks} projects={projects} onUpdate={updateTask} onDelete={deleteTask} onComplete={completeTask} view={view} />
+      <TaskList tasks={visibleTasks} projects={projects} onUpdate={updateTask} onDelete={deleteTask} onComplete={completeTask} view={view} onReorder={sort === "manual" ? reorderTasks : undefined} />
     </div>
   );
 }

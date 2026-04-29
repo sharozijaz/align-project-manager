@@ -15,10 +15,13 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   startDate?: string;
+  startTime?: string;
   dueDate?: string;
+  dueTime?: string;
   reminder: TaskReminder;
   recurrence: TaskRecurrence;
   recurringParentId?: string;
+  sortOrder?: number;
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;

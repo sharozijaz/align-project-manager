@@ -14,6 +14,7 @@ interface TaskState {
   restoreTask: (id: string) => void;
   permanentlyDeleteTask: (id: string) => void;
   completeTask: (id: string) => void;
+  reorderTasks: (orderedIds: string[]) => void;
   dismissDeleteNotice: () => void;
   replaceTasks: (tasks: Task[]) => void;
 }
@@ -33,6 +34,7 @@ export const useTaskStore = create<TaskState>()(
               ...input,
               reminder: normalizeTaskReminder(input.reminder),
               recurrence: normalizeTaskRecurrence(input.recurrence),
+              sortOrder: nextTopSortOrder(state.tasks),
               id: id(),
               createdAt: stamp(),
               updatedAt: stamp(),
@@ -90,22 +92,47 @@ export const useTaskStore = create<TaskState>()(
             tasks: nextTask ? [nextTask, ...completedTasks] : completedTasks,
           };
         }),
+      reorderTasks: (orderedIds) =>
+        set((state) => {
+          const order = new Map(orderedIds.map((taskId, index) => [taskId, index]));
+          return {
+            tasks: state.tasks
+              .map((task) => (order.has(task.id) ? { ...task, sortOrder: order.get(task.id), updatedAt: stamp() } : task))
+              .sort(compareSortOrder),
+          };
+        }),
       dismissDeleteNotice: () => set({ lastDeletedTaskId: undefined }),
       replaceTasks: (tasks) =>
         set({
-          tasks: tasks.map((task) => ({
-            ...task,
-            priority: normalizeTaskPriority(task.priority),
-            status: normalizeTaskStatus(task.status),
-            reminder: normalizeTaskReminder(task.reminder),
-            recurrence: normalizeTaskRecurrence(task.recurrence),
-          })),
+          tasks: normalizeTaskOrder(tasks),
           lastDeletedTaskId: undefined,
         }),
     }),
     { name: "priority-tasks-v1" },
   ),
 );
+
+function normalizeTaskOrder(tasks: Task[]) {
+  return tasks
+    .map((task, index) => ({
+      ...task,
+      priority: normalizeTaskPriority(task.priority),
+      status: normalizeTaskStatus(task.status),
+      reminder: normalizeTaskReminder(task.reminder),
+      recurrence: normalizeTaskRecurrence(task.recurrence),
+      sortOrder: Number.isFinite(task.sortOrder) ? task.sortOrder : index,
+    }))
+    .sort(compareSortOrder);
+}
+
+function compareSortOrder(a: Task, b: Task) {
+  return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || b.createdAt.localeCompare(a.createdAt);
+}
+
+function nextTopSortOrder(tasks: Task[]) {
+  const orders = tasks.map((task) => task.sortOrder).filter((value): value is number => Number.isFinite(value));
+  return orders.length ? Math.min(...orders) - 1 : 0;
+}
 
 function createNextRecurringTask(task: Task, createdAt: string): Task | null {
   const recurrence = normalizeTaskRecurrence(task.recurrence);
@@ -120,6 +147,7 @@ function createNextRecurringTask(task: Task, createdAt: string): Task | null {
     status: "not-started",
     startDate: nextRecurringStartDate(task.startDate, task.dueDate, nextDueDate) ?? undefined,
     dueDate: nextDueDate,
+    sortOrder: task.sortOrder,
     recurringParentId: task.recurringParentId ?? task.id,
     createdAt,
     updatedAt: createdAt,
