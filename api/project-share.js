@@ -77,7 +77,7 @@ async function findProjectTasks(env, userId, projectId) {
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("project_id", `eq.${projectId}`);
   url.searchParams.set("deleted_at", "is.null");
-  url.searchParams.set("select", "id,title,description,category,priority,status,due_date,created_at,updated_at");
+  url.searchParams.set("select", "id,title,description,category,priority,status,due_date,reminder,recurrence,created_at,updated_at");
   url.searchParams.set("order", "due_date.asc.nullslast");
 
   const response = await serviceFetch(env, url);
@@ -106,6 +106,8 @@ function rowToTask(row) {
     priority: row.priority,
     status: row.status,
     dueDate: row.due_date || "",
+    reminder: row.reminder || "none",
+    recurrence: row.recurrence || "none",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

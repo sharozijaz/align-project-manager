@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { addDays, isAfter, isBefore, parseISO, subDays } from "date-fns";
-import { BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clock3, FolderKanban } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clipboard, Clock3, FolderKanban, Repeat2 } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
 import { OptionBadge } from "../components/ui/OptionBadge";
-import { getTaskPriorityOption, isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../config/taskOptions";
+import { getTaskPriorityOption, getTaskRecurrenceOption, isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../config/taskOptions";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project } from "../types/project";
@@ -13,6 +14,7 @@ import type { Task } from "../types/task";
 import { dateLabel, isOverdue } from "../utils/date";
 
 export function Reports() {
+  const [copied, setCopied] = useState(false);
   const { tasks } = useTaskStore();
   const { projects } = useProjectStore();
   const activeTasks = tasks.filter((task) => !task.deletedAt);
@@ -30,10 +32,52 @@ export function Reports() {
   });
   const completionRate = activeTasks.length ? Math.round((completedTasks.length / activeTasks.length) * 100) : 0;
   const projectRows = projects.map((project) => projectReport(project, activeTasks));
+  const recurringTasks = openTasks
+    .filter((task) => task.recurrence && task.recurrence !== "none")
+    .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"))
+    .slice(0, 6);
+  const atRiskProjects = projectRows
+    .filter((row) => row.overdue || row.blocked || row.openHighPriority > 0)
+    .sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.openHighPriority - a.openHighPriority)
+    .slice(0, 5);
+  const reportSummary = useMemo(
+    () =>
+      [
+        "Align workspace summary",
+        `${openTasks.length} open tasks, ${completedTasks.length} completed tasks, ${overdueTasks.length} overdue.`,
+        `Completion rate: ${completionRate}%.`,
+        atRiskProjects.length
+          ? `Needs attention: ${atRiskProjects.map((row) => row.project.name).join(", ")}.`
+          : "No projects currently need attention.",
+        upcomingTasks.length
+          ? `Upcoming: ${upcomingTasks.map((task) => `${task.title} (${dateLabel(task.dueDate)})`).join(", ")}.`
+          : "No upcoming dated tasks in the next 14 days.",
+      ].join("\n"),
+    [atRiskProjects, completedTasks.length, completionRate, openTasks.length, overdueTasks.length, upcomingTasks],
+  );
+
+  const copySummary = async () => {
+    await navigator.clipboard.writeText(reportSummary);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Reports" description="Track progress, overdue work, project health, and upcoming deadlines." />
+      <PageHeader
+        title="Reports"
+        description="Track progress, overdue work, project health, and upcoming deadlines."
+        actions={
+          <button
+            type="button"
+            onClick={() => void copySummary()}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+          >
+            <Clipboard size={16} />
+            {copied ? "Copied" : "Copy Summary"}
+          </button>
+        }
+      />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ReportMetric icon={<FolderKanban size={18} />} label="Open Tasks" value={openTasks.length} helper={`${activeTasks.length} total active`} />
         <ReportMetric icon={<CheckCircle2 size={18} />} label="Completion Rate" value={`${completionRate}%`} helper={`${completedTasks.length} completed`} />
@@ -65,26 +109,46 @@ export function Reports() {
           </div>
         </Card>
 
-        <Card className="p-5">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
-            <CalendarClock size={18} /> Upcoming 14 Days
-          </h2>
-          <div className="mt-4 space-y-3">
-            {upcomingTasks.map((task) => (
-              <div key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-[var(--text)]">{task.title}</h3>
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">{dateLabel(task.dueDate)}</p>
-                  </div>
-                  <OptionBadge option={getTaskPriorityOption(task.priority)} />
-                </div>
-              </div>
-            ))}
-            {!upcomingTasks.length ? <EmptyReport message="No upcoming dated tasks in the next 14 days." /> : null}
-          </div>
-        </Card>
+        <div className="grid gap-4">
+          <TaskPreviewCard
+            title="Upcoming 14 Days"
+            icon={<CalendarClock size={18} />}
+            tasks={upcomingTasks}
+            empty="No upcoming dated tasks in the next 14 days."
+          />
+          <TaskPreviewCard
+            title="Recurring Work"
+            icon={<Repeat2 size={18} />}
+            tasks={recurringTasks}
+            empty="No active recurring tasks yet."
+            showRecurrence
+          />
+        </div>
       </div>
+
+      <Card className="p-5">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
+          <AlertTriangle size={18} /> Needs Attention
+        </h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {atRiskProjects.map((row) => (
+            <div key={row.project.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="break-words font-semibold text-[var(--text)]">{row.project.name}</h3>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    {row.open} open · {row.openHighPriority} high/urgent · {row.blocked} blocked
+                  </p>
+                </div>
+                <Badge tone={row.overdue ? "red" : row.blocked ? "amber" : "blue"}>
+                  {row.overdue ? "overdue" : row.blocked ? "blocked" : "priority"}
+                </Badge>
+              </div>
+            </div>
+          ))}
+          {!atRiskProjects.length ? <EmptyReport message="No overdue, blocked, or urgent project work right now." /> : null}
+        </div>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <BreakdownCard title="Priority Load" items={taskPriorityOptions.map((option) => ({
@@ -141,6 +205,47 @@ function BreakdownCard({ title, items }: { title: string; items: { label: string
   );
 }
 
+function TaskPreviewCard({
+  title,
+  icon,
+  tasks,
+  empty,
+  showRecurrence = false,
+}: {
+  title: string;
+  icon: ReactNode;
+  tasks: Task[];
+  empty: string;
+  showRecurrence?: boolean;
+}) {
+  return (
+    <Card className="p-5">
+      <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
+        {icon} {title}
+      </h2>
+      <div className="mt-4 space-y-3">
+        {tasks.map((task) => (
+          <div key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="break-words font-semibold text-[var(--text)]">{task.title}</h3>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">{dateLabel(task.dueDate)}</p>
+                {showRecurrence ? (
+                  <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">
+                    {getTaskRecurrenceLabel(task)}
+                  </p>
+                ) : null}
+              </div>
+              <OptionBadge option={getTaskPriorityOption(task.priority)} />
+            </div>
+          </div>
+        ))}
+        {!tasks.length ? <EmptyReport message={empty} /> : null}
+      </div>
+    </Card>
+  );
+}
+
 function EmptyReport({ message }: { message: string }) {
   return (
     <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-6 text-center text-sm text-[var(--text-muted)]">
@@ -155,8 +260,17 @@ function projectReport(project: Project, tasks: Task[]) {
   const open = projectTasks.length - completed;
   const progress = projectTasks.length ? Math.round((completed / projectTasks.length) * 100) : 0;
   const overdue = projectTasks.some((task) => !isTerminalTaskStatus(task.status) && isOverdue(task.dueDate));
+  const blocked = projectTasks.filter((task) => task.status === "blocked").length;
+  const openHighPriority = projectTasks.filter(
+    (task) => !isTerminalTaskStatus(task.status) && (task.priority === "high" || task.priority === "urgent"),
+  ).length;
 
-  return { project, completed, open, progress, overdue };
+  return { project, completed, open, progress, overdue, blocked, openHighPriority };
+}
+
+function getTaskRecurrenceLabel(task: Task) {
+  const option = getTaskRecurrenceOption(task.recurrence);
+  return task.dueDate ? `${option.label} after completion` : `${option.label} once a due date is set`;
 }
 
 function isValidDate(date?: string) {

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addDays, addMonths, addWeeks, addYears, formatISO, parseISO } from "date-fns";
 import { demoTasks } from "./demoData";
-import { normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
+import { isTerminalTaskStatus, normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
 
 interface TaskState {
@@ -77,10 +77,14 @@ export const useTaskStore = create<TaskState>()(
         set((state) => {
           const completedAt = stamp();
           const task = state.tasks.find((item) => item.id === taskId);
+          if (!task || isTerminalTaskStatus(task.status)) {
+            return { tasks: state.tasks };
+          }
+
           const completedTasks: Task[] = state.tasks.map((item) =>
             item.id === taskId ? { ...item, status: "done" satisfies TaskStatus, updatedAt: completedAt } : item,
           );
-          const nextTask = task ? createNextRecurringTask(task, completedAt) : null;
+          const nextTask = createNextRecurringTask(task, completedAt);
 
           return {
             tasks: nextTask ? [nextTask, ...completedTasks] : completedTasks,
@@ -105,7 +109,7 @@ export const useTaskStore = create<TaskState>()(
 
 function createNextRecurringTask(task: Task, createdAt: string): Task | null {
   const recurrence = normalizeTaskRecurrence(task.recurrence);
-  if (task.status === "done" || recurrence === "none" || !task.dueDate || task.deletedAt) return null;
+  if (isTerminalTaskStatus(task.status) || recurrence === "none" || !task.dueDate || task.deletedAt) return null;
 
   const nextDueDate = nextRecurringDate(task.dueDate, recurrence);
   if (!nextDueDate) return null;

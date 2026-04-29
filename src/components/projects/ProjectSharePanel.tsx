@@ -1,4 +1,4 @@
-import { Check, Copy, Link2, Loader2, Share2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, Loader2, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createProjectShare, getProjectShare, revokeProjectShare } from "../../integrations/supabase/projectShares";
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
@@ -99,6 +99,11 @@ export function ProjectSharePanel({ project }: { project: Project }) {
             <Button variant="secondary" icon={copied ? <Check size={16} /> : <Copy size={16} />} onClick={handleCopy}>
               {copied ? "Copied" : "Copy"}
             </Button>
+            <a href={shareUrl} target="_blank" rel="noreferrer">
+              <Button type="button" variant="secondary" icon={<ExternalLink size={16} />}>
+                Open
+              </Button>
+            </a>
             <Button variant="danger" icon={<X size={16} />} onClick={handleRevoke} disabled={working}>
               Disable
             </Button>

@@ -1,8 +1,8 @@
-import { CalendarDays, CheckCircle2, Clock, LockKeyhole } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, LockKeyhole, Repeat2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
+import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { dateLabel } from "../utils/date";
 
@@ -23,6 +23,8 @@ interface SharedTask {
   priority: string;
   status: string;
   dueDate?: string;
+  recurrence?: string;
+  updatedAt?: string;
 }
 
 interface SharePayload {
@@ -80,6 +82,21 @@ export function PublicProjectShare() {
 
     return { completed, open, progress, total: tasks.length };
   }, [data?.tasks]);
+  const visibleTasks = useMemo(
+    () =>
+      [...(data?.tasks ?? [])].sort((a, b) => {
+        const terminalDelta = Number(isTerminalTaskStatus(a.status)) - Number(isTerminalTaskStatus(b.status));
+        if (terminalDelta !== 0) return terminalDelta;
+        return (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31");
+      }),
+    [data?.tasks],
+  );
+  const upcomingTasks = visibleTasks.filter((task) => !isTerminalTaskStatus(task.status)).slice(0, 5);
+  const sortedUpdates = visibleTasks
+    .map((task) => task.updatedAt)
+    .filter(Boolean)
+    .sort();
+  const lastUpdated = sortedUpdates[sortedUpdates.length - 1];
 
   return (
     <div data-theme="dark">
@@ -114,7 +131,10 @@ export function PublicProjectShare() {
                         {data.project.description || "Project status and scheduled work."}
                       </p>
                     </div>
-                    <OptionBadge option={getTaskPriorityOption(data.project.priority)} />
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                      <OptionBadge option={getTaskPriorityOption(data.project.priority)} />
+                      <OptionBadge option={getTaskStatusOption(data.project.status)} />
+                    </div>
                   </div>
 
                   <div className="mt-6 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
@@ -129,13 +149,43 @@ export function PublicProjectShare() {
                 </div>
               </section>
 
+              <section className="grid gap-4 md:grid-cols-[0.85fr_1.15fr]">
+                <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+                  <h2 className="text-lg font-bold text-[var(--text)]">Client Summary</h2>
+                  <div className="mt-4 space-y-3 text-sm text-[var(--text-muted)]">
+                    <SummaryRow label="Current status" value={getTaskStatusOption(data.project.status).label} />
+                    <SummaryRow label="Progress" value={`${stats.progress}% complete`} />
+                    <SummaryRow label="Open work" value={`${stats.open} tasks remaining`} />
+                    <SummaryRow label="Last updated" value={lastUpdated ? dateLabel(lastUpdated.slice(0, 10)) : "No task updates yet"} />
+                  </div>
+                </div>
+                <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+                  <h2 className="text-lg font-bold text-[var(--text)]">Next Work</h2>
+                  <div className="mt-4 space-y-2">
+                    {upcomingTasks.map((task) => (
+                      <div key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-semibold text-[var(--text)]">{task.title}</p>
+                          <span className="text-xs font-semibold text-[var(--text-soft)]">{dateLabel(task.dueDate)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {!upcomingTasks.length ? (
+                      <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-5 text-center text-sm text-[var(--text-muted)]">
+                        No open dated tasks are visible yet.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+
               <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-xl font-bold text-[var(--text)]">Project Tasks</h2>
                   <span className="text-sm font-semibold text-[var(--text-muted)]">{stats.total} total</span>
                 </div>
                 <div className="space-y-3">
-                  {data.tasks.map((task) => (
+                  {visibleTasks.map((task) => (
                     <article key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
                       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                         <div>
@@ -147,10 +197,18 @@ export function PublicProjectShare() {
                           <OptionBadge option={getTaskStatusOption(task.status)} />
                         </div>
                       </div>
-                      <div className="mt-3 text-xs font-semibold text-[var(--text-soft)]">{dateLabel(task.dueDate)}</div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-soft)]">
+                        <span>{dateLabel(task.dueDate)}</span>
+                        {task.recurrence && task.recurrence !== "none" ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Repeat2 size={12} />
+                            {getTaskRecurrenceOption(task.recurrence).label}
+                          </span>
+                        ) : null}
+                      </div>
                     </article>
                   ))}
-                  {!data.tasks.length ? (
+                  {!visibleTasks.length ? (
                     <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-8 text-center text-sm text-[var(--text-muted)]">
                       No visible tasks yet.
                     </div>
@@ -161,6 +219,15 @@ export function PublicProjectShare() {
           ) : null}
         </div>
       </main>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-2 last:border-b-0 last:pb-0">
+      <span>{label}</span>
+      <strong className="text-right text-[var(--text)]">{value}</strong>
     </div>
   );
 }
