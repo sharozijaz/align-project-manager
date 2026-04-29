@@ -31,7 +31,7 @@ export function TaskCard({
 
   return (
     <Card className={`p-4 ${taskAccentClass(task)}`} style={taskAccentStyle(task)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className={`font-semibold text-slate-950 ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}>{task.title}</h3>
           {task.description ? <p className="mt-1 text-sm text-slate-500">{task.description}</p> : null}
@@ -50,13 +50,13 @@ export function TaskCard({
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button title="Mark complete" variant="secondary" className="px-3" onClick={() => onComplete(task.id)}>
+          <Button title="Mark complete" variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => onComplete(task.id)}>
             <Check size={16} />
           </Button>
-          <Button title="Edit task" variant="secondary" className="px-3" onClick={() => setEditing(true)}>
+          <Button title="Edit task" variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </Button>
-          <Button title="Delete task" variant="danger" className="px-3" onClick={() => onDelete(task.id)}>
+          <Button title="Delete task" variant="danger" className="min-h-9 px-3 sm:min-h-10" onClick={() => onDelete(task.id)}>
             <Trash2 size={16} />
           </Button>
         </div>

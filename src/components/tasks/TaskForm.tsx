@@ -51,7 +51,7 @@ export function TaskForm({
 
   return (
     <form
-      className={compact ? "grid gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
+      className={compact ? "grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1.5fr_1fr_0.8fr_0.9fr_0.95fr_0.95fr_0.95fr_auto]" : "grid gap-3"}
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
@@ -59,11 +59,11 @@ export function TaskForm({
         if (!initialTask) setForm(blank);
       }}
     >
-      <Input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Add a task, goal, or personal chore" required />
+      <Input className={compact ? "col-span-2 lg:col-span-1" : ""} value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Add a task, goal, or personal chore" required />
       {!compact ? (
         <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Short description" />
       ) : null}
-      <Select value={form.projectId ?? ""} onChange={(event) => update("projectId", event.target.value)}>
+      <Select className={compact ? "col-span-2 sm:col-span-1" : ""} value={form.projectId ?? ""} onChange={(event) => update("projectId", event.target.value)}>
         <option value="">Personal Task</option>
         {projects.map((project) => (
           <option key={project.id} value={project.id}>
@@ -102,7 +102,7 @@ export function TaskForm({
           </option>
         ))}
       </Select>
-      <div className="flex gap-2">
+      <div className={compact ? "col-span-2 flex gap-2 lg:col-span-1" : "flex gap-2"}>
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel

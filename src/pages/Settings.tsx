@@ -324,12 +324,12 @@ export function Settings() {
     <div className="space-y-4">
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">User name</p>
           <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text)]">Sharoz</div>
         </Card>
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Theme</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
             {theme === "dark" ? "Dark theme is active." : "Light theme is active."}
@@ -339,12 +339,12 @@ export function Settings() {
             <span className="text-sm text-[var(--text-soft)]">Saved on this device.</span>
           </div>
         </Card>
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CalendarDays size={18} /> Google Calendar</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
             {googlePreview.reason}
           </p>
-          <div className="mt-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm">
+          <div className="mt-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[var(--text-muted)]">OAuth config</span>
               <Badge tone={googleReadiness.ready ? "emerald" : "amber"}>{googleReadiness.ready ? "ready" : "missing"}</Badge>
@@ -366,7 +366,7 @@ export function Settings() {
             ) : null}
           </div>
           {googleConnection?.connected ? (
-            <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm">
+            <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-[var(--text)]">Sync status</p>
@@ -430,7 +430,7 @@ export function Settings() {
           </div>
           {calendarMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{calendarMessage}</p> : null}
         </Card>
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h2 className="font-bold text-[var(--text)]">Data</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">Back up or restore tasks, projects, and local calendar events.</p>
           <div className="mt-4 flex gap-2">
@@ -446,12 +446,12 @@ export function Settings() {
           />
           {dataMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{dataMessage}</p> : null}
         </Card>
-        <Card className="p-5 lg:col-span-2">
+        <Card className="p-4 sm:p-5 lg:col-span-2">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Mail size={18} /> Reminder Email</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
             Email reminders use the same due reminder rules as the notification bell. The template is branded for Align and links back to your workspace.
           </p>
-          <div className="mt-4 flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <div>
               <p className="font-semibold text-[var(--text)]">Send reminder emails</p>
               <p className="text-sm text-[var(--text-muted)]">
@@ -468,7 +468,7 @@ export function Settings() {
           </div>
           {preferenceMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{preferenceMessage}</p> : null}
         </Card>
-        <Card className="p-5 lg:col-span-2">
+        <Card className="p-4 sm:p-5 lg:col-span-2">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
             <Cloud size={18} /> Supabase Sync
           </h2>
@@ -476,7 +476,7 @@ export function Settings() {
             Prepare multi-device sync before the subdomain is ready. LocalStorage stays active as the offline fallback.
           </p>
           {isSupabaseConfigured ? (
-            <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--text-muted)]">
+            <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   Connected config: <span className="font-semibold text-[var(--text)]">{supabaseUrl.replace(/^https:\/\//u, "")}</span>
@@ -493,14 +493,14 @@ export function Settings() {
             </div>
           ) : null}
           {!isSupabaseConfigured ? (
-            <div className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--text-muted)]">
+            <div className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">
               Supabase is not configured yet. Create a Supabase project, run `supabase/schema.sql`, then add values to `.env.local`.
               {supabaseConfigIssue ? <p className="mt-2 text-[var(--warning)]">{supabaseConfigIssue}</p> : null}
             </div>
           ) : (
             <div className="mt-4 grid gap-3">
               {session ? (
-                <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
                   <div>
                     <p className="text-sm font-semibold text-[var(--text)]">{session.user.email}</p>
                     <p className="text-sm text-[var(--text-muted)]">Signed in for hosted sync.</p>
@@ -537,7 +537,7 @@ export function Settings() {
           {syncMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{syncMessage}</p> : null}
         </Card>
       </div>
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div>
             <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
@@ -557,7 +557,7 @@ export function Settings() {
               return (
                 <div
                   key={task.id}
-                  className="flex flex-col justify-between gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:p-4"
                 >
                   <div>
                     <h3 className="font-semibold text-[var(--text)]">{task.title}</h3>
@@ -568,7 +568,7 @@ export function Settings() {
                       <Badge tone="red">Deleted {task.deletedAt ? dateLabel(task.deletedAt.slice(0, 10)) : ""}</Badge>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
                     <Button variant="secondary" icon={<RotateCcw size={16} />} onClick={() => restoreTask(task.id)}>
                       Restore
                     </Button>

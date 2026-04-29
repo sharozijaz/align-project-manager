@@ -28,19 +28,19 @@ export function ProjectCard({
   const complete = projectTasks.length - open;
 
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+    <Card className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
           <Link to={`/projects/${project.id}`} className="text-lg font-bold text-slate-950 hover:underline">
             {project.name}
           </Link>
           <p className="mt-1 text-sm text-slate-500">{project.description || "No description yet."}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" className="px-3" onClick={() => setEditing(true)}>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </Button>
-          <Button variant="danger" className="px-3" onClick={() => onDelete(project.id)}>
+          <Button variant="danger" className="min-h-9 px-3 sm:min-h-10" onClick={() => onDelete(project.id)}>
             <Trash2 size={16} />
           </Button>
         </div>

@@ -31,7 +31,7 @@ export function CalendarView({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-      <Card className="p-4">
+      <Card className="p-3 sm:p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-950">{format(visibleDate, "MMMM yyyy")}</h2>
           <div className="flex gap-2">
@@ -43,12 +43,12 @@ export function CalendarView({
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-slate-400">
+        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-slate-400 sm:gap-2 sm:text-xs">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
             <div key={day}>{day}</div>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-7 gap-2">
+        <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-2">
           {days.map((day) => {
             const key = format(day, "yyyy-MM-dd");
             const dayTasks = tasks.filter((task) => task.dueDate && sameDay(task.dueDate, day));
@@ -67,18 +67,18 @@ export function CalendarView({
             return (
               <button
                 key={key}
-                className={`min-h-24 rounded-md border p-2 text-left transition ${dayClass} ${inMonth ? "" : "opacity-45"}`}
+                className={`min-h-20 rounded-md border p-1.5 text-left transition sm:min-h-24 sm:p-2 ${dayClass} ${inMonth ? "" : "opacity-45"}`}
                 onClick={() => setSelectedDate(key)}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className={`grid h-7 min-w-7 place-items-center rounded-full text-sm font-bold ${selected ? "align-gradient text-white" : today ? "bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]" : ""}`}>
+                  <span className={`grid h-6 min-w-6 place-items-center rounded-full text-sm font-bold sm:h-7 sm:min-w-7 ${selected ? "align-gradient text-white" : today ? "bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]" : ""}`}>
                     {format(day, "d")}
                   </span>
-                  {today ? <span className="rounded-full bg-[var(--priority-low-bg)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--priority-low-text)]">Today</span> : null}
+                  {today ? <span className="hidden rounded-full bg-[var(--priority-low-bg)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--priority-low-text)] sm:inline">Today</span> : null}
                 </div>
-                <div className="mt-3 space-y-1 text-xs font-semibold">
-                  {taskCount ? <p className="rounded bg-[var(--status-in-progress-bg)] px-2 py-1 text-[var(--status-in-progress-text)]">{taskCount} task{taskCount === 1 ? "" : "s"}</p> : null}
-                  {eventCount ? <p className="rounded bg-[var(--priority-urgent-bg)] px-2 py-1 text-[var(--priority-urgent-text)]">{eventCount} event{eventCount === 1 ? "" : "s"}</p> : null}
+                <div className="mt-3 space-y-1 text-[10px] font-semibold sm:text-xs">
+                  {taskCount ? <p className="truncate rounded bg-[var(--status-in-progress-bg)] px-1.5 py-1 text-center text-[var(--status-in-progress-text)] sm:px-2 sm:text-left">{taskCount}<span className="hidden sm:inline"> task{taskCount === 1 ? "" : "s"}</span></p> : null}
+                  {eventCount ? <p className="truncate rounded bg-[var(--priority-urgent-bg)] px-1.5 py-1 text-center text-[var(--priority-urgent-text)] sm:px-2 sm:text-left">{eventCount}<span className="hidden sm:inline"> event{eventCount === 1 ? "" : "s"}</span></p> : null}
                 </div>
               </button>
             );
