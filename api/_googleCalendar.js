@@ -4,6 +4,7 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const GOOGLE_CALENDAR_API_URL = "https://www.googleapis.com/calendar/v3";
+const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 
 export const calendarScopes = ["https://www.googleapis.com/auth/calendar.events.owned"];
 
@@ -21,6 +22,9 @@ export function getEnv() {
   const googleCalendarId = process.env.GOOGLE_CALENDAR_ID || process.env.VITE_GOOGLE_CALENDAR_ID || "primary";
   const stateSecret = process.env.GOOGLE_OAUTH_STATE_SECRET || supabaseServiceRoleKey || googleClientSecret;
   const cronSecret = process.env.CRON_SECRET || "";
+  const resendApiKey = process.env.RESEND_API_KEY || "";
+  const reminderEmailFrom = process.env.REMINDER_EMAIL_FROM || "";
+  const reminderEmailReplyTo = process.env.REMINDER_EMAIL_REPLY_TO || "";
 
   return {
     supabaseUrl,
@@ -33,6 +37,9 @@ export function getEnv() {
     googleCalendarId,
     stateSecret,
     cronSecret,
+    resendApiKey,
+    reminderEmailFrom,
+    reminderEmailReplyTo,
   };
 }
 
@@ -505,6 +512,147 @@ export async function createReminderNotificationsForUser(env, userId, tasks, now
   return { reminders: rows.length };
 }
 
+export async function sendReminderEmailsForUser(env, userId) {
+  if (!env.resendApiKey || !env.reminderEmailFrom) {
+    return { emails: 0, emailFailed: 0, emailSkipped: true };
+  }
+
+  const notifications = await findDueReminderNotificationsForUser(env, userId);
+
+  if (!notifications.length) {
+    return { emails: 0, emailFailed: 0 };
+  }
+
+  const email = await findUserEmail(env, userId);
+
+  if (!email) {
+    return { emails: 0, emailFailed: notifications.length, emailError: "No email found for user." };
+  }
+
+  let emails = 0;
+  let emailFailed = 0;
+
+  for (const notification of notifications) {
+    try {
+      await sendReminderEmail(env, email, notification);
+      await markNotificationEmailSent(env, notification.id);
+      emails += 1;
+    } catch (error) {
+      emailFailed += 1;
+      await markNotificationEmailError(env, notification.id, error.message || "Email delivery failed.");
+    }
+  }
+
+  return { emails, emailFailed };
+}
+
+export async function findDueReminderNotificationsForUser(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/notifications`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("type", "eq.task-reminder");
+  url.searchParams.set("scheduled_for", `lte.${new Date().toISOString()}`);
+  url.searchParams.set("email_sent_at", "is.null");
+  url.searchParams.set("select", "id,title,message,scheduled_for,email_sent_at,email_error");
+  url.searchParams.set("order", "scheduled_for.asc");
+  url.searchParams.set("limit", "25");
+
+  try {
+    const response = await serviceFetch(env, url);
+    return response.json();
+  } catch (error) {
+    if (String(error.message || "").includes("email_sent_at") || String(error.message || "").includes("notifications")) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function findUserEmail(env, userId) {
+  const response = await fetch(`${env.supabaseUrl}/auth/v1/admin/users/${userId}`, {
+    headers: {
+      apikey: env.supabaseServiceRoleKey,
+      authorization: `Bearer ${env.supabaseServiceRoleKey}`,
+    },
+  });
+
+  if (!response.ok) return "";
+
+  const user = await response.json();
+  return user.email || "";
+}
+
+async function sendReminderEmail(env, to, notification) {
+  const response = await fetch(RESEND_EMAIL_API_URL, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.resendApiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.reminderEmailFrom,
+      to,
+      subject: notification.title,
+      text: `${notification.message}\n\nOpen Align: ${env.appUrl}`,
+      html: reminderEmailHtml(env, notification),
+      ...(env.reminderEmailReplyTo ? { reply_to: env.reminderEmailReplyTo } : {}),
+    }),
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new HttpError(response.status, data?.message || data?.error || "Email delivery failed.");
+  }
+}
+
+function reminderEmailHtml(env, notification) {
+  const title = escapeHtml(notification.title);
+  const message = escapeHtml(notification.message);
+  const appUrl = escapeHtml(env.appUrl || "https://align.sharoz.dev");
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f6f7fb;font-family:Arial,sans-serif;color:#111827;">
+    <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
+      <div style="border-radius:18px;background:#ffffff;border:1px solid #e5e7eb;padding:28px;">
+        <p style="margin:0 0 8px;color:#8b5cf6;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Align Reminder</p>
+        <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;">${title}</h1>
+        <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">${message}</p>
+        <a href="${appUrl}" style="display:inline-block;border-radius:10px;background:#8b5cf6;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 16px;">Open Align</a>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+async function markNotificationEmailSent(env, notificationId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/notifications`);
+  url.searchParams.set("id", `eq.${notificationId}`);
+  const response = await serviceFetch(env, url, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      prefer: "return=minimal",
+    },
+    body: JSON.stringify({ email_sent_at: new Date().toISOString(), email_error: null }),
+  });
+  await response.text();
+}
+
+async function markNotificationEmailError(env, notificationId, message) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/notifications`);
+  url.searchParams.set("id", `eq.${notificationId}`);
+  const response = await serviceFetch(env, url, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      prefer: "return=minimal",
+    },
+    body: JSON.stringify({ email_error: message.slice(0, 500) }),
+  });
+  await response.text();
+}
+
 function buildReminderNotification(userId, task, today) {
   const reminder = normalizeTaskReminder(task.reminder);
   const offsetDays = reminderOffsetDays(reminder);
@@ -696,6 +844,15 @@ function shiftDateKey(value, offsetDays) {
   const date = new Date(`${value}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + offsetDays);
   return toDateKey(date);
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function signState(env, encodedPayload) {

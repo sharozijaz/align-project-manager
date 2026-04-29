@@ -6,5 +6,7 @@ export interface AppNotification {
   message: string;
   scheduledFor: string;
   readAt?: string;
+  emailSentAt?: string;
+  emailError?: string;
   createdAt: string;
 }

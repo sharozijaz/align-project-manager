@@ -97,6 +97,8 @@ export interface Database {
           message: string;
           scheduled_for: string;
           read_at: string | null;
+          email_sent_at: string | null;
+          email_error: string | null;
           created_at: string;
         };
         Insert: {
@@ -108,6 +110,8 @@ export interface Database {
           message: string;
           scheduled_for: string;
           read_at?: string | null;
+          email_sent_at?: string | null;
+          email_error?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;

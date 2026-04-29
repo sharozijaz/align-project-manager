@@ -18,6 +18,8 @@ const rowToNotification = (row: {
   message: string;
   scheduled_for: string;
   read_at: string | null;
+  email_sent_at?: string | null;
+  email_error?: string | null;
   created_at: string;
 }): AppNotification => ({
   id: row.id,
@@ -27,17 +29,32 @@ const rowToNotification = (row: {
   message: row.message,
   scheduledFor: row.scheduled_for,
   readAt: row.read_at || undefined,
+  emailSentAt: row.email_sent_at || undefined,
+  emailError: row.email_error || undefined,
   createdAt: row.created_at,
 });
 
 export async function fetchNotifications(limit = 10) {
   const client = requireClient();
-  const { data, error } = await client
+  const query = client
     .from("notifications")
-    .select("id,task_id,type,title,message,scheduled_for,read_at,created_at")
+    .select("id,task_id,type,title,message,scheduled_for,read_at,email_sent_at,email_error,created_at")
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for", { ascending: false })
     .limit(limit);
+  let { data, error } = await query;
+
+  if (error && error.message.toLowerCase().includes("email_")) {
+    const fallback = await client
+      .from("notifications")
+      .select("id,task_id,type,title,message,scheduled_for,read_at,created_at")
+      .lte("scheduled_for", new Date().toISOString())
+      .order("scheduled_for", { ascending: false })
+      .limit(limit);
+
+    if (fallback.error) throw new Error(errorMessage(fallback.error, "Could not load notifications."));
+    return (fallback.data ?? []).map(rowToNotification);
+  }
 
   if (error) throw new Error(errorMessage(error, "Could not load notifications."));
 

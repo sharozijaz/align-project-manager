@@ -46,6 +46,8 @@ create table if not exists public.notifications (
   message text not null,
   scheduled_for timestamptz not null,
   read_at timestamptz,
+  email_sent_at timestamptz,
+  email_error text,
   created_at timestamptz not null default now(),
   unique (user_id, task_id, type, scheduled_for)
 );
@@ -87,6 +89,7 @@ create index if not exists calendar_events_start_date_idx on public.calendar_eve
 create index if not exists notifications_user_id_idx on public.notifications(user_id);
 create index if not exists notifications_scheduled_for_idx on public.notifications(scheduled_for);
 create index if not exists notifications_read_at_idx on public.notifications(read_at);
+create index if not exists notifications_email_sent_at_idx on public.notifications(email_sent_at);
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.projects to authenticated;

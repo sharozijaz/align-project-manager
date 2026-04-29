@@ -21,6 +21,12 @@ create table if not exists public.notifications (
   unique (user_id, task_id, type, scheduled_for)
 );
 
+alter table public.notifications
+add column if not exists email_sent_at timestamptz;
+
+alter table public.notifications
+add column if not exists email_error text;
+
 alter table public.notifications enable row level security;
 
 drop policy if exists "Users can manage their own notifications"
@@ -35,6 +41,7 @@ with check (auth.uid() = user_id);
 create index if not exists notifications_user_id_idx on public.notifications(user_id);
 create index if not exists notifications_scheduled_for_idx on public.notifications(scheduled_for);
 create index if not exists notifications_read_at_idx on public.notifications(read_at);
+create index if not exists notifications_email_sent_at_idx on public.notifications(email_sent_at);
 
 grant select, insert, update, delete on public.notifications to authenticated;
 grant select, insert, update, delete on public.notifications to service_role;
