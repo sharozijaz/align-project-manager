@@ -39,6 +39,9 @@ drop policy if exists "Users can manage their own notifications" on public.notif
 drop policy if exists "Users can manage their own project shares" on public.project_shares;
 drop policy if exists "Users can manage their own client share links" on public.client_share_links;
 drop policy if exists "Users can manage their own preferences" on public.user_preferences;
+drop policy if exists "Allowed users can manage their own projects" on public.projects;
+drop policy if exists "Allowed users can manage their own tasks" on public.tasks;
+drop policy if exists "Allowed users can manage their own calendar events" on public.calendar_events;
 drop policy if exists "Allowed users can manage their own notifications" on public.notifications;
 drop policy if exists "Allowed users can manage their own project shares" on public.project_shares;
 drop policy if exists "Allowed users can manage their own client share links" on public.client_share_links;
