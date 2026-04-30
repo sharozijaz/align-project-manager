@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, Link2, Loader2, Share2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, KeyRound, Link2, Loader2, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createProjectShare, getProjectShare, revokeProjectShare, updateProjectSharePassword } from "../../integrations/supabase/projectShares";
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
@@ -7,6 +7,7 @@ import type { ProjectShare } from "../../types/projectShare";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
+import { Modal } from "../ui/Modal";
 
 export function ProjectSharePanel({ project }: { project: Project }) {
   const [share, setShare] = useState<ProjectShare | null>(null);
@@ -14,6 +15,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   const [working, setWorking] = useState(false);
   const [passwordWorking, setPasswordWorking] = useState(false);
   const [password, setPassword] = useState("");
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const shareUrl = useMemo(() => (share ? `${window.location.origin}/share/${share.token}` : ""), [share]);
@@ -46,7 +48,9 @@ export function ProjectSharePanel({ project }: { project: Project }) {
     setWorking(true);
     setError("");
     try {
-      setShare(await createProjectShare(project));
+      const nextShare = await createProjectShare(project);
+      setShare(nextShare);
+      setShareModalOpen(true);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Could not create share link.");
     } finally {
@@ -116,21 +120,41 @@ export function ProjectSharePanel({ project }: { project: Project }) {
               <div className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-muted)]">
                 <span className="block truncate">{shareUrl}</span>
               </div>
-              <Button variant="secondary" icon={copied ? <Check size={16} /> : <Copy size={16} />} onClick={handleCopy}>
-                {copied ? "Copied" : "Copy"}
-              </Button>
-              <a href={shareUrl} target="_blank" rel="noreferrer">
-                <Button type="button" variant="secondary" icon={<ExternalLink size={16} />}>
-                  Open
-                </Button>
-              </a>
-              <Button variant="danger" icon={<X size={16} />} onClick={handleRevoke} disabled={working}>
-                Disable
+              <Button variant="secondary" icon={<KeyRound size={16} />} onClick={() => setShareModalOpen(true)}>
+                Share Options
               </Button>
             </div>
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+          </div>
+        ) : (
+          <Button icon={<Link2 size={16} />} onClick={handleCreate} disabled={working || !isSupabaseConfigured}>
+            {working ? "Creating..." : "Create Link"}
+          </Button>
+        )}
+      </div>
+      {share ? (
+        <Modal title="Share project" open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
+          <div className="space-y-4">
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Client link</p>
+              <p className="mt-2 break-all text-sm text-[var(--text-muted)]">{shareUrl}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="secondary" icon={copied ? <Check size={16} /> : <Copy size={16} />} onClick={handleCopy}>
+                  {copied ? "Copied" : "Copy Link"}
+                </Button>
+                <a href={shareUrl} target="_blank" rel="noreferrer">
+                  <Button type="button" variant="secondary" icon={<ExternalLink size={16} />}>
+                    Open
+                  </Button>
+                </a>
+              </div>
+            </div>
+
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-bold text-[var(--text)]">Optional password</p>
+                <div>
+                  <p className="text-sm font-bold text-[var(--text)]">Optional password</p>
+                  <p className="mt-1 text-xs text-[var(--text-soft)]">Use this when a client wants the link to stay private.</p>
+                </div>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-bold ${
                     share.passwordProtected
@@ -162,15 +186,16 @@ export function ProjectSharePanel({ project }: { project: Project }) {
                   </Button>
                 ) : null}
               </div>
-              <p className="mt-2 text-xs text-[var(--text-soft)]">Clients must enter this password before the read-only page loads.</p>
+            </div>
+
+            <div className="flex justify-end">
+              <Button variant="danger" icon={<X size={16} />} onClick={handleRevoke} disabled={working}>
+                Disable Link
+              </Button>
             </div>
           </div>
-        ) : (
-          <Button icon={<Link2 size={16} />} onClick={handleCreate} disabled={working || !isSupabaseConfigured}>
-            {working ? "Creating..." : "Create Link"}
-          </Button>
-        )}
-      </div>
+        </Modal>
+      ) : null}
     </Card>
   );
 }

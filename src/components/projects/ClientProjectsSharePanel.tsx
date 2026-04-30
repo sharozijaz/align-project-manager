@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, Link2, Loader2, Trash2, UsersRound } from "lucide-react";
+import { Check, Copy, ExternalLink, KeyRound, Link2, Loader2, Trash2, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createClientShareLink,
@@ -13,14 +13,15 @@ import { dateLabel } from "../../utils/date";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
+import { Modal } from "../ui/Modal";
 
 export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) {
   const [clientName, setClientName] = useState("");
-  const [clientPassword, setClientPassword] = useState("");
-  const [passwordEdits, setPasswordEdits] = useState<Record<string, string>>({});
+  const [modalPassword, setModalPassword] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [links, setLinks] = useState<ClientShareLink[]>([]);
   const [activeLinkId, setActiveLinkId] = useState("");
+  const [shareModalLinkId, setShareModalLinkId] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [working, setWorking] = useState(false);
   const [copiedId, setCopiedId] = useState("");
@@ -31,6 +32,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     [projects, selectedIds],
   );
   const activeLink = links.find((link) => link.id === activeLinkId);
+  const shareModalLink = links.find((link) => link.id === shareModalLinkId) || null;
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -74,11 +76,11 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     setMessage("");
 
     try {
-      const link = await createClientShareLink({ name: clientName, projects: selectedProjects, password: clientPassword });
+      const link = await createClientShareLink({ name: clientName, projects: selectedProjects });
       setLinks((current) => [link, ...current]);
       setActiveLinkId(link.id);
+      setShareModalLinkId(link.id);
       setClientName("");
-      setClientPassword("");
       setSelectedIds([]);
       setMessage(`${link.name || "Client overview"} is saved and ready to share.`);
     } catch (error) {
@@ -104,6 +106,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       await revokeClientShareLink(link.id);
       setLinks((current) => current.filter((item) => item.id !== link.id));
       if (activeLinkId === link.id) setActiveLinkId("");
+      if (shareModalLinkId === link.id) setShareModalLinkId("");
       setMessage("Client overview link deleted.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not delete client overview link.");
@@ -118,7 +121,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     try {
       const updatedLink = await updateClientShareLinkPassword(link, nextPassword);
       setLinks((current) => current.map((item) => (item.id === link.id ? updatedLink : item)));
-      setPasswordEdits((current) => ({ ...current, [link.id]: "" }));
+      setModalPassword("");
       setMessage(nextPassword.trim() ? "Client overview password updated." : "Client overview password removed.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not update client overview password.");
@@ -156,15 +159,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <Input value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Client or agency name, optional" />
-            <Input
-              type="password"
-              value={clientPassword}
-              onChange={(event) => setClientPassword(event.target.value)}
-              placeholder="Optional link password"
-            />
-          </div>
+          <Input value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Client or agency name, optional" />
           <div className="flex min-w-0 flex-wrap gap-2">
             {projects.map((project) => {
               const selected = selectedIds.includes(project.id);
@@ -194,8 +189,15 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
         {activeLink ? (
           <div className="mt-4 flex flex-col gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-3 sm:flex-row sm:items-center">
             <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-muted)]">{clientShareUrl(activeLink)}</span>
-            <Button variant="secondary" icon={<ExternalLink size={16} />} onClick={() => window.open(clientShareUrl(activeLink), "_blank", "noreferrer")}>
-              Open
+            <Button
+              variant="secondary"
+              icon={<KeyRound size={16} />}
+              onClick={() => {
+                setModalPassword("");
+                setShareModalLinkId(activeLink.id);
+              }}
+            >
+              Share Options
             </Button>
           </div>
         ) : null}
@@ -227,10 +229,11 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 onSelect={() => setActiveLinkId(link.id)}
                 onCopy={() => void copyLink(link)}
                 onDelete={() => void deleteLink(link)}
-                passwordValue={passwordEdits[link.id] || ""}
-                onPasswordChange={(value) => setPasswordEdits((current) => ({ ...current, [link.id]: value }))}
-                onPasswordUpdate={() => void updateLinkPassword(link, passwordEdits[link.id] || "")}
-                onPasswordRemove={() => void updateLinkPassword(link, "")}
+                onManage={() => {
+                  setActiveLinkId(link.id);
+                  setModalPassword("");
+                  setShareModalLinkId(link.id);
+                }}
               />
             ))}
           </div>
@@ -240,6 +243,73 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
           </div>
         )}
       </div>
+      {shareModalLink ? (
+        <Modal title="Share client overview" open={Boolean(shareModalLink)} onClose={() => setShareModalLinkId("")}>
+          <div className="space-y-4">
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Overview link</p>
+              <p className="mt-2 break-all text-sm text-[var(--text-muted)]">{clientShareUrl(shareModalLink)}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="secondary" icon={copiedId === shareModalLink.id ? <Check size={16} /> : <Copy size={16} />} onClick={() => void copyLink(shareModalLink)}>
+                  {copiedId === shareModalLink.id ? "Copied" : "Copy Link"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={<ExternalLink size={16} />}
+                  onClick={() => window.open(clientShareUrl(shareModalLink), "_blank", "noreferrer")}
+                >
+                  Open
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-bold text-[var(--text)]">Optional password</p>
+                  <p className="mt-1 text-xs text-[var(--text-soft)]">Use this for private agency or client overview links.</p>
+                </div>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-bold ${
+                    shareModalLink.passwordProtected
+                      ? "bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]"
+                      : "bg-[var(--bg-muted)] text-[var(--text-muted)]"
+                  }`}
+                >
+                  {shareModalLink.passwordProtected ? "Protected" : "No password"}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  type="password"
+                  value={modalPassword}
+                  onChange={(event) => setModalPassword(event.target.value)}
+                  placeholder={shareModalLink.passwordProtected ? "Enter a new password" : "Add a password for this link"}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void updateLinkPassword(shareModalLink, modalPassword)}
+                  disabled={working || !modalPassword.trim()}
+                >
+                  {shareModalLink.passwordProtected ? "Update" : "Set"}
+                </Button>
+                {shareModalLink.passwordProtected ? (
+                  <Button type="button" variant="secondary" onClick={() => void updateLinkPassword(shareModalLink, "")} disabled={working}>
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button variant="danger" icon={<Trash2 size={16} />} onClick={() => void deleteLink(shareModalLink)} disabled={working}>
+                Delete Link
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </Card>
   );
 }
@@ -253,10 +323,7 @@ function SavedClientLink({
   onSelect,
   onCopy,
   onDelete,
-  passwordValue,
-  onPasswordChange,
-  onPasswordUpdate,
-  onPasswordRemove,
+  onManage,
 }: {
   link: ClientShareLink;
   projects: Project[];
@@ -266,10 +333,7 @@ function SavedClientLink({
   onSelect: () => void;
   onCopy: () => void;
   onDelete: () => void;
-  passwordValue: string;
-  onPasswordChange: (value: string) => void;
-  onPasswordUpdate: () => void;
-  onPasswordRemove: () => void;
+  onManage: () => void;
 }) {
   const linkedProjects = link.projectIds
     .map((id) => projects.find((project) => project.id === id)?.name)
@@ -304,30 +368,12 @@ function SavedClientLink({
           {linkedProjects.length ? linkedProjects.join(", ") : "Projects from this saved overview"}
         </p>
       </button>
-      <div className="mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-2">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            type="password"
-            value={passwordValue}
-            onChange={(event) => onPasswordChange(event.target.value)}
-            placeholder={link.passwordProtected ? "New password" : "Add password"}
-          />
-          <Button variant="secondary" onClick={onPasswordUpdate} disabled={!passwordValue.trim() || working}>
-            {link.passwordProtected ? "Update" : "Set"}
-          </Button>
-          {link.passwordProtected ? (
-            <Button variant="secondary" onClick={onPasswordRemove} disabled={working}>
-              Remove
-            </Button>
-          ) : null}
-        </div>
-      </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="secondary" icon={copied ? <Check size={15} /> : <Copy size={15} />} onClick={onCopy}>
           {copied ? "Copied" : "Copy"}
         </Button>
-        <Button variant="secondary" icon={<ExternalLink size={15} />} onClick={() => window.open(clientShareUrl(link), "_blank", "noreferrer")}>
-          Open
+        <Button variant="secondary" icon={<KeyRound size={15} />} onClick={onManage}>
+          Share Options
         </Button>
         <Button variant="danger" icon={<Trash2 size={15} />} onClick={onDelete} disabled={working}>
           Delete
