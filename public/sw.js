@@ -1,10 +1,10 @@
-const CACHE_NAME = "align-static-v1";
+const CACHE_NAME = "align-static-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
   "/align-icon.png",
   "/align-logo.png",
-  "/hero-texture.svg"
+  "/hero-mountain.webp"
 ];
 
 self.addEventListener("install", (event) => {
