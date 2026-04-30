@@ -64,7 +64,7 @@ async function findProject(env, userId, projectId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/projects`);
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("id", `eq.${projectId}`);
-  url.searchParams.set("select", "id,name,description,status,priority,start_date,due_date,created_at,updated_at");
+  url.searchParams.set("select", "id,name,description,status,priority,start_date,due_date,notes,created_at,updated_at");
   url.searchParams.set("limit", "1");
 
   const response = await serviceFetch(env, url);
@@ -93,6 +93,7 @@ function rowToProject(row) {
     priority: row.priority,
     startDate: row.start_date || "",
     dueDate: row.due_date || "",
+    notes: safeClientNotes(row.notes),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -113,4 +114,19 @@ function rowToTask(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function safeClientNotes(notes) {
+  if (!Array.isArray(notes)) return [];
+
+  return notes
+    .filter((note) => note && note.visibility === "client")
+    .map((note) => ({
+      id: String(note.id || ""),
+      title: String(note.title || "Project note"),
+      content: String(note.content || ""),
+      url: note.url ? String(note.url) : "",
+      visibility: "client",
+      updatedAt: String(note.updatedAt || ""),
+    }));
 }

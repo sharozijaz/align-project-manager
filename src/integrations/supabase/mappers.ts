@@ -1,5 +1,5 @@
 import type { CalendarEvent } from "../../types/calendar";
-import type { Project } from "../../types/project";
+import type { Project, ProjectNote } from "../../types/project";
 import type { Task } from "../../types/task";
 import { normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../../config/taskOptions";
 import type { Database } from "./types";
@@ -20,6 +20,7 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   due_date: project.dueDate ?? null,
   due_time: project.dueTime ?? null,
   sort_order: project.sortOrder ?? null,
+  notes: normalizeProjectNotes(project.notes),
   created_at: project.createdAt,
   updated_at: project.updatedAt,
 });
@@ -35,6 +36,7 @@ export const rowToProject = (row: ProjectRow): Project => ({
   dueDate: row.due_date ?? undefined,
   dueTime: normalizeTimeValue(row.due_time),
   sortOrder: row.sort_order ?? undefined,
+  notes: normalizeProjectNotes(row.notes),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -105,4 +107,20 @@ export const rowToCalendarEvent = (row: CalendarEventRow): CalendarEvent => ({
 
 function normalizeTimeValue(value?: string | null) {
   return value ? value.slice(0, 5) : undefined;
+}
+
+function normalizeProjectNotes(value?: ProjectNote[] | null): ProjectNote[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((note) => note && typeof note.title === "string" && typeof note.content === "string")
+    .map((note) => ({
+      id: note.id || crypto.randomUUID(),
+      title: note.title,
+      content: note.content,
+      visibility: note.visibility === "client" ? "client" : "private",
+      url: note.url || undefined,
+      createdAt: note.createdAt || new Date().toISOString(),
+      updatedAt: note.updatedAt || new Date().toISOString(),
+    }));
 }

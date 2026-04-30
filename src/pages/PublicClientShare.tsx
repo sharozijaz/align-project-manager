@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Clock, LockKeyhole, UsersRound } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -14,6 +14,14 @@ interface SharedProject {
   priority: string;
   startDate?: string;
   dueDate?: string;
+  notes?: SharedProjectNote[];
+}
+
+interface SharedProjectNote {
+  id: string;
+  title: string;
+  content: string;
+  url?: string;
 }
 
 interface SharedTask {
@@ -178,6 +186,28 @@ export function PublicClientShare() {
                           <span>{completed} completed</span>
                           <span>{durationLabel(project.startDate, project.dueDate)}</span>
                         </div>
+                        {(project.notes ?? []).length ? (
+                          <div className="mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+                            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">
+                              <NotebookTabs size={14} />
+                              Shared notes
+                            </p>
+                            <div className="space-y-2">
+                              {(project.notes ?? []).map((note) => (
+                                <div key={note.id} className="text-sm">
+                                  <p className="font-semibold text-[var(--text)]">{note.title}</p>
+                                  {note.url ? (
+                                    <a className="mt-1 inline-flex max-w-full items-center gap-1 truncate font-semibold text-[var(--text-brand)] hover:underline" href={note.url} target="_blank" rel="noreferrer">
+                                      <ExternalLink size={13} />
+                                      <span className="truncate">{note.url}</span>
+                                    </a>
+                                  ) : null}
+                                  {note.content ? <p className="mt-1 whitespace-pre-wrap text-[var(--text-muted)]">{note.content}</p> : null}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
                         <Link to={`/share/${tokens[projects.findIndex((item) => item.project.id === project.id)]}`} className="mt-4 inline-flex text-sm font-semibold text-[var(--text-brand)] hover:underline">
                           Open project details
                         </Link>

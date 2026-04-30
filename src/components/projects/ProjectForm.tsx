@@ -14,6 +14,7 @@ const blank: ProjectInput = {
   startTime: "",
   dueDate: "",
   dueTime: "",
+  notes: [],
 };
 
 export function ProjectForm({

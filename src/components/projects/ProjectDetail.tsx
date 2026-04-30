@@ -3,10 +3,11 @@ import { TaskList } from "../tasks/TaskList";
 import { TaskViewToggle } from "../tasks/TaskViewToggle";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
+import { ProjectNotes } from "./ProjectNotes";
 import { useMemo, useState } from "react";
 import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import { useTaskViewPreference } from "../../hooks/useTaskViewPreference";
-import type { Project } from "../../types/project";
+import type { Project, ProjectInput } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
@@ -15,6 +16,7 @@ export function ProjectDetail({
   tasks,
   projects,
   onAddTask,
+  onUpdateProject,
   onUpdateTask,
   onDeleteTask,
   onCompleteTask,
@@ -24,6 +26,7 @@ export function ProjectDetail({
   tasks: Task[];
   projects: Project[];
   onAddTask: (input: TaskInput) => void;
+  onUpdateProject: (id: string, input: Partial<ProjectInput>) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
@@ -99,6 +102,10 @@ export function ProjectDetail({
         view={view}
         lockedProjectId={project.id}
         onReorder={onReorderTasks}
+      />
+      <ProjectNotes
+        notes={project.notes ?? []}
+        onChange={(notes) => onUpdateProject(project.id, { notes })}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import type { ProjectNote } from "../../types/project";
 import type { TaskCategory, TaskPriority, TaskRecurrence, TaskReminder, TaskStatus } from "../../types/task";
 
 export interface Database {
@@ -16,6 +17,7 @@ export interface Database {
           due_date: string | null;
           due_time: string | null;
           sort_order: number | null;
+          notes: ProjectNote[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +33,7 @@ export interface Database {
           due_date?: string | null;
           due_time?: string | null;
           sort_order?: number | null;
+          notes?: ProjectNote[] | null;
           created_at: string;
           updated_at: string;
         };

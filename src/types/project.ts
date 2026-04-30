@@ -1,6 +1,17 @@
 import type { TaskPriority } from "./task";
 
 export type ProjectStatus = "active" | "paused" | "completed";
+export type ProjectNoteVisibility = "private" | "client";
+
+export interface ProjectNote {
+  id: string;
+  title: string;
+  content: string;
+  visibility: ProjectNoteVisibility;
+  url?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Project {
   id: string;
@@ -13,6 +24,7 @@ export interface Project {
   dueDate?: string;
   dueTime?: string;
   sortOrder?: number;
+  notes?: ProjectNote[];
   createdAt: string;
   updatedAt: string;
 }

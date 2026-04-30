@@ -171,7 +171,7 @@ function isMissingColumn(error: { message?: string; code?: string }, column: str
   return error.code === "PGRST204" || message.includes(column.toLowerCase());
 }
 
-const optionalProjectColumns = ["start_time", "due_time", "sort_order"];
+const optionalProjectColumns = ["start_time", "due_time", "sort_order", "notes"];
 const optionalTaskColumns = ["start_time", "due_time", "sort_order"];
 
 function stripColumns<Row extends Record<string, unknown>>(rows: Row[], columns: string[]) {

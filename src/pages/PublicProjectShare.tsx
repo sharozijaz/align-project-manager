@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Clock, LockKeyhole, Repeat2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, Repeat2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -14,6 +14,14 @@ interface SharedProject {
   priority: string;
   startDate?: string;
   dueDate?: string;
+  notes?: SharedProjectNote[];
+}
+
+interface SharedProjectNote {
+  id: string;
+  title: string;
+  content: string;
+  url?: string;
 }
 
 interface SharedTask {
@@ -183,6 +191,29 @@ export function PublicProjectShare() {
                   </div>
                 </div>
               </section>
+
+              {(data.project.notes ?? []).length ? (
+                <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+                  <h2 className="flex items-center gap-2 text-xl font-bold text-[var(--text)]">
+                    <NotebookTabs size={18} />
+                    Shared Project Notes
+                  </h2>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {(data.project.notes ?? []).map((note) => (
+                      <article key={note.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+                        <h3 className="break-words font-bold text-[var(--text)]">{note.title}</h3>
+                        {note.url ? (
+                          <a className="mt-2 inline-flex max-w-full items-center gap-1 truncate text-sm font-semibold text-[var(--text-brand)] hover:underline" href={note.url} target="_blank" rel="noreferrer">
+                            <ExternalLink size={14} />
+                            <span className="truncate">{note.url}</span>
+                          </a>
+                        ) : null}
+                        {note.content ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{note.content}</p> : null}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
               <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                 <div className="mb-4 flex items-center justify-between">

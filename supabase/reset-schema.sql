@@ -16,6 +16,7 @@ create table public.projects (
   due_date date,
   due_time time,
   sort_order numeric,
+  notes jsonb not null default '[]'::jsonb,
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
