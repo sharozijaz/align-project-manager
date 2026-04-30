@@ -47,7 +47,7 @@ export function ProjectForm({
     >
       <Input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Project name" required />
       <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Description" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Select value={form.status} onChange={(event) => update("status", event.target.value)}>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
@@ -60,6 +60,8 @@ export function ProjectForm({
             </option>
           ))}
         </Select>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
         <DateTimeField
           label="Start"
           date={form.startDate}
@@ -103,9 +105,9 @@ function DateTimeField({
   return (
     <label className="grid gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
       <span>{label}</span>
-      <div className="grid grid-cols-[1fr_92px] gap-2">
-        <Input type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
-        <Input type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_112px]">
+        <Input className="min-w-0" type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
+        <Input className="min-w-0" type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
       </div>
     </label>
   );
