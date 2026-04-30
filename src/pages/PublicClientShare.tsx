@@ -1,9 +1,11 @@
 import { CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, UsersRound } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
 import { dateLabel, durationLabel } from "../utils/date";
 
 interface SharedProject {
@@ -43,7 +45,10 @@ export function PublicClientShare() {
   const { token } = useParams();
   const [projects, setProjects] = useState<SharePayload[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState("");
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [password, setPassword] = useState("");
   const [savedClientName, setSavedClientName] = useState("");
   const params = new URLSearchParams(window.location.search);
   const clientName = savedClientName || params.get("client")?.trim() || "Client Project Overview";
@@ -52,54 +57,68 @@ export function PublicClientShare() {
     .map((token) => token.trim())
     .filter(Boolean);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadProjects = async (passwordValue = "") => {
+    setError("");
+    if (passwordValue) setUnlocking(true);
+    else setLoading(true);
 
-    async function loadProjects() {
-      setLoading(true);
-      setError("");
-
-      try {
-        if (token) {
-          const response = await fetch(`/api/client-share?token=${encodeURIComponent(token)}`);
-          const contentType = response.headers.get("content-type") || "";
-          if (!contentType.includes("application/json")) throw new Error("Client overview API is unavailable.");
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.error || "Client overview link is unavailable.");
-          if (mounted) {
-            setSavedClientName(payload.clientName || "");
-            setProjects(payload.projects || []);
+    try {
+      if (token) {
+        const response = await fetch(`/api/client-share?token=${encodeURIComponent(token)}`, {
+          method: passwordValue ? "POST" : "GET",
+          headers: passwordValue ? { "Content-Type": "application/json" } : undefined,
+          body: passwordValue ? JSON.stringify({ password: passwordValue }) : undefined,
+        });
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) throw new Error("Client overview API is unavailable.");
+        const payload = await response.json();
+        if (!response.ok) {
+          if (response.status === 401 && payload.passwordRequired) {
+            setPasswordRequired(true);
+            setProjects([]);
+            setError(payload.error || "Password required.");
+            return;
           }
-          return;
+          throw new Error(payload.error || "Client overview link is unavailable.");
         }
-
-        if (!tokens.length) throw new Error("No projects were included in this share link.");
-
-        const results = await Promise.all(
-          tokens.map(async (token) => {
-            const response = await fetch(`/api/project-share?token=${encodeURIComponent(token)}`);
-            const contentType = response.headers.get("content-type") || "";
-            if (!contentType.includes("application/json")) throw new Error("Share API is unavailable.");
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || "A project share link is unavailable.");
-            return payload as SharePayload;
-          }),
-        );
-
-        if (mounted) setProjects(results);
-      } catch (loadError) {
-        if (mounted) setError(loadError instanceof Error ? loadError.message : "Share link unavailable.");
-      } finally {
-        if (mounted) setLoading(false);
+        setPasswordRequired(false);
+        setPassword("");
+        setSavedClientName(payload.clientName || "");
+        setProjects(payload.projects || []);
+        return;
       }
+
+      if (!tokens.length) throw new Error("No projects were included in this share link.");
+
+      const results = await Promise.all(
+        tokens.map(async (token) => {
+          const response = await fetch(`/api/project-share?token=${encodeURIComponent(token)}`);
+          const contentType = response.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) throw new Error("Share API is unavailable.");
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || "A project share link is unavailable.");
+          return payload as SharePayload;
+        }),
+      );
+
+      setProjects(results);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Share link unavailable.");
+    } finally {
+      setLoading(false);
+      setUnlocking(false);
     }
+  };
 
+  useEffect(() => {
     void loadProjects();
-
-    return () => {
-      mounted = false;
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, tokens.join(",")]);
+
+  const handleUnlock = (event: FormEvent) => {
+    event.preventDefault();
+    void loadProjects(password);
+  };
 
   const stats = useMemo(() => {
     const allTasks = projects.flatMap((item) => item.tasks);
@@ -129,6 +148,29 @@ export function PublicClientShare() {
           {loading ? (
             <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-muted)]">
               Loading client overview...
+            </section>
+          ) : passwordRequired ? (
+            <section className="mx-auto max-w-md rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <LockKeyhole size={18} className="text-[var(--text-muted)]" />
+                <h1 className="text-xl font-bold text-[var(--text)]">Password required</h1>
+              </div>
+              <p className="mb-4 text-sm leading-6 text-[var(--text-muted)]">
+                This client overview is private. Enter the password shared by the project owner.
+              </p>
+              <form onSubmit={handleUnlock} className="space-y-3">
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Share password"
+                  autoFocus
+                />
+                <Button type="submit" className="w-full" disabled={!password.trim() || unlocking}>
+                  {unlocking ? "Checking..." : "Unlock"}
+                </Button>
+              </form>
+              {error ? <p className="mt-3 text-sm text-[var(--button-danger-text)]">{error}</p> : null}
             </section>
           ) : error ? (
             <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center">

@@ -1,9 +1,11 @@
 import { CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, Repeat2 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
 import { dateLabel, durationLabel, startDateLabel } from "../utils/date";
 
 interface SharedProject {
@@ -46,43 +48,60 @@ export function PublicProjectShare() {
   const { token } = useParams();
   const [data, setData] = useState<SharePayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState("");
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [password, setPassword] = useState("");
+
+  const loadShare = async (passwordValue = "") => {
+    setError("");
+    if (passwordValue) setUnlocking(true);
+    else setLoading(true);
+
+    try {
+      const response = await fetch(`/api/project-share?token=${encodeURIComponent(token || "")}`, {
+        method: passwordValue ? "POST" : "GET",
+        headers: passwordValue ? { "Content-Type": "application/json" } : undefined,
+        body: passwordValue ? JSON.stringify({ password: passwordValue }) : undefined,
+      });
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        throw new Error("Share API is unavailable. Please redeploy Align and try again.");
+      }
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401 && payload.passwordRequired) {
+          setPasswordRequired(true);
+          setData(null);
+          setError(payload.error || "Password required.");
+          return;
+        }
+        throw new Error(payload.error || "Share link not found.");
+      }
+
+      setPasswordRequired(false);
+      setPassword("");
+      setData(payload);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Share link not found.");
+    } finally {
+      setLoading(false);
+      setUnlocking(false);
+    }
+  };
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadShare() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await fetch(`/api/project-share?token=${encodeURIComponent(token || "")}`);
-        const contentType = response.headers.get("content-type") || "";
-
-        if (!contentType.includes("application/json")) {
-          throw new Error("Share API is unavailable. Please redeploy Align and try again.");
-        }
-
-        const payload = await response.json();
-
-        if (!response.ok) {
-          throw new Error(payload.error || "Share link not found.");
-        }
-
-        if (mounted) setData(payload);
-      } catch (loadError) {
-        if (mounted) setError(loadError instanceof Error ? loadError.message : "Share link not found.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
     void loadShare();
-
-    return () => {
-      mounted = false;
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const handleUnlock = (event: FormEvent) => {
+    event.preventDefault();
+    void loadShare(password);
+  };
 
   const stats = useMemo(() => {
     const tasks = data?.tasks ?? [];
@@ -123,6 +142,29 @@ export function PublicProjectShare() {
           {loading ? (
             <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-muted)]">
               Loading project view...
+            </section>
+          ) : passwordRequired ? (
+            <section className="mx-auto max-w-md rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <LockKeyhole size={18} className="text-[var(--text-muted)]" />
+                <h1 className="text-xl font-bold text-[var(--text)]">Password required</h1>
+              </div>
+              <p className="mb-4 text-sm leading-6 text-[var(--text-muted)]">
+                This read-only project is private. Enter the password shared by the project owner.
+              </p>
+              <form onSubmit={handleUnlock} className="space-y-3">
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Share password"
+                  autoFocus
+                />
+                <Button type="submit" className="w-full" disabled={!password.trim() || unlocking}>
+                  {unlocking ? "Checking..." : "Unlock"}
+                </Button>
+              </form>
+              {error ? <p className="mt-3 text-sm text-[var(--button-danger-text)]">{error}</p> : null}
             </section>
           ) : error ? (
             <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center">

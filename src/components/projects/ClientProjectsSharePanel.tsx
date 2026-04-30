@@ -4,6 +4,7 @@ import {
   createClientShareLink,
   listClientShareLinks,
   revokeClientShareLink,
+  updateClientShareLinkPassword,
 } from "../../integrations/supabase/projectShares";
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
 import type { Project } from "../../types/project";
@@ -15,6 +16,8 @@ import { Input } from "../ui/Input";
 
 export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) {
   const [clientName, setClientName] = useState("");
+  const [clientPassword, setClientPassword] = useState("");
+  const [passwordEdits, setPasswordEdits] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [links, setLinks] = useState<ClientShareLink[]>([]);
   const [activeLinkId, setActiveLinkId] = useState("");
@@ -71,10 +74,11 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     setMessage("");
 
     try {
-      const link = await createClientShareLink({ name: clientName, projects: selectedProjects });
+      const link = await createClientShareLink({ name: clientName, projects: selectedProjects, password: clientPassword });
       setLinks((current) => [link, ...current]);
       setActiveLinkId(link.id);
       setClientName("");
+      setClientPassword("");
       setSelectedIds([]);
       setMessage(`${link.name || "Client overview"} is saved and ready to share.`);
     } catch (error) {
@@ -103,6 +107,21 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       setMessage("Client overview link deleted.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not delete client overview link.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const updateLinkPassword = async (link: ClientShareLink, nextPassword: string) => {
+    setWorking(true);
+    setMessage("");
+    try {
+      const updatedLink = await updateClientShareLinkPassword(link, nextPassword);
+      setLinks((current) => current.map((item) => (item.id === link.id ? updatedLink : item)));
+      setPasswordEdits((current) => ({ ...current, [link.id]: "" }));
+      setMessage(nextPassword.trim() ? "Client overview password updated." : "Client overview password removed.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not update client overview password.");
     } finally {
       setWorking(false);
     }
@@ -137,7 +156,15 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <Input value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Client or agency name, optional" />
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <Input value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Client or agency name, optional" />
+            <Input
+              type="password"
+              value={clientPassword}
+              onChange={(event) => setClientPassword(event.target.value)}
+              placeholder="Optional link password"
+            />
+          </div>
           <div className="flex min-w-0 flex-wrap gap-2">
             {projects.map((project) => {
               const selected = selectedIds.includes(project.id);
@@ -200,6 +227,10 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 onSelect={() => setActiveLinkId(link.id)}
                 onCopy={() => void copyLink(link)}
                 onDelete={() => void deleteLink(link)}
+                passwordValue={passwordEdits[link.id] || ""}
+                onPasswordChange={(value) => setPasswordEdits((current) => ({ ...current, [link.id]: value }))}
+                onPasswordUpdate={() => void updateLinkPassword(link, passwordEdits[link.id] || "")}
+                onPasswordRemove={() => void updateLinkPassword(link, "")}
               />
             ))}
           </div>
@@ -222,6 +253,10 @@ function SavedClientLink({
   onSelect,
   onCopy,
   onDelete,
+  passwordValue,
+  onPasswordChange,
+  onPasswordUpdate,
+  onPasswordRemove,
 }: {
   link: ClientShareLink;
   projects: Project[];
@@ -231,6 +266,10 @@ function SavedClientLink({
   onSelect: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  passwordValue: string;
+  onPasswordChange: (value: string) => void;
+  onPasswordUpdate: () => void;
+  onPasswordRemove: () => void;
 }) {
   const linkedProjects = link.projectIds
     .map((id) => projects.find((project) => project.id === id)?.name)
@@ -256,10 +295,33 @@ function SavedClientLink({
             active
           </span>
         </div>
+        {link.passwordProtected ? (
+          <span className="mt-2 inline-flex rounded-full bg-[var(--priority-urgent-bg)] px-2 py-1 text-xs font-bold text-[var(--priority-urgent-text)]">
+            password protected
+          </span>
+        ) : null}
         <p className="mt-3 line-clamp-2 text-sm text-[var(--text-muted)]">
           {linkedProjects.length ? linkedProjects.join(", ") : "Projects from this saved overview"}
         </p>
       </button>
+      <div className="mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            type="password"
+            value={passwordValue}
+            onChange={(event) => onPasswordChange(event.target.value)}
+            placeholder={link.passwordProtected ? "New password" : "Add password"}
+          />
+          <Button variant="secondary" onClick={onPasswordUpdate} disabled={!passwordValue.trim() || working}>
+            {link.passwordProtected ? "Update" : "Set"}
+          </Button>
+          {link.passwordProtected ? (
+            <Button variant="secondary" onClick={onPasswordRemove} disabled={working}>
+              Remove
+            </Button>
+          ) : null}
+        </div>
+      </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="secondary" icon={copied ? <Check size={15} /> : <Copy size={15} />} onClick={onCopy}>
           {copied ? "Copied" : "Copy"}

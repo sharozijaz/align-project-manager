@@ -3,6 +3,7 @@ export interface ProjectShare {
   projectId: string;
   token: string;
   enabled: boolean;
+  passwordProtected: boolean;
   expiresAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -15,6 +16,7 @@ export interface ClientShareLink {
   projectIds: string[];
   projectTokens: string[];
   enabled: boolean;
+  passwordProtected: boolean;
   createdAt: string;
   updatedAt: string;
 }

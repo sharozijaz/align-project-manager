@@ -76,6 +76,7 @@ create table if not exists public.project_shares (
   project_id text not null references public.projects(id) on delete cascade,
   token text not null unique,
   enabled boolean not null default true,
+  password_hash text,
   expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -89,6 +90,7 @@ create table if not exists public.client_share_links (
   project_ids text[] not null default '{}',
   project_tokens text[] not null default '{}',
   enabled boolean not null default true,
+  password_hash text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -147,6 +147,7 @@ export interface Database {
           project_id: string;
           token: string;
           enabled: boolean;
+          password_hash: string | null;
           expires_at: string | null;
           created_at: string;
           updated_at: string;
@@ -157,6 +158,7 @@ export interface Database {
           project_id: string;
           token: string;
           enabled?: boolean;
+          password_hash?: string | null;
           expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -173,6 +175,7 @@ export interface Database {
           project_ids: string[];
           project_tokens: string[];
           enabled: boolean;
+          password_hash: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -184,6 +187,7 @@ export interface Database {
           project_ids: string[];
           project_tokens: string[];
           enabled?: boolean;
+          password_hash?: string | null;
           created_at?: string;
           updated_at?: string;
         };

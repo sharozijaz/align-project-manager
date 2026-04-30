@@ -17,6 +17,7 @@ const rowToProjectShare = (row: {
   project_id: string;
   token: string;
   enabled: boolean;
+  password_hash?: string | null;
   expires_at: string | null;
   created_at: string;
   updated_at: string;
@@ -25,6 +26,7 @@ const rowToProjectShare = (row: {
   projectId: row.project_id,
   token: row.token,
   enabled: row.enabled,
+  passwordProtected: Boolean(row.password_hash),
   expiresAt: row.expires_at || undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -37,6 +39,7 @@ const rowToClientShareLink = (row: {
   project_ids: string[];
   project_tokens: string[];
   enabled: boolean;
+  password_hash?: string | null;
   created_at: string;
   updated_at: string;
 }): ClientShareLink => ({
@@ -46,6 +49,7 @@ const rowToClientShareLink = (row: {
   projectIds: row.project_ids ?? [],
   projectTokens: row.project_tokens ?? [],
   enabled: row.enabled,
+  passwordProtected: Boolean(row.password_hash),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -54,7 +58,7 @@ export async function getProjectShare(projectId: string) {
   const client = requireClient();
   const { data, error } = await client
     .from("project_shares")
-    .select("id,project_id,token,enabled,expires_at,created_at,updated_at")
+    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
     .eq("project_id", projectId)
     .eq("enabled", true)
     .order("created_at", { ascending: false })
@@ -95,7 +99,7 @@ export async function createProjectShare(project: Project) {
       enabled: true,
       updated_at: new Date().toISOString(),
     })
-    .select("id,project_id,token,enabled,expires_at,created_at,updated_at")
+    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
     .single();
 
   if (error) throw new Error(errorMessage(error, "Could not create project share link."));
@@ -113,11 +117,26 @@ export async function revokeProjectShare(shareId: string) {
   if (error) throw new Error(errorMessage(error, "Could not disable project share link."));
 }
 
+export async function updateProjectSharePassword(share: ProjectShare, password: string) {
+  const client = requireClient();
+  const passwordHash = password.trim() ? await hashSharePassword(share.token, password) : null;
+  const { data, error } = await client
+    .from("project_shares")
+    .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
+    .eq("id", share.id)
+    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
+    .single();
+
+  if (error) throw new Error(errorMessage(error, "Could not update share password."));
+
+  return rowToProjectShare(data);
+}
+
 export async function listClientShareLinks() {
   const client = requireClient();
   const { data, error } = await client
     .from("client_share_links")
-    .select("id,name,token,project_ids,project_tokens,enabled,created_at,updated_at")
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
     .eq("enabled", true)
     .order("created_at", { ascending: false });
 
@@ -133,9 +152,11 @@ export async function listClientShareLinks() {
 export async function createClientShareLink({
   name,
   projects,
+  password,
 }: {
   name?: string;
   projects: Project[];
+  password?: string;
 }) {
   const client = requireClient();
   const {
@@ -160,12 +181,17 @@ export async function createClientShareLink({
       created_at: now,
       updated_at: now,
     })
-    .select("id,name,token,project_ids,project_tokens,enabled,created_at,updated_at")
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
     .single();
 
   if (error) throw new Error(errorMessage(error, "Could not save client overview link."));
 
-  return rowToClientShareLink(data);
+  let link = rowToClientShareLink(data);
+  if (password?.trim()) {
+    link = await updateClientShareLinkPassword(link, password);
+  }
+
+  return link;
 }
 
 export async function revokeClientShareLink(linkId: string) {
@@ -178,8 +204,29 @@ export async function revokeClientShareLink(linkId: string) {
   if (error) throw new Error(errorMessage(error, "Could not delete client overview link."));
 }
 
+export async function updateClientShareLinkPassword(link: ClientShareLink, password: string) {
+  const client = requireClient();
+  const passwordHash = password.trim() ? await hashSharePassword(link.token, password) : null;
+  const { data, error } = await client
+    .from("client_share_links")
+    .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
+    .eq("id", link.id)
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
+    .single();
+
+  if (error) throw new Error(errorMessage(error, "Could not update client link password."));
+
+  return rowToClientShareLink(data);
+}
+
 function createShareToken() {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashSharePassword(token: string, password: string) {
+  const data = new TextEncoder().encode(`${token}:${password.trim()}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

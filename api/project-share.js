@@ -1,7 +1,10 @@
+import crypto from "node:crypto";
 import { getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
 
 export default async function handler(req, res) {
-  if (requireMethod(req, res, "GET")) return;
+  if (!["GET", "POST"].includes(req.method)) {
+    if (requireMethod(req, res, "GET")) return;
+  }
 
   const env = getEnv();
   const token = String(req.query.token || "").trim();
@@ -22,6 +25,17 @@ export default async function handler(req, res) {
     if (!share) {
       res.status(404).json({ error: "Share link not found." });
       return;
+    }
+
+    if (share.password_hash) {
+      const password = await readSharePassword(req);
+      if (!verifySharePassword(token, password, share.password_hash)) {
+        res.status(401).json({
+          error: password ? "Incorrect share password." : "Password required.",
+          passwordRequired: true,
+        });
+        return;
+      }
     }
 
     const [project, tasks] = await Promise.all([
@@ -47,7 +61,7 @@ async function findShare(env, token) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/project_shares`);
   url.searchParams.set("token", `eq.${token}`);
   url.searchParams.set("enabled", "eq.true");
-  url.searchParams.set("select", "user_id,project_id,expires_at");
+  url.searchParams.set("select", "user_id,project_id,expires_at,password_hash");
   url.searchParams.set("limit", "1");
 
   const response = await serviceFetch(env, url);
@@ -58,6 +72,42 @@ async function findShare(env, token) {
   if (share.expires_at && new Date(share.expires_at).getTime() < Date.now()) return null;
 
   return share;
+}
+
+async function readSharePassword(req) {
+  if (req.headers["x-share-password"]) {
+    return String(req.headers["x-share-password"]);
+  }
+
+  if (req.method !== "POST") return "";
+
+  if (req.body) {
+    const body = typeof req.body === "string" ? safeJsonParse(req.body) : req.body;
+    return String(body?.password || "");
+  }
+
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  const bodyText = Buffer.concat(chunks).toString("utf8");
+  return String(safeJsonParse(bodyText)?.password || "");
+}
+
+function safeJsonParse(value) {
+  try {
+    return JSON.parse(value || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function verifySharePassword(token, password, expectedHash) {
+  if (!password) return false;
+  const hash = crypto.createHash("sha256").update(`${token}:${String(password).trim()}`).digest("hex");
+  const actual = Buffer.from(hash, "hex");
+  const expected = Buffer.from(String(expectedHash), "hex");
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
 async function findProject(env, userId, projectId) {
