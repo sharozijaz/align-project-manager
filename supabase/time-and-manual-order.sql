@@ -16,3 +16,6 @@ grant select, insert, update, delete on public.projects to authenticated;
 grant select, insert, update, delete on public.tasks to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
 grant select, insert, update, delete on public.tasks to service_role;
+
+-- Refresh PostgREST's schema cache so the app can use the new columns immediately.
+notify pgrst, 'reload schema';
