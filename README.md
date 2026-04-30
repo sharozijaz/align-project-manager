@@ -1,6 +1,6 @@
 # Align
 
-A clean React + TypeScript project management app inspired by lightweight tools like ClickUp, Notion, Todoist, and Linear. It starts as a web app and keeps the code compatible with a future Electron or Tauri wrapper.
+A focused React + TypeScript project management app for solo/freelance work, client projects, reminders, Google Calendar sync, and read-only client sharing. The production app is deployed at `https://align.sharoz.dev`.
 
 ## Tech Stack
 
@@ -27,6 +27,31 @@ npm run build
 
 Deployment notes live in `DEPLOYMENT.md`.
 Security notes live in `SECURITY.md`.
+
+## Production Setup
+
+Align is hosted on Vercel with Supabase, Google Calendar, and Resend.
+
+Required Vercel environment variables:
+
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_APP_URL=https://align.sharoz.dev
+VITE_ALLOWED_EMAILS=
+APP_URL=https://align.sharoz.dev
+SUPABASE_SERVICE_ROLE_KEY=
+CRON_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=https://align.sharoz.dev/api/google-calendar/callback
+GOOGLE_CALENDAR_ID=primary
+RESEND_API_KEY=
+REMINDER_EMAIL_FROM=
+REMINDER_EMAIL_REPLY_TO=
+```
+
+Never commit `.env.local`, Supabase service-role keys, Google client secrets, Resend keys, or database passwords.
 
 ## Project Structure
 
@@ -56,21 +81,13 @@ Deleted tasks are soft-deleted first. They can be restored immediately from the 
 
 ## Google Calendar
 
-The integration layer is prepared in:
+Google Calendar OAuth and sync are implemented through Vercel API routes and Supabase-backed token storage. The cron route also supports background sync:
 
 ```text
-src/integrations/googleCalendar/
+/api/cron/sync-google-calendar
 ```
 
-Add OAuth credentials, token exchange, and Google Calendar API calls inside `googleCalendarClient.ts`. The Settings page already includes a “Connect Google Calendar” placeholder.
-
-Recommended next implementation path:
-
-1. Create a Google Cloud project and OAuth client.
-2. Add allowed redirect URLs for local development and the production subdomain.
-3. Move calendar auth/token exchange behind a small backend endpoint so client secrets never ship in the browser.
-4. Store user Google tokens in the hosted database, encrypted or protected by the backend provider.
-5. Use `sync.ts` to map local tasks/events to Google Calendar events.
+Vercel Cron should call this route with `CRON_SECRET`.
 
 ## Hosted Sync Path
 
@@ -85,25 +102,55 @@ The current architecture is ready for this because UI, stores, types, and integr
 
 ### Supabase Setup
 
-Supabase sync scaffolding is already included. You can use it before the subdomain is ready.
+For a fresh Supabase project:
 
 1. Create a Supabase project.
 2. Open the Supabase SQL editor.
 3. Run `supabase/schema.sql`.
-4. Copy `.env.example` to `.env.local`.
-5. Add your Supabase project URL and anon key:
+4. Run the migration files needed by the current app features:
+
+```text
+supabase/security-hardening.sql
+supabase/grants.sql
+supabase/google-calendar.sql
+supabase/reminders.sql
+supabase/email-reminders.sql
+supabase/email-preferences.sql
+supabase/recurring-tasks.sql
+supabase/project-shares.sql
+supabase/client-share-links.sql
+supabase/share-passwords.sql
+supabase/project-notes.sql
+supabase/start-dates.sql
+supabase/time-and-manual-order.sql
+supabase/task-options.sql
+```
+
+5. Insert allowed users:
+
+```sql
+insert into public.allowed_users (email)
+values ('your-email@example.com')
+on conflict (email) do nothing;
+```
+
+6. Copy `.env.example` to `.env.local` for local development.
+7. Add your Supabase project URL and anon key:
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-6. Restart the Vite dev server.
-7. Go to Settings > Supabase Sync.
-8. Send yourself a magic link and sign in.
-9. Use “Upload Local Data” once to seed the cloud workspace.
+8. Restart the Vite dev server.
+9. Sign in with the approved email.
+10. Use Settings sync controls if you need to upload/download a workspace manually.
 
-When your subdomain is ready, add it to Supabase Auth > URL Configuration as an allowed redirect URL.
+If Supabase reports a schema-cache error after a migration, run:
+
+```sql
+notify pgrst, 'reload schema';
+```
 
 ## Desktop App Path
 
@@ -116,8 +163,7 @@ Keep filesystem, notifications, and OS-specific APIs behind service modules so t
 
 ## Roadmap
 
-- Project task boards and richer statuses
-- Real auth and database sync
-- Google Calendar OAuth and two-way sync
-- Desktop packaging with Tauri or Electron
-- Project boards, reminders, and keyboard shortcuts
+- Browser/mobile push notifications, if email reminders are not enough later
+- Optional desktop packaging with Tauri or Electron
+- Optional client collaboration upgrades: comments, approvals, uploads
+- Optional advanced reports: monthly/client summaries, PDFs, time spent

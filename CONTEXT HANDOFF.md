@@ -466,3 +466,121 @@ CalendarEvent {
 - Required Supabase migrations before full cloud sync/preferences support:
   - run `supabase/recurring-tasks.sql`
   - run `supabase/email-preferences.sql`
+
+## Final App State - April 30, 2026
+
+Align is complete for the current production use case. The app is deployed at `https://align.sharoz.dev`, with GitHub connected through Vercel.
+
+### Core Product Complete
+
+- Dashboard with live date/time/weather glance.
+- Projects with start/due dates, times, notes, manual ordering, and task counts.
+- Project detail pages with current-project task creation, filters, progress, and share controls.
+- Tasks page with card/table views, inline editing, manual ordering, start/due date and time, reminders, repeats, filters, and completed-task hiding behavior.
+- Calendar page with task/event visibility and Google Calendar sync support.
+- Reports page with project progress, priority/status load, completion rate, overdue work, completed work, and upcoming deadlines.
+- Settings/Profile area with sync status, Google Calendar, Supabase sync, email reminder controls, import/export, deleted task recovery, and profile actions.
+- Mobile UI has been cleaned up with a responsive navbar and card-first layouts.
+- Align branding, favicon/app icon, mountain dashboard hero, dark/light theme support, and app manifest/service worker are in place.
+
+### Sync And Infrastructure Complete
+
+- Supabase auth is enabled with approved-email gating through RLS.
+- Supabase cloud sync works while the app is open.
+- Vercel Cron background Google Calendar sync works.
+- Google Calendar OAuth and manual sync work.
+- Resend email reminders work.
+- In-app notification bell reminders work.
+- Custom domain `align.sharoz.dev` is connected.
+- PWA/mobile install support is present.
+
+### Sharing Complete
+
+- Single-project read-only share links work.
+- Multi-project client/agency overview share links work.
+- Share links can be copied, opened, recovered, and deleted.
+- Optional password protection is implemented for share links.
+- Public share views are read-only and do not expose the private workspace.
+
+### Important Supabase SQL Files
+
+Use these idempotent files when a deployed app reports a missing column or when setting up a fresh Supabase database:
+
+- `supabase/schema.sql` - base schema.
+- `supabase/security-hardening.sql` - allowed-user RLS hardening.
+- `supabase/grants.sql` - service-role/auth grants.
+- `supabase/google-calendar.sql` - Google Calendar token/link tables.
+- `supabase/reminders.sql` - notification/reminder support.
+- `supabase/email-reminders.sql` - reminder email support.
+- `supabase/email-preferences.sql` - reminder email preferences.
+- `supabase/recurring-tasks.sql` - recurring task fields.
+- `supabase/project-shares.sql` - single-project public shares.
+- `supabase/client-share-links.sql` - multi-project client overview shares.
+- `supabase/share-passwords.sql` - optional share password hashes.
+- `supabase/project-notes.sql` - private/shareable project notes.
+- `supabase/start-dates.sql` - start date support.
+- `supabase/time-and-manual-order.sql` - task/project times and manual ordering.
+- `supabase/task-options.sql` - priority/status option support.
+
+After running migration SQL that adds columns, run or keep:
+
+```sql
+notify pgrst, 'reload schema';
+```
+
+This prevents Supabase/PostgREST schema-cache errors such as missing `due_time` or `password_hash`.
+
+### Production Environment Variables
+
+Vercel should keep these secrets configured:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_APP_URL`
+- `VITE_ALLOWED_EMAILS`
+- `APP_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CRON_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `GOOGLE_CALENDAR_ID`
+- `RESEND_API_KEY`
+- `REMINDER_EMAIL_FROM`
+- optional `REMINDER_EMAIL_REPLY_TO`
+
+Never commit `.env.local`, service-role keys, Google client secrets, Resend keys, or Supabase passwords.
+
+### Deferred / Optional Later
+
+- Browser/mobile push notifications are intentionally skipped for now because email reminders are enough.
+- Native mobile app is not needed yet; responsive PWA is the chosen path.
+- Desktop packaging with Tauri/Electron remains optional.
+- Client collaboration upgrades can come later:
+  - comments
+  - approvals
+  - file uploads
+  - client edit permissions
+- Advanced reporting can come later:
+  - client/monthly reports
+  - exportable PDFs
+  - time spent by project
+  - workload history
+
+### Final QA Checklist
+
+Before major future changes, verify:
+
+- Create/edit/delete project.
+- Create/edit/delete task.
+- Start/due date and time save.
+- Manual ordering works for tasks/projects.
+- Recurring task creates the next occurrence when completed.
+- Google Calendar sync creates/updates dated tasks.
+- Reminder email sends through Resend.
+- Deleted task restore works.
+- Project notes save and share visibility behaves correctly.
+- Single-project share link opens.
+- Client overview share link opens.
+- Password-protected share link unlocks with the correct password.
+- Mobile dashboard, projects, tasks, calendar, reports, and settings stay readable.
