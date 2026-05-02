@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Input } from "../ui/Input";
@@ -53,12 +55,28 @@ export function TaskForm({
     reminder: initialTask?.reminder ?? "none",
     recurrence: initialTask?.recurrence ?? "none",
   });
+  const hasAdvancedValues = Boolean(
+    initialTask?.startDate ||
+      initialTask?.startTime ||
+      initialTask?.dueDate ||
+      initialTask?.dueTime ||
+      (initialTask?.reminder && initialTask.reminder !== "none") ||
+      (initialTask?.recurrence && initialTask.recurrence !== "none"),
+  );
+  const [detailsOpen, setDetailsOpen] = useState(Boolean(!compact || hasAdvancedValues));
+
+  const helperText = useMemo(() => {
+    const parts = [];
+    if (form.startDate) parts.push("start date");
+    if (form.dueDate) parts.push("due date");
+    if (form.reminder && form.reminder !== "none") parts.push("reminder");
+    if (form.recurrence && form.recurrence !== "none") parts.push("repeat");
+    return parts.length ? `${parts.join(", ")} active` : "Start, due, reminders, and repeat";
+  }, [form.dueDate, form.recurrence, form.reminder, form.startDate]);
 
   const update = (key: keyof TaskInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
-  const titleField = (
-    <Input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Add a task, goal, or personal chore" required />
-  );
+  const titleField = <Input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Add a task, goal, or personal chore" required />;
 
   const descriptionField = <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Short description" />;
 
@@ -148,7 +166,7 @@ export function TaskForm({
           Cancel
         </Button>
       ) : null}
-      <Button type="submit" className={compact ? "min-h-10" : ""}>
+      <Button type="submit" icon={!initialTask ? <Plus size={16} /> : undefined} className={compact ? "min-h-11 shrink-0 px-5" : ""}>
         {initialTask ? "Save" : compact ? "Add Task" : "Add"}
       </Button>
     </div>
@@ -174,21 +192,39 @@ export function TaskForm({
       }}
     >
       {compact ? (
-        <>
+        <div className="space-y-3">
           <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]">
             {titleField}
             {projectField}
             {priorityField}
             {statusField}
-            {actionButtons}
+            <div className="hidden xl:block">{actionButtons}</div>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(280px,1fr)_minmax(280px,1fr)_minmax(190px,220px)_minmax(190px,220px)]">
-            {startField}
-            {dueField}
-            {reminderField}
-            {recurrenceField}
+          <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((open) => !open)}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+              aria-expanded={detailsOpen}
+            >
+              <SlidersHorizontal size={16} />
+              {detailsOpen ? "Hide details" : "Add details"}
+              {detailsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            <span className="text-sm text-[var(--text-soft)]">{helperText}</span>
+            <div className="xl:hidden">{actionButtons}</div>
           </div>
-        </>
+          {detailsOpen ? (
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 shadow-[var(--shadow-sm)]">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(280px,1fr)_minmax(280px,1fr)_minmax(190px,220px)_minmax(190px,220px)]">
+                {startField}
+                {dueField}
+                <FieldLabel label="Reminder">{reminderField}</FieldLabel>
+                <FieldLabel label="Repeat">{recurrenceField}</FieldLabel>
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <>
           {titleField}
@@ -233,6 +269,15 @@ function DateTimeField({
         <Input className="min-w-0" type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
         <Input className="min-w-0" type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
       </div>
+    </label>
+  );
+}
+
+function FieldLabel({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+      <span>{label}</span>
+      {children}
     </label>
   );
 }
