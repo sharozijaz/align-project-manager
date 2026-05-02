@@ -212,6 +212,8 @@
 html {
   background: var(--bg);
   overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 body {
