@@ -289,7 +289,11 @@ export async function googleCalendarRequest(env, connection, path, options = {})
 }
 
 export function taskToGoogleEvent(task) {
-  if (task.dueTime) {
+  const startTime = validTimeOrNull(task.startTime);
+  const dueTime = validTimeOrNull(task.dueTime);
+  const hasTimedDue = Boolean(task.dueDate && dueTime);
+
+  if (hasTimedDue) {
     const start = timedEventStart(task);
     const end = timedEventEnd(start, task);
 
@@ -331,13 +335,16 @@ function baseGoogleEvent(task) {
 }
 
 function timedEventStart(task) {
-  const startDate = task.startDate && task.startTime ? task.startDate : task.dueDate;
-  const startTime = task.startDate && task.startTime ? task.startTime : task.dueTime;
+  const safeStartTime = validTimeOrNull(task.startTime);
+  const safeDueTime = validTimeOrNull(task.dueTime);
+  const startDate = task.startDate && safeStartTime ? task.startDate : task.dueDate;
+  const startTime = task.startDate && safeStartTime ? safeStartTime : safeDueTime;
   return `${startDate}T${normalizeTime(startTime)}`;
 }
 
 function timedEventEnd(startDateTime, task) {
-  const endDateTime = task.dueDate && task.dueTime ? `${task.dueDate}T${normalizeTime(task.dueTime)}` : startDateTime;
+  const safeDueTime = validTimeOrNull(task.dueTime);
+  const endDateTime = task.dueDate && safeDueTime ? `${task.dueDate}T${normalizeTime(safeDueTime)}` : startDateTime;
   if (endDateTime > startDateTime) return endDateTime;
   const fallbackEnd = new Date(`${startDateTime}.000Z`);
   fallbackEnd.setMinutes(fallbackEnd.getMinutes() + 60);
@@ -345,7 +352,22 @@ function timedEventEnd(startDateTime, task) {
 }
 
 function normalizeTime(value) {
-  return `${value || "09:00"}:00`.slice(0, 8);
+  const safeTime = validTimeOrNull(value) || "09:00";
+  return `${safeTime}:00`;
+}
+
+function validTimeOrNull(value) {
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function appTimeZone() {
@@ -446,9 +468,9 @@ export async function findTasksForUser(env, userId) {
     priority: normalizeTaskPriority(row.priority),
     status: normalizeTaskStatus(row.status),
     startDate: row.start_date || undefined,
-    startTime: row.start_time || undefined,
+    startTime: validTimeOrNull(row.start_time) || undefined,
     dueDate: row.due_date || undefined,
-    dueTime: row.due_time || undefined,
+    dueTime: validTimeOrNull(row.due_time) || undefined,
     reminder: normalizeTaskReminder(row.reminder),
     deletedAt: row.deleted_at || undefined,
     createdAt: row.created_at,

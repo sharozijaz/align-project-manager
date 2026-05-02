@@ -17,9 +17,9 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   status: project.status,
   priority: normalizeTaskPriority(project.priority),
   start_date: project.startDate ?? null,
-  start_time: project.startTime ?? null,
+  start_time: normalizeTimeValue(project.startTime) ?? null,
   due_date: project.dueDate ?? null,
-  due_time: project.dueTime ?? null,
+  due_time: normalizeTimeValue(project.dueTime) ?? null,
   sort_order: project.sortOrder ?? null,
   notes: normalizeProjectNotes(project.notes),
   created_at: project.createdAt,
@@ -53,9 +53,9 @@ export const taskToRow = (task: Task, userId: string): TaskRow => ({
   priority: normalizeTaskPriority(task.priority),
   status: normalizeTaskStatus(task.status),
   start_date: task.startDate ?? null,
-  start_time: task.startTime ?? null,
+  start_time: normalizeTimeValue(task.startTime) ?? null,
   due_date: task.dueDate ?? null,
-  due_time: task.dueTime ?? null,
+  due_time: normalizeTimeValue(task.dueTime) ?? null,
   reminder: normalizeTaskReminder(task.reminder),
   recurrence: normalizeTaskRecurrence(task.recurrence),
   recurring_parent_id: task.recurringParentId ?? null,
@@ -108,7 +108,18 @@ export const rowToCalendarEvent = (row: CalendarEventRow): CalendarEvent => ({
 });
 
 function normalizeTimeValue(value?: string | null) {
-  return value ? value.slice(0, 5) : undefined;
+  if (!value) return undefined;
+
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return undefined;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return undefined;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function normalizeProjectArea(value?: string | null) {
