@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import { App } from "./App";
+import { AdminOnly, RequireFeature } from "../features/access/FeatureAccessProvider";
 
 export const router = createBrowserRouter([
   {
@@ -31,42 +32,42 @@ export const router = createBrowserRouter([
         index: true,
         lazy: async () => {
           const { Dashboard } = await import("../pages/Dashboard");
-          return { Component: Dashboard };
+          return { Component: () => <RequireFeature feature="project_management"><Dashboard /></RequireFeature> };
         },
       },
       {
         path: "projects",
         lazy: async () => {
           const { Projects } = await import("../pages/Projects");
-          return { Component: Projects };
+          return { Component: () => <RequireFeature feature="project_management"><Projects /></RequireFeature> };
         },
       },
       {
         path: "projects/:projectId",
         lazy: async () => {
           const { ProjectDetails } = await import("../pages/ProjectDetails");
-          return { Component: ProjectDetails };
+          return { Component: () => <RequireFeature feature="project_management"><ProjectDetails /></RequireFeature> };
         },
       },
       {
         path: "tasks",
         lazy: async () => {
           const { Tasks } = await import("../pages/Tasks");
-          return { Component: Tasks };
+          return { Component: () => <RequireFeature feature="project_management"><Tasks /></RequireFeature> };
         },
       },
       {
         path: "calendar",
         lazy: async () => {
           const { Calendar } = await import("../pages/Calendar");
-          return { Component: Calendar };
+          return { Component: () => <RequireFeature feature="project_management"><Calendar /></RequireFeature> };
         },
       },
       {
         path: "reports",
         lazy: async () => {
           const { Reports } = await import("../pages/Reports");
-          return { Component: Reports };
+          return { Component: () => <RequireFeature feature="project_management"><Reports /></RequireFeature> };
         },
       },
       {
@@ -74,6 +75,13 @@ export const router = createBrowserRouter([
         lazy: async () => {
           const { Settings } = await import("../pages/Settings");
           return { Component: Settings };
+        },
+      },
+      {
+        path: "admin",
+        lazy: async () => {
+          const { Admin } = await import("../pages/Admin");
+          return { Component: () => <AdminOnly><Admin /></AdminOnly> };
         },
       },
     ],

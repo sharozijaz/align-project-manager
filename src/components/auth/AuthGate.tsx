@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { LockKeyhole } from "lucide-react";
-import { getAuthRedirectUrl, isEmailAllowed, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
+import { FeatureAccessProvider } from "../../features/access/FeatureAccessProvider";
+import { getAuthRedirectUrl, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../../hooks/useMagicLinkCooldown";
 import { useThemeStore } from "../../store/themeStore";
@@ -16,10 +17,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [sending, setSending] = useState(false);
   const magicLinkCooldown = useMagicLinkCooldown();
 
-  if (!isSupabaseConfigured) return children;
-
-  const userEmail = session?.user.email;
-  const allowed = isEmailAllowed(userEmail);
+  if (!isSupabaseConfigured) return <FeatureAccessProvider session={null}>{children}</FeatureAccessProvider>;
 
   if (loading) {
     return (
@@ -29,15 +27,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (session && allowed) return children;
+  if (session) return <FeatureAccessProvider session={session}>{children}</FeatureAccessProvider>;
 
   const sendMagicLink = async () => {
     if (!supabase || !email.trim() || magicLinkCooldown.isCoolingDown) return;
-
-    if (!isEmailAllowed(email)) {
-      setMessage("This email is not allowed for this Align workspace.");
-      return;
-    }
 
     setSending(true);
     setMessage("");
@@ -79,16 +72,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <div>
             <p className="font-semibold text-[var(--text)]">Sign in required</p>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Your workspace is private. Use the approved email to receive a secure magic link.
+              Your workspace is private. Use an invited email to receive a secure magic link.
             </p>
           </div>
         </div>
       </div>
-      {session && !allowed ? (
-        <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--button-danger-text)]">
-          {userEmail} is signed in, but it is not allowed for this workspace.
-        </div>
-      ) : null}
       <form
         className="mt-6 grid gap-3"
         onSubmit={(event) => {

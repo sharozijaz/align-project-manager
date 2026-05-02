@@ -1,9 +1,52 @@
 import type { ProjectNote } from "../../types/project";
+import type { AppRole, FeatureKey } from "../../features/access/featureRegistry";
 import type { TaskCategory, TaskPriority, TaskRecurrence, TaskReminder, TaskStatus } from "../../types/task";
 
 export interface Database {
   public: {
     Tables: {
+      app_profiles: {
+        Row: {
+          id: string;
+          email: string;
+          display_name: string | null;
+          role: AppRole;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          display_name?: string | null;
+          role?: AppRole;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["app_profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      feature_access: {
+        Row: {
+          id: string;
+          profile_id: string;
+          feature_key: FeatureKey;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          feature_key: FeatureKey;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["feature_access"]["Insert"]>;
+        Relationships: [];
+      };
       projects: {
         Row: {
           id: string;

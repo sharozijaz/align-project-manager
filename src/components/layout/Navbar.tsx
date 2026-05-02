@@ -5,6 +5,7 @@ import {
   Home,
   ListTodo,
   Settings,
+  Shield,
   UserRound,
   X,
 } from "lucide-react";
@@ -15,16 +16,19 @@ import { InstallAppButton } from "../pwa/InstallAppButton";
 import { SyncIndicator } from "../sync/SyncIndicator";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
+import type { FeatureKey } from "../../features/access/featureRegistry";
 
 const links = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/projects", label: "Projects", icon: ListTodo },
-  { to: "/tasks", label: "Tasks", icon: CheckCircle2 },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
-];
+  { to: "/", label: "Home", icon: Home, feature: "project_management" },
+  { to: "/projects", label: "Projects", icon: ListTodo, feature: "project_management" },
+  { to: "/tasks", label: "Tasks", icon: CheckCircle2, feature: "project_management" },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays, feature: "project_management" },
+  { to: "/reports", label: "Reports", icon: BarChart3, feature: "project_management" },
+] satisfies Array<{ to: string; label: string; icon: typeof Home; feature: FeatureKey }>;
 
 export function Navbar() {
+  const { access, hasFeature } = useFeatureAccess();
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const shellRef = useRef<HTMLElement | null>(null);
   const isProfileMenuOpen = openMenu === "profile";
@@ -102,6 +106,22 @@ export function Navbar() {
                   <Settings size={16} />
                   Settings
                 </NavLink>
+                {access?.profile.role === "owner" && hasFeature("admin") ? (
+                  <NavLink
+                    to="/admin"
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                        isActive
+                          ? "align-gradient text-white"
+                          : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
+                      }`
+                    }
+                    onClick={() => setOpenMenu(null)}
+                  >
+                    <Shield size={16} />
+                    Admin
+                  </NavLink>
+                ) : null}
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-semibold text-[var(--text-muted)] transition hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
@@ -117,7 +137,7 @@ export function Navbar() {
         </div>
       </div>
       <nav className="col-span-2 row-start-2 grid w-full min-w-0 grid-cols-5 gap-1 md:order-none md:col-span-1 md:row-start-auto md:flex md:w-auto md:justify-center md:gap-2">
-        {links.map(({ to, label, icon: Icon }) => (
+        {links.filter((link) => hasFeature(link.feature)).map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
