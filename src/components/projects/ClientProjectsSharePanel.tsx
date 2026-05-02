@@ -1,5 +1,6 @@
 import { Check, Copy, ExternalLink, KeyRound, Link2, Loader2, LockKeyhole, Search, ShieldCheck, Trash2, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   createClientShareLink,
   listClientShareLinks,
@@ -275,9 +276,10 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
               Loading saved links
             </div>
           ) : visibleLinks.length ? (
-            <div className="divide-y divide-[var(--border)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]">
+            <motion.div className="divide-y divide-[var(--border)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]" layout>
+              <AnimatePresence initial={false}>
               {visibleLinks.map((link) => (
-              <SavedClientLink
+                <SavedClientLink
                 key={link.id}
                 link={link}
                 projects={projects}
@@ -292,9 +294,10 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                   setModalPassword("");
                   setShareModalLinkId(link.id);
                 }}
-              />
-            ))}
-            </div>
+                />
+              ))}
+              </AnimatePresence>
+            </motion.div>
           ) : (
             <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-6 text-center text-sm text-[var(--text-muted)]">
               {links.length ? "No saved links match your search." : "No saved client overview links yet."}
@@ -406,7 +409,14 @@ function SavedClientLink({
     .join("");
 
   return (
-    <article className={`grid gap-4 bg-[var(--surface-raised)] p-4 transition lg:grid-cols-[minmax(220px,0.8fr)_minmax(260px,1.4fr)_auto] lg:items-center ${selected ? "shadow-[inset_4px_0_0_var(--brand-primary)]" : ""}`}>
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+      className={`grid gap-4 bg-[var(--surface-raised)] p-4 transition lg:grid-cols-[minmax(220px,0.8fr)_minmax(260px,1.4fr)_auto] lg:items-center ${selected ? "shadow-[inset_4px_0_0_var(--brand-primary)]" : ""}`}
+    >
       <button type="button" onClick={onSelect} className="flex min-w-0 items-center gap-3 text-left">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-primary-bg)] text-sm font-black text-[var(--button-primary-text)]">
           {initials || "CL"}
@@ -459,7 +469,7 @@ function SavedClientLink({
           Delete
         </Button>
       </div>
-    </article>
+    </motion.article>
   );
 }
 

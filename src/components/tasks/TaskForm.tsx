@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Input } from "../ui/Input";
@@ -214,16 +215,24 @@ export function TaskForm({
             <span className="text-sm text-[var(--text-soft)]">{helperText}</span>
             <div className="xl:hidden">{actionButtons}</div>
           </div>
-          {detailsOpen ? (
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 shadow-[var(--shadow-sm)]">
+          <AnimatePresence initial={false}>
+            {detailsOpen ? (
+            <motion.div
+              className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 shadow-[var(--shadow-sm)]"
+              initial={{ opacity: 0, height: 0, y: -4 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(280px,1fr)_minmax(280px,1fr)_minmax(190px,220px)_minmax(190px,220px)]">
                 {startField}
                 {dueField}
                 <FieldLabel label="Reminder">{reminderField}</FieldLabel>
                 <FieldLabel label="Repeat">{recurrenceField}</FieldLabel>
               </div>
-            </div>
-          ) : null}
+            </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       ) : (
         <>

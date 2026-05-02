@@ -1,5 +1,6 @@
 import { GripVertical } from "lucide-react";
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskTable } from "./TaskTable";
 import type { TaskViewMode } from "./TaskViewToggle";
@@ -31,14 +32,29 @@ export function TaskList({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   if (!tasks.length) {
-    return <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">{emptyText}</div>;
+    return (
+      <motion.div
+        className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {emptyText}
+      </motion.div>
+    );
   }
 
   const cards = (
-    <div className="space-y-3">
+    <motion.div className="space-y-3" layout>
+      <AnimatePresence initial={false}>
       {tasks.map((task) => (
-        <div
+        <motion.div
           key={task.id}
+          layout
+          initial={{ opacity: 0, y: 10, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6, scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.75 }}
           onDragOver={(event) => {
             if (!onReorder || draggedId === task.id) return;
             event.preventDefault();
@@ -56,7 +72,7 @@ export function TaskList({
             setDraggedId(null);
             setDragOverId(null);
           }}
-          className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-all duration-200 ${draggedId === task.id ? "scale-[0.99] opacity-45" : ""} ${dragOverId === task.id ? "translate-y-1 border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
+          className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-colors duration-200 ${draggedId === task.id ? "opacity-45" : ""} ${dragOverId === task.id ? "border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
         >
           {onReorder ? (
             <button
@@ -83,9 +99,10 @@ export function TaskList({
               onComplete={onComplete}
             />
           </div>
-        </div>
+        </motion.div>
       ))}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 
   if (view === "cards") return cards;

@@ -1,4 +1,5 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { motion } from "motion/react";
 import { AuthGate } from "../components/auth/AuthGate";
 import { Navbar } from "../components/layout/Navbar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
@@ -8,6 +9,7 @@ import { useThemeStore } from "../store/themeStore";
 
 export function App() {
   const theme = useThemeStore((state) => state.theme);
+  const location = useLocation();
 
   return (
     <AuthGate>
@@ -19,9 +21,15 @@ export function App() {
                 <Navbar />
               </div>
             </div>
-            <main className="mx-auto mt-4 min-w-0 max-w-[1760px]">
+            <motion.main
+              key={location.pathname}
+              className="mx-auto mt-4 min-w-0 max-w-[1760px]"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+            >
               <Outlet />
-            </main>
+            </motion.main>
             <WorkspaceAutoSync />
             <GoogleCalendarAutoSync />
             <DeletedTaskToast />

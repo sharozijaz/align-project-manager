@@ -1,5 +1,6 @@
 import { Bell, CheckCheck, Inbox } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { formatDistanceToNow } from "date-fns";
 import {
   fetchNotifications,
@@ -86,8 +87,15 @@ export function NotificationBell({
         ) : null}
       </button>
 
-      {open ? (
-        <div className="absolute right-0 top-full z-30 w-[min(20rem,calc(100vw-2rem))] pt-2">
+      <AnimatePresence>
+        {open ? (
+        <motion.div
+          className="absolute right-0 top-full z-30 w-[min(20rem,calc(100vw-2rem))] pt-2"
+          initial={{ opacity: 0, y: -6, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -4, scale: 0.98 }}
+          transition={{ duration: 0.16, ease: "easeOut" }}
+        >
           <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
               <div>
@@ -132,8 +140,9 @@ export function NotificationBell({
               ))}
             </div>
           </div>
-        </div>
-      ) : null}
+        </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

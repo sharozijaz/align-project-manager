@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { NavLink } from "react-router-dom";
 import { InstallAppButton } from "../pwa/InstallAppButton";
 import { SyncIndicator } from "../sync/SyncIndicator";
@@ -68,8 +69,15 @@ export function Navbar() {
               <UserRound size={16} />
             </span>
           </button>
-          {isProfileMenuOpen ? (
-            <div className="absolute right-0 top-full z-30 w-[min(15rem,calc(100vw-2rem))] pt-2">
+          <AnimatePresence>
+            {isProfileMenuOpen ? (
+            <motion.div
+              className="absolute right-0 top-full z-30 w-[min(15rem,calc(100vw-2rem))] pt-2"
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+            >
               <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
                 <div className="border-b border-[var(--border)] px-3 py-2">
                   <p className="text-sm font-semibold text-[var(--text)]">Sharoz</p>
@@ -103,8 +111,9 @@ export function Navbar() {
                   Close menu
                 </button>
               </div>
-            </div>
-          ) : null}
+            </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       </div>
       <nav className="col-span-2 row-start-2 grid w-full min-w-0 grid-cols-5 gap-1 md:order-none md:col-span-1 md:row-start-auto md:flex md:w-auto md:justify-center md:gap-2">
