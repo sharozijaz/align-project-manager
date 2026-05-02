@@ -289,13 +289,19 @@ export async function googleCalendarRequest(env, connection, path, options = {})
 }
 
 export function taskToGoogleEvent(task) {
+  const dueDate = validDateKeyOrNull(task.dueDate);
+  if (!dueDate) {
+    throw new HttpError(422, `Task "${task.title || task.id}" needs a valid due date before Google Calendar sync.`);
+  }
+
+  const startDate = validDateKeyOrNull(task.startDate);
   const startTime = validTimeOrNull(task.startTime);
   const dueTime = validTimeOrNull(task.dueTime);
-  const hasTimedDue = Boolean(task.dueDate && dueTime);
+  const hasTimedDue = Boolean(dueTime);
 
   if (hasTimedDue) {
-    const start = timedEventStart(task);
-    const end = timedEventEnd(start, task);
+    const start = timedEventStart({ startDate, startTime, dueDate, dueTime });
+    const end = timedEventEnd(start, { dueDate, dueTime });
 
     return {
       ...baseGoogleEvent(task),
@@ -304,12 +310,14 @@ export function taskToGoogleEvent(task) {
     };
   }
 
-  const endDate = new Date(`${task.dueDate}T00:00:00.000Z`);
+  const allDayStartDate = startDate || dueDate;
+  const allDayEndDate = dueDate >= allDayStartDate ? dueDate : allDayStartDate;
+  const endDate = new Date(`${allDayEndDate}T00:00:00.000Z`);
   endDate.setUTCDate(endDate.getUTCDate() + 1);
 
   return {
     ...baseGoogleEvent(task),
-    start: { date: task.dueDate },
+    start: { date: allDayStartDate },
     end: { date: endDate.toISOString().slice(0, 10) },
   };
 }
@@ -334,17 +342,19 @@ function baseGoogleEvent(task) {
   };
 }
 
-function timedEventStart(task) {
-  const safeStartTime = validTimeOrNull(task.startTime);
-  const safeDueTime = validTimeOrNull(task.dueTime);
-  const startDate = task.startDate && safeStartTime ? task.startDate : task.dueDate;
-  const startTime = task.startDate && safeStartTime ? safeStartTime : safeDueTime;
-  return `${startDate}T${normalizeTime(startTime)}`;
+function timedEventStart({ startDate, startTime: safeStartTime, dueDate, dueTime: safeDueTime }) {
+  const eventStartDate = startDate && safeStartTime ? startDate : dueDate;
+  const eventStartTime = startDate && safeStartTime ? safeStartTime : safeDueTime;
+
+  if (!eventStartDate || !eventStartTime) {
+    throw new HttpError(422, "Invalid start time.");
+  }
+
+  return `${eventStartDate}T${normalizeTime(eventStartTime)}`;
 }
 
-function timedEventEnd(startDateTime, task) {
-  const safeDueTime = validTimeOrNull(task.dueTime);
-  const endDateTime = task.dueDate && safeDueTime ? `${task.dueDate}T${normalizeTime(safeDueTime)}` : startDateTime;
+function timedEventEnd(startDateTime, { dueDate, dueTime: safeDueTime }) {
+  const endDateTime = dueDate && safeDueTime ? `${dueDate}T${normalizeTime(safeDueTime)}` : startDateTime;
   if (endDateTime > startDateTime) return endDateTime;
   const fallbackEnd = new Date(`${startDateTime}.000Z`);
   fallbackEnd.setMinutes(fallbackEnd.getMinutes() + 60);
@@ -368,6 +378,17 @@ function validTimeOrNull(value) {
   }
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function validDateKeyOrNull(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) return null;
+
+  const date = new Date(`${trimmed}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime())) return null;
+
+  return date.toISOString().slice(0, 10) === trimmed ? trimmed : null;
 }
 
 function appTimeZone() {
@@ -491,7 +512,8 @@ export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, optio
   for (const task of tasks) {
     const link = links.get(task.id);
     const linkedEventId = link?.google_event_id;
-    const shouldSync = task.dueDate && !isTerminalTaskStatus(task.status) && !task.deletedAt;
+    const dueDate = validDateKeyOrNull(task.dueDate);
+    const shouldSync = dueDate && !isTerminalTaskStatus(task.status) && !task.deletedAt;
 
     if (!shouldSync) {
       skipped += 1;
@@ -505,7 +527,13 @@ export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, optio
       continue;
     }
 
-    const eventPayload = taskToGoogleEvent(task);
+    let eventPayload;
+    try {
+      eventPayload = taskToGoogleEvent(task);
+    } catch {
+      skipped += 1;
+      continue;
+    }
 
     if (linkedEventId) {
       const googleEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`);
