@@ -1,21 +1,28 @@
-import { Moon, Sun } from "lucide-react";
-import { useThemeStore } from "../../store/themeStore";
+import { Flame, Moon, Sun } from "lucide-react";
+import { themeOptions, useThemeStore, type ThemeMode } from "../../store/themeStore";
+
+const themeIcons: Record<ThemeMode, typeof Moon> = {
+  dark: Moon,
+  light: Sun,
+  medieval: Flame,
+};
 
 export function ThemeToggle({ showLabel = false, className = "" }: { showLabel?: boolean; className?: string }) {
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
-  const isDark = theme === "dark";
+  const currentTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
+  const Icon = themeIcons[currentTheme.value];
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
       className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] ${className}`}
-      title={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      title={`Switch theme. Current theme: ${currentTheme.label}`}
+      aria-label={`Switch theme. Current theme: ${currentTheme.label}`}
     >
-      {isDark ? <Moon size={16} /> : <Sun size={16} />}
-      {showLabel ? <span>{isDark ? "Dark" : "Light"}</span> : null}
+      <Icon size={16} />
+      {showLabel ? <span>{currentTheme.label}</span> : null}
     </button>
   );
 }

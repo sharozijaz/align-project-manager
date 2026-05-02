@@ -10,7 +10,7 @@ import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
 import { useSyncStore } from "../store/syncStore";
 import { useTaskStore } from "../store/taskStore";
-import { useThemeStore } from "../store/themeStore";
+import { themeOptions, useThemeStore } from "../store/themeStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
@@ -50,6 +50,8 @@ export function Settings() {
   const syncState = useSyncStore();
   const googleSyncState = useGoogleCalendarSyncStore();
   const theme = useThemeStore((state) => state.theme);
+  const setTheme = useThemeStore((state) => state.setTheme);
+  const activeTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
   const googleReadiness = getGoogleCalendarReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const deletedTasks = tasks.filter((task) => task.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
@@ -332,8 +334,29 @@ export function Settings() {
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Theme</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            {theme === "dark" ? "Dark theme is active." : "Light theme is active."}
+            {activeTheme.label} is active.
           </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            {themeOptions.map((option) => {
+              const isActive = option.value === theme;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setTheme(option.value)}
+                  className={`rounded-[var(--radius-md)] border px-3 py-3 text-left transition ${
+                    isActive
+                      ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                      : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  <span className="block text-sm font-bold">{option.label}</span>
+                  <span className="mt-1 block text-xs text-[var(--text-soft)]">{option.description}</span>
+                </button>
+              );
+            })}
+          </div>
           <div className="mt-4 flex items-center gap-3">
             <ThemeToggle showLabel />
             <span className="text-sm text-[var(--text-soft)]">Saved on this device.</span>
