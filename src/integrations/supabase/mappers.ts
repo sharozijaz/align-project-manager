@@ -13,6 +13,7 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   user_id: userId,
   name: project.name,
   description: project.description ?? null,
+  area: normalizeProjectArea(project.area),
   status: project.status,
   priority: normalizeTaskPriority(project.priority),
   start_date: project.startDate ?? null,
@@ -29,6 +30,7 @@ export const rowToProject = (row: ProjectRow): Project => ({
   id: row.id,
   name: row.name,
   description: row.description ?? undefined,
+  area: normalizeProjectArea(row.area),
   status: row.status,
   priority: row.priority,
   startDate: row.start_date ?? undefined,
@@ -107,6 +109,10 @@ export const rowToCalendarEvent = (row: CalendarEventRow): CalendarEvent => ({
 
 function normalizeTimeValue(value?: string | null) {
   return value ? value.slice(0, 5) : undefined;
+}
+
+function normalizeProjectArea(value?: string | null) {
+  return value === "personal" ? "personal" : "business";
 }
 
 function normalizeProjectNotes(value?: ProjectNote[] | null): ProjectNote[] {

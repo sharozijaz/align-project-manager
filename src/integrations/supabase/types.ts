@@ -10,6 +10,7 @@ export interface Database {
           user_id: string;
           name: string;
           description: string | null;
+          area: "business" | "personal";
           status: "active" | "paused" | "completed";
           priority: TaskPriority;
           start_date: string | null;
@@ -26,6 +27,7 @@ export interface Database {
           user_id: string;
           name: string;
           description?: string | null;
+          area?: "business" | "personal";
           status: "active" | "paused" | "completed";
           priority: TaskPriority;
           start_date?: string | null;

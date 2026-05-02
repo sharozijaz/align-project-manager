@@ -3,6 +3,7 @@ create table if not exists public.projects (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   description text,
+  area text not null default 'business' check (area in ('business', 'personal')),
   status text not null check (status in ('active', 'paused', 'completed')),
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
   start_date date,

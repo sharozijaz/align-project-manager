@@ -120,6 +120,7 @@ supabase/recurring-tasks.sql
 supabase/project-shares.sql
 supabase/client-share-links.sql
 supabase/share-passwords.sql
+supabase/project-areas.sql
 supabase/project-notes.sql
 supabase/start-dates.sql
 supabase/time-and-manual-order.sql

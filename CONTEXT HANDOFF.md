@@ -517,6 +517,7 @@ Use these idempotent files when a deployed app reports a missing column or when 
 - `supabase/project-shares.sql` - single-project public shares.
 - `supabase/client-share-links.sql` - multi-project client overview shares.
 - `supabase/share-passwords.sql` - optional share password hashes.
+- `supabase/project-areas.sql` - Personal/Business project grouping.
 - `supabase/project-notes.sql` - private/shareable project notes.
 - `supabase/start-dates.sql` - start date support.
 - `supabase/time-and-manual-order.sql` - task/project times and manual ordering.
@@ -580,6 +581,7 @@ Before major future changes, verify:
 - Reminder email sends through Resend.
 - Deleted task restore works.
 - Project notes save and share visibility behaves correctly.
+- Project Area tabs show All, Business, and Personal projects correctly.
 - Single-project share link opens.
 - Client overview share link opens.
 - Password-protected share link unlocks with the correct password.

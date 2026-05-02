@@ -52,7 +52,11 @@ export const useProjectStore = create<ProjectState>()(
       replaceProjects: (projects) =>
         set({
           projects: projects
-            .map((project, index) => ({ ...project, sortOrder: Number.isFinite(project.sortOrder) ? project.sortOrder : index }))
+            .map((project, index) => ({
+              ...project,
+              area: project.area ?? "business",
+              sortOrder: Number.isFinite(project.sortOrder) ? project.sortOrder : index,
+            }))
             .sort(compareSortOrder),
         }),
     }),

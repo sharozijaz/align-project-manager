@@ -8,6 +8,7 @@ import type { Project, ProjectInput } from "../../types/project";
 const blank: ProjectInput = {
   name: "",
   description: "",
+  area: "business",
   status: "active",
   priority: "medium",
   startDate: "",
@@ -26,7 +27,7 @@ export function ProjectForm({
   onSubmit: (input: ProjectInput) => void;
   onCancel?: () => void;
 }) {
-  const [form, setForm] = useState<ProjectInput>(initialProject ?? blank);
+  const [form, setForm] = useState<ProjectInput>({ ...blank, ...initialProject, area: initialProject?.area ?? "business" });
   const update = (key: keyof ProjectInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
@@ -48,7 +49,11 @@ export function ProjectForm({
     >
       <Input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Project name" required />
       <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Description" />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Select value={form.area} onChange={(event) => update("area", event.target.value)}>
+          <option value="business">Business</option>
+          <option value="personal">Personal</option>
+        </Select>
         <Select value={form.status} onChange={(event) => update("status", event.target.value)}>
           <option value="active">Active</option>
           <option value="paused">Paused</option>

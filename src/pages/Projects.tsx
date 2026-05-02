@@ -8,13 +8,20 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
+import type { ProjectArea } from "../types/project";
+
+type ProjectAreaFilter = "all" | ProjectArea;
 
 export function Projects() {
   const [creating, setCreating] = useState(false);
+  const [areaFilter, setAreaFilter] = useState<ProjectAreaFilter>("all");
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
   const { projects, addProject, updateProject, deleteProject, reorderProjects } = useProjectStore();
   const { tasks } = useTaskStore();
+  const businessCount = projects.filter((project) => (project.area ?? "business") === "business").length;
+  const personalCount = projects.filter((project) => project.area === "personal").length;
+  const visibleProjects = areaFilter === "all" ? projects : projects.filter((project) => (project.area ?? "business") === areaFilter);
 
   return (
     <div className="space-y-4">
@@ -27,9 +34,14 @@ export function Projects() {
           </Button>
         }
       />
-      <ClientProjectsSharePanel projects={projects} />
+      <div className="flex flex-wrap gap-2 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-2">
+        <ProjectAreaButton active={areaFilter === "all"} onClick={() => setAreaFilter("all")} label="All" count={projects.length} />
+        <ProjectAreaButton active={areaFilter === "business"} onClick={() => setAreaFilter("business")} label="Business" count={businessCount} />
+        <ProjectAreaButton active={areaFilter === "personal"} onClick={() => setAreaFilter("personal")} label="Personal" count={personalCount} />
+      </div>
+      <ClientProjectsSharePanel projects={visibleProjects} />
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-        {projects.map((project) => (
+        {visibleProjects.map((project) => (
           <div
             key={project.id}
             onDragOver={(event) => {
@@ -41,7 +53,7 @@ export function Projects() {
             onDrop={(event) => {
               event.preventDefault();
               if (!draggedProjectId || draggedProjectId === project.id) return;
-              reorderProjects(moveBefore(projects.map((item) => item.id), draggedProjectId, project.id));
+              reorderProjects(mergeVisibleOrder(projects, visibleProjects, moveBefore(visibleProjects.map((item) => item.id), draggedProjectId, project.id)));
               setDraggedProjectId(null);
               setDragOverProjectId(null);
             }}
@@ -80,7 +92,11 @@ export function Projects() {
           </div>
         ))}
       </div>
-      {!projects.length ? <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">Create your first project to start grouping tasks.</div> : null}
+      {!visibleProjects.length ? (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
+          {projects.length ? `No ${areaFilter} projects yet.` : "Create your first project to start grouping tasks."}
+        </div>
+      ) : null}
       <Modal title="Create project" open={creating} onClose={() => setCreating(false)}>
         <ProjectForm
           onSubmit={(input) => {
@@ -94,9 +110,43 @@ export function Projects() {
   );
 }
 
+function ProjectAreaButton({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-4 text-sm font-bold transition ${
+        active
+          ? "bg-[var(--brand-primary)] text-white shadow-[var(--shadow-sm)]"
+          : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
+      }`}
+    >
+      <span>{label}</span>
+      <span className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-white/20 text-white" : "bg-[var(--badge-bg)] text-[var(--text-soft)]"}`}>{count}</span>
+    </button>
+  );
+}
+
 function moveBefore(ids: string[], draggedId: string, targetId: string) {
   const next = ids.filter((id) => id !== draggedId);
   const targetIndex = next.indexOf(targetId);
   next.splice(targetIndex < 0 ? next.length : targetIndex, 0, draggedId);
   return next;
+}
+
+function mergeVisibleOrder(allProjects: { id: string }[], visibleProjects: { id: string }[], reorderedVisibleIds: string[]) {
+  const visibleSlots = new Set(visibleProjects.map((project) => project.id));
+  const nextVisible = [...reorderedVisibleIds];
+
+  return allProjects.map((project) => (visibleSlots.has(project.id) ? nextVisible.shift() ?? project.id : project.id));
 }

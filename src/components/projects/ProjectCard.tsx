@@ -26,6 +26,7 @@ export function ProjectCard({
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
   const open = projectTasks.filter((task) => !isTerminalTaskStatus(task.status)).length;
   const complete = projectTasks.length - open;
+  const area = project.area ?? "business";
 
   return (
     <Card className="overflow-hidden p-4 sm:p-5">
@@ -46,6 +47,7 @@ export function ProjectCard({
         </div>
       </div>
       <div className="mt-5 flex min-w-0 flex-wrap gap-2">
+        <Badge tone={area === "personal" ? "purple" : "blue"}>{area}</Badge>
         <Badge tone={project.status === "completed" ? "emerald" : project.status === "paused" ? "amber" : "blue"}>{project.status}</Badge>
         {project.startDate ? <Badge>{startDateLabel(project.startDate, project.startTime)}</Badge> : null}
         <Badge>{dateLabel(project.dueDate, project.dueTime)}</Badge>
