@@ -1,4 +1,4 @@
-const CACHE_NAME = "align-static-v2";
+const CACHE_NAME = "align-static-v3";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
