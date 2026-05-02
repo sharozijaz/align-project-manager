@@ -1,16 +1,13 @@
 import {
   CalendarDays,
   BarChart3,
-  BriefcaseBusiness,
   CheckCircle2,
   CircleHelp,
-  FileText,
   Home,
   LibraryBig,
   ListTodo,
   Settings,
   Shield,
-  Sparkles,
   UserRound,
   X,
 } from "lucide-react";
@@ -33,11 +30,7 @@ const links = [
 ] satisfies Array<{ to: string; label: string; icon: typeof Home; feature: FeatureKey }>;
 
 const moduleLinks = [
-  { to: "/resources", label: "Resources", icon: LibraryBig, feature: "resource_vault" },
-  { to: "/prompts", label: "Prompts", icon: Sparkles, feature: "prompt_library" },
-  { to: "/pipeline", label: "Pipeline", icon: BriefcaseBusiness, feature: "client_pipeline" },
-  { to: "/documents", label: "Documents", icon: FileText, feature: "documents" },
-  { to: "/hub", label: "Personal Hub", icon: BarChart3, feature: "personal_hub" },
+  { to: "/hub", label: "Personal Hub", icon: LibraryBig, feature: "personal_hub" },
 ] satisfies Array<{ to: string; label: string; icon: typeof Home; feature: FeatureKey }>;
 
 export function Navbar() {
