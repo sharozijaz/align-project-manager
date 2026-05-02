@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, KeyRound, Link2, Loader2, LockKeyhole, Search, ShieldCheck, Trash2, UsersRound } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, KeyRound, Link2, Loader2, LockKeyhole, Search, ShieldCheck, Trash2, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -28,6 +28,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   const [working, setWorking] = useState(false);
   const [copiedId, setCopiedId] = useState("");
   const [message, setMessage] = useState("");
+  const [sharingOpen, setSharingOpen] = useState(false);
 
   const selectedProjects = useMemo(
     () => projects.filter((project) => selectedIds.includes(project.id)),
@@ -145,6 +146,51 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
 
   return (
     <div className="space-y-4">
+      <Card className="overflow-hidden p-0">
+        <button
+          type="button"
+          onClick={() => setSharingOpen((open) => !open)}
+          className="flex w-full flex-col gap-4 p-4 text-left transition hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center sm:justify-between sm:p-5"
+          aria-expanded={sharingOpen}
+        >
+          <div className="flex min-w-0 gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)]">
+              <UsersRound size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-bold text-[var(--text)]">Client sharing</h2>
+                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-1 text-xs font-bold text-[var(--text-muted)]">
+                  <LockKeyhole size={13} />
+                  Read-only
+                </span>
+                {links.length ? (
+                  <span className="rounded-full bg-[var(--bg-muted)] px-2 py-1 text-xs font-bold text-[var(--text-muted)]">
+                    {links.length} saved
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                Create, copy, password-protect, or delete client overview links when you need them.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-bold text-[var(--button-secondary-text)]">
+            {sharingOpen ? "Hide sharing" : "Open sharing"}
+            <ChevronDown size={16} className={`transition-transform ${sharingOpen ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+      </Card>
+
+      <AnimatePresence initial={false}>
+        {sharingOpen ? (
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
       <Card className="overflow-hidden p-0">
         <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:p-5">
           <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
@@ -306,6 +352,9 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
           <p className="mt-4 text-center text-sm text-[var(--text-soft)]">Share links provide read-only access and do not require an Align account.</p>
         </div>
       </Card>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       {shareModalLink ? (
         <Modal title="Share client overview" open={Boolean(shareModalLink)} onClose={() => setShareModalLinkId("")}>
           <div className="space-y-4">
