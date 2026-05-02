@@ -71,6 +71,48 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "resources",
+        lazy: async () => {
+          const { ResourceVault } = await import("../pages/ResourceVault");
+          return { Component: () => <RequireFeature feature="resource_vault"><ResourceVault /></RequireFeature> };
+        },
+      },
+      {
+        path: "prompts",
+        lazy: async () => {
+          const { PromptLibrary } = await import("../pages/PromptLibrary");
+          return { Component: () => <RequireFeature feature="prompt_library"><PromptLibrary /></RequireFeature> };
+        },
+      },
+      {
+        path: "pipeline",
+        lazy: async () => {
+          const { ClientPipeline } = await import("../pages/ClientPipeline");
+          return { Component: () => <RequireFeature feature="client_pipeline"><ClientPipeline /></RequireFeature> };
+        },
+      },
+      {
+        path: "documents",
+        lazy: async () => {
+          const { Documents } = await import("../pages/Documents");
+          return { Component: () => <RequireFeature feature="documents"><Documents /></RequireFeature> };
+        },
+      },
+      {
+        path: "hub",
+        lazy: async () => {
+          const { PersonalHub } = await import("../pages/PersonalHub");
+          return { Component: () => <RequireFeature feature="personal_hub"><PersonalHub /></RequireFeature> };
+        },
+      },
+      {
+        path: "help",
+        lazy: async () => {
+          const { Help } = await import("../pages/Help");
+          return { Component: Help };
+        },
+      },
+      {
         path: "settings",
         lazy: async () => {
           const { Settings } = await import("../pages/Settings");

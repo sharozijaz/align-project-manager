@@ -1,11 +1,16 @@
 import {
   CalendarDays,
   BarChart3,
+  BriefcaseBusiness,
   CheckCircle2,
+  CircleHelp,
+  FileText,
   Home,
+  LibraryBig,
   ListTodo,
   Settings,
   Shield,
+  Sparkles,
   UserRound,
   X,
 } from "lucide-react";
@@ -25,6 +30,14 @@ const links = [
   { to: "/tasks", label: "Tasks", icon: CheckCircle2, feature: "project_management" },
   { to: "/calendar", label: "Calendar", icon: CalendarDays, feature: "project_management" },
   { to: "/reports", label: "Reports", icon: BarChart3, feature: "project_management" },
+] satisfies Array<{ to: string; label: string; icon: typeof Home; feature: FeatureKey }>;
+
+const moduleLinks = [
+  { to: "/resources", label: "Resources", icon: LibraryBig, feature: "resource_vault" },
+  { to: "/prompts", label: "Prompts", icon: Sparkles, feature: "prompt_library" },
+  { to: "/pipeline", label: "Pipeline", icon: BriefcaseBusiness, feature: "client_pipeline" },
+  { to: "/documents", label: "Documents", icon: FileText, feature: "documents" },
+  { to: "/hub", label: "Personal Hub", icon: BarChart3, feature: "personal_hub" },
 ] satisfies Array<{ to: string; label: string; icon: typeof Home; feature: FeatureKey }>;
 
 export function Navbar() {
@@ -92,6 +105,30 @@ export function Navbar() {
                   <ThemeToggle showLabel className="w-full rounded-md" />
                 </div>
                 <InstallAppButton className="mt-2 w-full" />
+                {moduleLinks.some((link) => hasFeature(link.feature)) ? (
+                  <div className="mt-2 border-t border-[var(--border)] pt-2">
+                    <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">
+                      Modules
+                    </p>
+                    {moduleLinks.filter((link) => hasFeature(link.feature)).map(({ to, label, icon: Icon }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                            isActive
+                              ? "align-gradient text-white"
+                              : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
+                          }`
+                        }
+                        onClick={() => setOpenMenu(null)}
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </NavLink>
+                    ))}
+                  </div>
+                ) : null}
                 <NavLink
                   to="/settings"
                   className={({ isActive }) =>
@@ -105,6 +142,20 @@ export function Navbar() {
                 >
                   <Settings size={16} />
                   Settings
+                </NavLink>
+                <NavLink
+                  to="/help"
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                      isActive
+                        ? "align-gradient text-white"
+                        : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
+                    }`
+                  }
+                  onClick={() => setOpenMenu(null)}
+                >
+                  <CircleHelp size={16} />
+                  Help
                 </NavLink>
                 {access?.profile.role === "owner" && hasFeature("admin") ? (
                   <NavLink
