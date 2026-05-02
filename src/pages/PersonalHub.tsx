@@ -1,5 +1,5 @@
 import { Copy, ExternalLink, FileText, Grid2X2, Link2, Plus, Search, Star, StickyNote, Trash2 } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { format } from "date-fns";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -22,7 +22,7 @@ const resourceTypes: Array<{ value: HubResourceType; label: string; tone: "blue"
 type DetailItem = { kind: "resource"; item: HubResource } | { kind: "note"; item: HubNote } | null;
 
 export function PersonalHub() {
-  const { resources, notes, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote } = useStudioStore();
+  const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote } = useStudioStore();
   const [view, setView] = useState<HubView>("resources");
   const [query, setQuery] = useState("");
   const [type, setType] = useState<HubResourceType | "all">("all");
@@ -30,6 +30,10 @@ export function PersonalHub() {
   const [selected, setSelected] = useState<DetailItem>(null);
   const [resourceForm, setResourceForm] = useState({ title: "", url: "", type: "inspiration" as HubResourceType, collection: "", tags: "", notes: "" });
   const [noteForm, setNoteForm] = useState({ title: "", body: "", tags: "" });
+
+  useEffect(() => {
+    importSeedResources();
+  }, [importSeedResources]);
 
   const filteredResources = useMemo(
     () =>
