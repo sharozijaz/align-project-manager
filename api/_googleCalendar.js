@@ -530,7 +530,7 @@ export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, optio
     let eventPayload;
     try {
       eventPayload = taskToGoogleEvent(task);
-    } catch {
+    } catch (error) {
       skipped += 1;
       continue;
     }
@@ -549,23 +549,38 @@ export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, optio
         continue;
       }
 
-      const updatedEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`, {
-        method: "PATCH",
-        body: JSON.stringify(eventPayload),
-      });
-      await upsertTaskLink(env, userId, task.id, linkedEventId, updatedEvent.updated);
-      updated += 1;
+      try {
+        const updatedEvent = await googleCalendarRequest(env, connection, `/events/${encodeURIComponent(linkedEventId)}`, {
+          method: "PATCH",
+          body: JSON.stringify(eventPayload),
+        });
+        await upsertTaskLink(env, userId, task.id, linkedEventId, updatedEvent.updated);
+        updated += 1;
+      } catch (error) {
+        if (!isRecoverableGoogleEventError(error)) throw error;
+        skipped += 1;
+      }
     } else {
-      const createdEvent = await googleCalendarRequest(env, connection, "/events", {
-        method: "POST",
-        body: JSON.stringify(eventPayload),
-      });
-      await upsertTaskLink(env, userId, task.id, createdEvent.id, createdEvent.updated);
-      created += 1;
+      try {
+        const createdEvent = await googleCalendarRequest(env, connection, "/events", {
+          method: "POST",
+          body: JSON.stringify(eventPayload),
+        });
+        await upsertTaskLink(env, userId, task.id, createdEvent.id, createdEvent.updated);
+        created += 1;
+      } catch (error) {
+        if (!isRecoverableGoogleEventError(error)) throw error;
+        skipped += 1;
+      }
     }
   }
 
   return { created, updated, removed, skipped, conflicts };
+}
+
+function isRecoverableGoogleEventError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("invalid start time") || message.includes("invalid end time") || message.includes("invalid time");
 }
 
 export async function createReminderNotificationsForUser(env, userId, tasks, now = new Date()) {
