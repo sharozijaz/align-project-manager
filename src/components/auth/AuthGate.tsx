@@ -16,6 +16,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [googleSending, setGoogleSending] = useState(false);
   const magicLinkCooldown = useMagicLinkCooldown();
 
   if (!isSupabaseConfigured) return <FeatureAccessProvider session={null}>{children}</FeatureAccessProvider>;
@@ -54,6 +55,27 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    if (!supabase || googleSending) return;
+
+    setGoogleSending(true);
+    setMessage("");
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: getAuthRedirectUrl(),
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      setGoogleSending(false);
+      setMessage(errorMessage(error, "Could not start Google sign-in."));
+    }
+  };
+
   return (
     <AuthShell>
       <div className="mb-6 flex items-center gap-3">
@@ -69,13 +91,28 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <div>
             <p className="font-semibold text-[var(--text)]">Sign in required</p>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Your workspace is private. Use an invited email to receive a secure magic link.
+              Your workspace is private. Sign in with an invited Google account, or use a secure magic link.
             </p>
           </div>
         </div>
       </div>
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-6 w-full border-[var(--border-strong)] bg-[var(--surface)] py-3 text-[var(--text)] hover:bg-[var(--surface-hover)]"
+        disabled={googleSending}
+        onClick={() => void signInWithGoogle()}
+      >
+        <span className="grid h-5 w-5 place-items-center rounded-full bg-white font-display text-sm font-bold text-[#4285f4]">G</span>
+        {googleSending ? "Opening Google..." : "Continue with Google"}
+      </Button>
+      <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">
+        <span className="h-px flex-1 bg-[var(--border)]" />
+        Magic link backup
+        <span className="h-px flex-1 bg-[var(--border)]" />
+      </div>
       <form
-        className="mt-6 grid gap-3"
+        className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
           void sendMagicLink();

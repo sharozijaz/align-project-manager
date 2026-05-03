@@ -27,6 +27,7 @@ npm run build
 
 Deployment notes live in `DEPLOYMENT.md`.
 Security notes live in `SECURITY.md`.
+Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
 
 ## Production Setup
 
@@ -88,6 +89,14 @@ Google Calendar OAuth and sync are implemented through Vercel API routes and Sup
 ```
 
 Vercel Cron should call this route with `CRON_SECRET`.
+
+## Google Sign-In
+
+The private sign-in screen supports `Continue with Google` through Supabase Auth. Magic links remain available as a fallback.
+
+Google sign-in is separate from Google Calendar sync: signing in proves identity, while Calendar sync still asks for calendar permissions later.
+
+Provider setup steps are documented in `GOOGLE_SIGN_IN.md`.
 
 ## Hosted Sync Path
 

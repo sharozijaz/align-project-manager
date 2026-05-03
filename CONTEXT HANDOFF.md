@@ -480,6 +480,7 @@ Align is complete for the current production use case. The app is deployed at `h
 - Calendar page with task/event visibility and Google Calendar sync support.
 - Reports page with project progress, priority/status load, completion rate, overdue work, completed work, and upcoming deadlines.
 - Settings/Profile area with sync status, Google Calendar, Supabase sync, email reminder controls, import/export, deleted task recovery, and profile actions.
+- Auth screen supports Google sign-in as the primary flow, with magic link kept as a backup.
 - Mobile UI has been cleaned up with a responsive navbar and card-first layouts.
 - Align branding, favicon/app icon, mountain dashboard hero, dark/light theme support, and app manifest/service worker are in place.
 
@@ -522,6 +523,7 @@ Use these idempotent files when a deployed app reports a missing column or when 
 - `supabase/start-dates.sql` - start date support.
 - `supabase/time-and-manual-order.sql` - task/project times and manual ordering.
 - `supabase/task-options.sql` - priority/status option support.
+- `GOOGLE_SIGN_IN.md` - Supabase Google provider setup for `Continue with Google`.
 
 After running migration SQL that adds columns, run or keep:
 
@@ -557,9 +559,9 @@ Never commit `.env.local`, service-role keys, Google client secrets, Resend keys
 - Browser/mobile push notifications are intentionally skipped for now because email reminders are enough.
 - Native mobile app is not needed yet; responsive PWA is the chosen path.
 - Desktop packaging with Tauri/Electron remains optional.
-- Google sign-in can replace or supplement magic links later:
-  - Goal: show a "Sign in with Google" button like ClickUp/Asana.
-  - Expected UX: user clicks the button, Google opens, user selects an account, and Align signs them in.
+- Google sign-in is implemented in the UI:
+  - The Supabase Google Auth provider must be enabled in Supabase before it works in production.
+  - Expected UX: user clicks "Continue with Google", Google opens, user selects an account, and Align signs them in.
   - This is separate from Google Calendar sync. After Google sign-in, Align can still ask whether the user wants to connect Google Calendar.
   - If Align becomes multi-user later, Google sign-in is the better onboarding flow than manually sending magic links.
 - Desktop notifications should be planned with desktop packaging:
