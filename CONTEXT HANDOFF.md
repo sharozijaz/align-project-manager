@@ -557,6 +557,15 @@ Never commit `.env.local`, service-role keys, Google client secrets, Resend keys
 - Browser/mobile push notifications are intentionally skipped for now because email reminders are enough.
 - Native mobile app is not needed yet; responsive PWA is the chosen path.
 - Desktop packaging with Tauri/Electron remains optional.
+- Google sign-in can replace or supplement magic links later:
+  - Goal: show a "Sign in with Google" button like ClickUp/Asana.
+  - Expected UX: user clicks the button, Google opens, user selects an account, and Align signs them in.
+  - This is separate from Google Calendar sync. After Google sign-in, Align can still ask whether the user wants to connect Google Calendar.
+  - If Align becomes multi-user later, Google sign-in is the better onboarding flow than manually sending magic links.
+- Desktop notifications should be planned with desktop packaging:
+  - Web/PWA can rely on in-app notifications and email reminders for now.
+  - Tauri/Electron can add native desktop notifications for due tasks, reminders, failed sync, and calendar conflicts.
+  - Reliable reminders while the app is closed should still come from server-side cron/email, not only local desktop notifications.
 - Client collaboration upgrades can come later:
   - comments
   - approvals
