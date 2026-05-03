@@ -1,4 +1,18 @@
-import { Copy, ExternalLink, FileText, Grid2X2, Link2, Plus, Search, Star, StickyNote, Trash2 } from "lucide-react";
+import {
+  Copy,
+  Edit3,
+  ExternalLink,
+  FileText,
+  Grid2X2,
+  Link2,
+  Plus,
+  Save,
+  Search,
+  Star,
+  StickyNote,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { format } from "date-fns";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -19,7 +33,7 @@ const resourceTypes: Array<{ value: HubResourceType; label: string; tone: "blue"
   { value: "snippets", label: "Snippets", tone: "slate" },
 ];
 
-type DetailItem = { kind: "resource"; item: HubResource } | { kind: "note"; item: HubNote } | null;
+type DetailItem = { kind: "resource"; item: HubResource } | null;
 
 export function PersonalHub() {
   const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote } = useStudioStore();
@@ -28,6 +42,9 @@ export function PersonalHub() {
   const [type, setType] = useState<HubResourceType | "all">("all");
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
   const [selected, setSelected] = useState<DetailItem>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNoteForm, setEditNoteForm] = useState({ title: "", body: "", tags: "" });
   const [resourceForm, setResourceForm] = useState({ title: "", url: "", type: "inspiration" as HubResourceType, collection: "", tags: "", notes: "" });
   const [noteForm, setNoteForm] = useState({ title: "", body: "", tags: "" });
 
@@ -43,11 +60,21 @@ export function PersonalHub() {
       }),
     [query, resources, type],
   );
+
   const filteredNotes = useMemo(
     () => notes.filter((note) => `${note.title} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase())),
     [notes, query],
   );
+
   const collections = useMemo(() => Array.from(new Set(resources.map((item) => item.collection).filter(Boolean))) as string[], [resources]);
+  const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
+
+  useEffect(() => {
+    if (view !== "notes") return;
+    if (!selectedNoteId && filteredNotes[0]) {
+      setSelectedNoteId(filteredNotes[0].id);
+    }
+  }, [filteredNotes, selectedNoteId, view]);
 
   const submitResource = (event: FormEvent) => {
     event.preventDefault();
@@ -62,10 +89,26 @@ export function PersonalHub() {
   const submitNote = (event: FormEvent) => {
     event.preventDefault();
     if (!noteForm.title.trim() || !noteForm.body.trim()) return;
-    addNote({ ...noteForm, title: noteForm.title.trim(), body: noteForm.body.trim() });
+    const nextNote = { ...noteForm, title: noteForm.title.trim(), body: noteForm.body.trim() };
+    addNote(nextNote);
     setNoteForm({ title: "", body: "", tags: "" });
     setShowForm(null);
     setView("notes");
+  };
+
+  const startEditingNote = (note: HubNote) => {
+    setEditingNoteId(note.id);
+    setEditNoteForm({ title: note.title, body: note.body, tags: note.tags ?? "" });
+  };
+
+  const saveEditingNote = () => {
+    if (!editingNoteId || !editNoteForm.title.trim() || !editNoteForm.body.trim()) return;
+    updateNote(editingNoteId, {
+      title: editNoteForm.title.trim(),
+      body: editNoteForm.body.trim(),
+      tags: editNoteForm.tags.trim() || undefined,
+    });
+    setEditingNoteId(null);
   };
 
   return (
@@ -75,13 +118,24 @@ export function PersonalHub() {
         description="A private resource and notes workspace for inspiration, tools, links, snippets, and working context."
         actions={
           <div className="flex gap-2">
-            <Button variant="secondary" icon={<StickyNote size={16} />} onClick={() => setShowForm("note")}>New Note</Button>
-            <Button icon={<Plus size={16} />} onClick={() => setShowForm("resource")}>Add Resource</Button>
+            <Button
+              variant="secondary"
+              icon={<StickyNote size={16} />}
+              onClick={() => {
+                setShowForm("note");
+                setView("notes");
+              }}
+            >
+              New Note
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => setShowForm("resource")}>
+              Add Resource
+            </Button>
           </div>
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
+      <div className={view === "notes" ? "grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]" : "grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_360px]"}>
         <aside className="space-y-4">
           <Card className="p-4">
             <div className="flex items-center gap-3">
@@ -94,11 +148,28 @@ export function PersonalHub() {
               </div>
             </div>
             <div className="mt-4 space-y-2">
-              <SidebarButton active={view === "resources" && type === "all"} onClick={() => { setView("resources"); setType("all"); }} label="All Resources" count={resources.length} />
+              <SidebarButton
+                active={view === "resources" && type === "all"}
+                onClick={() => {
+                  setView("resources");
+                  setType("all");
+                }}
+                label="All Resources"
+                count={resources.length}
+              />
               {resourceTypes.map((item) => (
-                <SidebarButton key={item.value} active={view === "resources" && type === item.value} onClick={() => { setView("resources"); setType(item.value); }} label={item.label} count={resources.filter((resource) => resource.type === item.value).length} />
+                <SidebarButton
+                  key={item.value}
+                  active={view === "resources" && type === item.value}
+                  onClick={() => {
+                    setView("resources");
+                    setType(item.value);
+                  }}
+                  label={item.label}
+                  count={resources.filter((resource) => resource.type === item.value).length}
+                />
               ))}
-              <SidebarButton active={view === "notes"} onClick={() => setView("notes")} label="Markdown Notes" count={notes.length} />
+              <SidebarButton active={view === "notes"} onClick={() => setView("notes")} label="Notes" count={notes.length} />
             </div>
           </Card>
           <Card className="p-4">
@@ -117,14 +188,24 @@ export function PersonalHub() {
                 <Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources, notes, tags, collections..." />
               </label>
               <div className="flex flex-wrap gap-2">
-                <Button variant={view === "resources" ? "primary" : "secondary"} onClick={() => setView("resources")}>Resources</Button>
-                <Button variant={view === "notes" ? "primary" : "secondary"} onClick={() => setView("notes")}>Notes</Button>
+                <Button variant={view === "resources" ? "primary" : "secondary"} onClick={() => setView("resources")}>
+                  Resources
+                </Button>
+                <Button variant={view === "notes" ? "primary" : "secondary"} onClick={() => setView("notes")}>
+                  Notes
+                </Button>
               </div>
             </div>
             {view === "resources" ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                <FilterChip active={type === "all"} onClick={() => setType("all")}>All</FilterChip>
-                {resourceTypes.map((item) => <FilterChip key={item.value} active={type === item.value} onClick={() => setType(item.value)}>{item.label}</FilterChip>)}
+                <FilterChip active={type === "all"} onClick={() => setType("all")}>
+                  All
+                </FilterChip>
+                {resourceTypes.map((item) => (
+                  <FilterChip key={item.value} active={type === item.value} onClick={() => setType(item.value)}>
+                    {item.label}
+                  </FilterChip>
+                ))}
               </div>
             ) : null}
           </Card>
@@ -136,7 +217,11 @@ export function PersonalHub() {
                   <Input value={resourceForm.title} onChange={(event) => setResourceForm({ ...resourceForm, title: event.target.value })} placeholder="Resource title" />
                   <Input value={resourceForm.url} onChange={(event) => setResourceForm({ ...resourceForm, url: event.target.value })} placeholder="https://..." />
                   <Select value={resourceForm.type} onChange={(event) => setResourceForm({ ...resourceForm, type: event.target.value as HubResourceType })}>
-                    {resourceTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    {resourceTypes.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
                   </Select>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-2">
@@ -145,7 +230,9 @@ export function PersonalHub() {
                 </div>
                 <StudioTextarea value={resourceForm.notes} onChange={(event) => setResourceForm({ ...resourceForm, notes: event.target.value })} placeholder="Why this is useful..." />
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="secondary" onClick={() => setShowForm(null)}>Cancel</Button>
+                  <Button type="button" variant="secondary" onClick={() => setShowForm(null)}>
+                    Cancel
+                  </Button>
                   <Button type="submit">Save Resource</Button>
                 </div>
               </form>
@@ -159,9 +246,11 @@ export function PersonalHub() {
                   <Input value={noteForm.title} onChange={(event) => setNoteForm({ ...noteForm, title: event.target.value })} placeholder="Note title" />
                   <Input value={noteForm.tags} onChange={(event) => setNoteForm({ ...noteForm, tags: event.target.value })} placeholder="Tags" />
                 </div>
-                <StudioTextarea className="min-h-48 font-mono" value={noteForm.body} onChange={(event) => setNoteForm({ ...noteForm, body: event.target.value })} placeholder={"# Heading\n- Checklist item\nNotes, snippets, prompts, or decisions..."} />
+                <StudioTextarea className="min-h-48 font-mono" value={noteForm.body} onChange={(event) => setNoteForm({ ...noteForm, body: event.target.value })} placeholder={"Heading\n- Checklist item\nNotes, snippets, prompts, or decisions..."} />
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="secondary" onClick={() => setShowForm(null)}>Cancel</Button>
+                  <Button type="button" variant="secondary" onClick={() => setShowForm(null)}>
+                    Cancel
+                  </Button>
                   <Button type="submit">Save Note</Button>
                 </div>
               </form>
@@ -171,29 +260,198 @@ export function PersonalHub() {
           {view === "resources" ? (
             filteredResources.length ? (
               <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {filteredResources.map((item) => <ResourceCard key={item.id} item={item} selected={selected?.kind === "resource" && selected.item.id === item.id} onSelect={() => setSelected({ kind: "resource", item })} onDelete={() => deleteResource(item.id)} onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })} />)}
+                {filteredResources.map((item) => (
+                  <ResourceCard
+                    key={item.id}
+                    item={item}
+                    selected={selected?.kind === "resource" && selected.item.id === item.id}
+                    onSelect={() => setSelected({ kind: "resource", item })}
+                    onDelete={() => deleteResource(item.id)}
+                    onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
+                  />
+                ))}
               </div>
             ) : (
               <EmptyState>No matching resources yet.</EmptyState>
             )
-          ) : filteredNotes.length ? (
-            <div className="grid gap-4">
-              {filteredNotes.map((note) => <NoteCard key={note.id} note={note} selected={selected?.kind === "note" && selected.item.id === note.id} onSelect={() => setSelected({ kind: "note", item: note })} onDelete={() => deleteNote(note.id)} onToggleFavorite={() => updateNote(note.id, { favorite: !note.favorite })} />)}
-            </div>
           ) : (
-            <EmptyState>No matching notes yet.</EmptyState>
+            <NotesWorkspace
+              notes={filteredNotes}
+              selectedNote={selectedNote}
+              editingNoteId={editingNoteId}
+              editNoteForm={editNoteForm}
+              onSelectNote={(note) => setSelectedNoteId(note.id)}
+              onStartEdit={startEditingNote}
+              onCancelEdit={() => setEditingNoteId(null)}
+              onSaveEdit={saveEditingNote}
+              onEditFormChange={setEditNoteForm}
+              onDelete={deleteNote}
+              onToggleFavorite={(note) => updateNote(note.id, { favorite: !note.favorite })}
+            />
           )}
         </main>
 
-        <DetailPanel selected={selected} />
+        {view === "resources" ? <DetailPanel selected={selected} /> : null}
       </div>
+    </div>
+  );
+}
+
+function NotesWorkspace({
+  notes,
+  selectedNote,
+  editingNoteId,
+  editNoteForm,
+  onSelectNote,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onEditFormChange,
+  onDelete,
+  onToggleFavorite,
+}: {
+  notes: HubNote[];
+  selectedNote: HubNote | null;
+  editingNoteId: string | null;
+  editNoteForm: { title: string; body: string; tags: string };
+  onSelectNote: (note: HubNote) => void;
+  onStartEdit: (note: HubNote) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void;
+  onEditFormChange: (form: { title: string; body: string; tags: string }) => void;
+  onDelete: (id: string) => void;
+  onToggleFavorite: (note: HubNote) => void;
+}) {
+  if (!notes.length) return <EmptyState>No matching notes yet.</EmptyState>;
+
+  const isEditing = selectedNote ? editingNoteId === selectedNote.id : false;
+
+  return (
+    <div className="grid gap-4 2xl:grid-cols-[420px_minmax(0,1fr)]">
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-[var(--border)] px-4 py-3">
+          <h2 className="font-display text-lg font-bold text-[var(--text)]">Saved Notes</h2>
+          <p className="text-sm text-[var(--text-muted)]">{notes.length} notes in your private workspace</p>
+        </div>
+        <div className="max-h-[720px] overflow-y-auto p-3">
+          {notes.map((note) => (
+            <button
+              key={note.id}
+              type="button"
+              onClick={() => onSelectNote(note)}
+              className={`mb-2 block w-full rounded-[var(--radius-sm)] border p-4 text-left transition ${
+                selectedNote?.id === note.id
+                  ? "border-[var(--brand-primary)] bg-[var(--surface-raised)] shadow-[0_0_0_1px_var(--brand-primary)]"
+                  : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="line-clamp-1 font-display text-base font-bold text-[var(--text)]">{note.title}</h3>
+                <Star size={15} className={note.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
+              </div>
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--text-muted)]">{note.body}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-[var(--text-soft)]">{format(new Date(note.updatedAt), "MMM d, yyyy")}</span>
+                {note.tags
+                  ?.split(",")
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((tag) => (
+                    <Badge key={tag.trim()}>{tag.trim()}</Badge>
+                  ))}
+              </div>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="min-h-[620px] p-0">
+        {selectedNote ? (
+          <div className="flex h-full min-h-[620px] flex-col">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] text-[var(--brand-primary)]">
+                  <FileText size={18} />
+                </span>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Note</p>
+                  <h2 className="font-display text-xl font-bold text-[var(--text)]">{selectedNote.title}</h2>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Button variant="secondary" icon={<X size={15} />} onClick={onCancelEdit}>
+                      Cancel
+                    </Button>
+                    <Button icon={<Save size={15} />} onClick={onSaveEdit}>
+                      Save
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="secondary" icon={<Star size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
+                      {selectedNote.favorite ? "Favorited" : "Favorite"}
+                    </Button>
+                    <Button icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
+                      Edit
+                    </Button>
+                    <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => onDelete(selectedNote.id)}>
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {isEditing ? (
+              <div className="grid flex-1 gap-4 p-5">
+                <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
+                  <Input value={editNoteForm.title} onChange={(event) => onEditFormChange({ ...editNoteForm, title: event.target.value })} placeholder="Note title" />
+                  <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Tags" />
+                </div>
+                <StudioTextarea
+                  className="min-h-[480px] resize-y font-mono text-sm leading-7"
+                  value={editNoteForm.body}
+                  onChange={(event) => onEditFormChange({ ...editNoteForm, body: event.target.value })}
+                  placeholder="Write the note..."
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="mx-auto max-w-4xl">
+                  <NoteReader body={selectedNote.body} />
+                  <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4 text-xs text-[var(--text-soft)]">
+                    <span>Created {format(new Date(selectedNote.createdAt), "MMM d, yyyy")}</span>
+                    <span>Updated {format(new Date(selectedNote.updatedAt), "MMM d, yyyy")}</span>
+                    {selectedNote.tags
+                      ?.split(",")
+                      .filter(Boolean)
+                      .map((tag) => (
+                        <Badge key={tag.trim()}>{tag.trim()}</Badge>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <EmptyState>Select a note to read or edit it.</EmptyState>
+        )}
+      </Card>
     </div>
   );
 }
 
 function SidebarButton({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-semibold transition ${active ? "align-gradient text-white" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-semibold transition ${
+        active ? "align-gradient text-white" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+      }`}
+    >
       <span>{label}</span>
       <span className="text-xs opacity-80">{count}</span>
     </button>
@@ -201,10 +459,32 @@ function SidebarButton({ active, label, count, onClick }: { active: boolean; lab
 }
 
 function FilterChip({ active, children, onClick }: { active: boolean; children: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${active ? "border-transparent align-gradient text-white" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"}`}>{children}</button>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+        active ? "border-transparent align-gradient text-white" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
-function ResourceCard({ item, selected, onSelect, onDelete, onToggleFavorite }: { item: HubResource; selected: boolean; onSelect: () => void; onDelete: () => void; onToggleFavorite: () => void }) {
+function ResourceCard({
+  item,
+  selected,
+  onSelect,
+  onDelete,
+  onToggleFavorite,
+}: {
+  item: HubResource;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onToggleFavorite: () => void;
+}) {
   const type = resourceTypes.find((entry) => entry.value === item.type) ?? resourceTypes[0];
   return (
     <Card className={`group overflow-hidden p-0 ${selected ? "border-[var(--brand-primary)]" : ""}`}>
@@ -233,85 +513,77 @@ function ResourceCard({ item, selected, onSelect, onDelete, onToggleFavorite }: 
   );
 }
 
-function NoteCard({ note, selected, onSelect, onDelete, onToggleFavorite }: { note: HubNote; selected: boolean; onSelect: () => void; onDelete: () => void; onToggleFavorite: () => void }) {
-  return (
-    <Card className={`p-4 ${selected ? "border-[var(--brand-primary)]" : ""}`}>
-      <button type="button" onClick={onSelect} className="block w-full text-left">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-display text-lg font-bold text-[var(--text)]">{note.title}</h3>
-            <p className="mt-2 line-clamp-2 text-sm text-[var(--text-muted)]">{note.body}</p>
-          </div>
-          <Star size={16} className={note.favorite ? "fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "text-[var(--text-soft)]"} />
-        </div>
-      </button>
-      <div className="mt-4 flex items-center justify-between border-t border-[var(--border)] pt-3">
-        <span className="text-xs text-[var(--text-soft)]">{format(new Date(note.createdAt), "MMM d, yyyy")}</span>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={onToggleFavorite} icon={<Star size={15} />} aria-label="Favorite note" />
-          <Button variant="danger" onClick={onDelete} icon={<Trash2 size={15} />} aria-label="Delete note" />
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 function DetailPanel({ selected }: { selected: DetailItem }) {
   if (!selected) {
     return (
       <Card className="p-5 xl:sticky xl:top-4 xl:self-start">
         <h2 className="font-display text-lg font-bold text-[var(--text)]">Select an item</h2>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">Pick a resource or note to preview details, copy links, and review context.</p>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">Pick a resource to preview details, copy links, and review context.</p>
       </Card>
     );
   }
 
-  if (selected.kind === "resource") {
-    const item = selected.item;
-    return (
-      <Card className="p-5 xl:sticky xl:top-4 xl:self-start">
-        <div className="grid h-36 place-items-center rounded-[var(--radius-sm)] bg-[radial-gradient(circle_at_top_left,var(--brand-primary),transparent_35%),var(--bg-soft)] text-[var(--text-muted)]">
-          <Link2 size={24} />
-        </div>
-        <h2 className="mt-4 font-display text-xl font-bold text-[var(--text)]">{item.title}</h2>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">{item.notes || "No notes yet."}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {item.tags?.split(",").filter(Boolean).map((tag) => <Badge key={tag.trim()}>{tag.trim()}</Badge>)}
-        </div>
-        {item.url ? (
-          <div className="mt-5 flex gap-2">
-            <Button variant="secondary" onClick={() => navigator.clipboard.writeText(item.url!)} icon={<Copy size={15} />}>Copy</Button>
-            <Button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>Open</Button>
-          </div>
-        ) : null}
-      </Card>
-    );
-  }
-
+  const item = selected.item;
   return (
     <Card className="p-5 xl:sticky xl:top-4 xl:self-start">
-      <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] text-[var(--brand-primary)]">
-          <FileText size={18} />
-        </span>
-        <h2 className="font-display text-xl font-bold text-[var(--text)]">{selected.item.title}</h2>
+      <div className="grid h-36 place-items-center rounded-[var(--radius-sm)] bg-[radial-gradient(circle_at_top_left,var(--brand-primary),transparent_35%),var(--bg-soft)] text-[var(--text-muted)]">
+        <Link2 size={24} />
       </div>
-      <div className="mt-5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4">
-        <MarkdownPreview body={selected.item.body} />
+      <h2 className="mt-4 font-display text-xl font-bold text-[var(--text)]">{item.title}</h2>
+      <p className="mt-2 text-sm text-[var(--text-muted)]">{item.notes || "No notes yet."}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {item.tags
+          ?.split(",")
+          .filter(Boolean)
+          .map((tag) => (
+            <Badge key={tag.trim()}>{tag.trim()}</Badge>
+          ))}
       </div>
+      {item.url ? (
+        <div className="mt-5 flex gap-2">
+          <Button variant="secondary" onClick={() => navigator.clipboard.writeText(item.url!)} icon={<Copy size={15} />}>
+            Copy
+          </Button>
+          <Button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>
+            Open
+          </Button>
+        </div>
+      ) : null}
     </Card>
   );
 }
 
-function MarkdownPreview({ body }: { body: string }) {
+function NoteReader({ body }: { body: string }) {
+  const lines = body.split("\n");
+
   return (
-    <div className="space-y-2 text-sm leading-6 text-[var(--text-muted)]">
-      {body.split("\n").map((line, index) => {
-        if (line.startsWith("# ")) return <h3 key={index} className="font-display text-lg font-bold text-[var(--text)]">{line.replace("# ", "")}</h3>;
-        if (line.startsWith("## ")) return <h4 key={index} className="font-display font-bold text-[var(--text)]">{line.replace("## ", "")}</h4>;
-        if (line.startsWith("- ")) return <p key={index} className="pl-3">• {line.replace("- ", "")}</p>;
-        return <p key={index}>{line || "\u00A0"}</p>;
+    <article className="space-y-3 text-base leading-8 text-[var(--text-muted)]">
+      {lines.map((rawLine, index) => {
+        const line = rawLine.trim();
+        if (!line) return <div key={index} className="h-2" />;
+        if (line.startsWith("# ")) {
+          return (
+            <h2 key={index} className="pt-2 font-display text-2xl font-bold leading-tight text-[var(--text)]">
+              {line.slice(2)}
+            </h2>
+          );
+        }
+        if (line.startsWith("## ")) {
+          return (
+            <h3 key={index} className="pt-2 font-display text-xl font-bold leading-tight text-[var(--text)]">
+              {line.slice(3)}
+            </h3>
+          );
+        }
+        if (line.startsWith("- ")) {
+          return (
+            <p key={index} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-2">
+              {line.slice(2)}
+            </p>
+          );
+        }
+        return <p key={index}>{line}</p>;
       })}
-    </div>
+    </article>
   );
 }
