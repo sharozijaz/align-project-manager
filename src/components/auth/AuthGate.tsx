@@ -6,6 +6,7 @@ import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSessi
 import { isRateLimitMessage, useMagicLinkCooldown } from "../../hooks/useMagicLinkCooldown";
 import { useThemeStore } from "../../store/themeStore";
 import { errorMessage } from "../../utils/errors";
+import { AppLoadingScreen } from "../layout/AppLoadingScreen";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
@@ -20,11 +21,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (!isSupabaseConfigured) return <FeatureAccessProvider session={null}>{children}</FeatureAccessProvider>;
 
   if (loading) {
-    return (
-      <AuthShell>
-        <p className="text-sm text-[var(--text-muted)]">Checking secure session...</p>
-      </AuthShell>
-    );
+    return <AppLoadingScreen message="Checking secure session" />;
   }
 
   if (session) return <FeatureAccessProvider session={session}>{children}</FeatureAccessProvider>;

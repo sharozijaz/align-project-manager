@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Navigate, useLocation } from "react-router-dom";
 import { getCurrentUserAccess, type UserAccess } from "../../integrations/supabase/access";
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
+import { AppLoadingScreen } from "../../components/layout/AppLoadingScreen";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { featureLabels, ownerFeatures, type FeatureKey } from "./featureRegistry";
@@ -67,11 +68,7 @@ export function FeatureAccessProvider({ session, children }: { session: Session 
   );
 
   if (loading) {
-    return (
-      <div className="grid min-h-[40vh] place-items-center text-sm text-[var(--text-muted)]">
-        Loading workspace access...
-      </div>
-    );
+    return <AppLoadingScreen message="Loading workspace access" />;
   }
 
   if (!access?.profile.active) {
