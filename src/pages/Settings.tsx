@@ -9,6 +9,7 @@ import { useCalendarStore } from "../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
 import { useSyncStore } from "../store/syncStore";
+import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
 import { themeOptions, useThemeStore } from "../store/themeStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
@@ -47,6 +48,7 @@ export function Settings() {
   const { projects, replaceProjects } = useProjectStore();
   const { tasks, restoreTask, permanentlyDeleteTask, replaceTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
+  const { resources, notes, replaceResources, replaceNotes } = useStudioStore();
   const syncState = useSyncStore();
   const googleSyncState = useGoogleCalendarSyncStore();
   const theme = useThemeStore((state) => state.theme);
@@ -177,7 +179,7 @@ export function Settings() {
     syncState.setSyncState("pushing", "Uploading local workspace...");
 
     try {
-      await pushWorkspaceToSupabase({ tasks, projects, events });
+      await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes });
       syncState.setSynced("Local workspace uploaded to cloud.");
       setSyncMessage("Local workspace uploaded to Supabase.");
     } catch (error) {
@@ -202,6 +204,8 @@ export function Settings() {
       replaceTasks(workspace.tasks);
       replaceProjects(workspace.projects);
       replaceEvents(workspace.events);
+      replaceResources(workspace.resources);
+      replaceNotes(workspace.notes);
       syncState.setSynced("Workspace downloaded from cloud.");
       setSyncMessage("Workspace downloaded from Supabase.");
     } catch (error) {

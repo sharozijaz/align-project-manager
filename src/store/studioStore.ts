@@ -11,6 +11,8 @@ interface StudioState {
   notes: HubNote[];
   resourceSeedVersion?: string;
   importSeedResources: () => void;
+  replaceResources: (resources: HubResource[]) => void;
+  replaceNotes: (notes: HubNote[]) => void;
   addResource: (input: ResourceInput) => void;
   updateResource: (id: string, updates: Partial<ResourceInput>) => void;
   deleteResource: (id: string) => void;
@@ -55,6 +57,8 @@ export const useStudioStore = create<StudioState>()(
             resourceSeedVersion: RESOURCE_SEED_VERSION,
           };
         }),
+      replaceResources: (resources) => set({ resources }),
+      replaceNotes: (notes) => set({ notes }),
       addResource: (input) => set((state) => ({ resources: [createItem(input), ...state.resources] })),
       updateResource: (itemId, updates) => set((state) => ({ resources: updateItems(state.resources, itemId, updates) })),
       deleteResource: (itemId) => set((state) => ({ resources: state.resources.filter((item) => item.id !== itemId) })),

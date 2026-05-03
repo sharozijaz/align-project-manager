@@ -1,5 +1,6 @@
 import type { ProjectNote } from "../../types/project";
 import type { AppRole, FeatureKey } from "../../features/access/featureRegistry";
+import type { HubResourceType } from "../../types/studio";
 import type { TaskCategory, TaskPriority, TaskRecurrence, TaskReminder, TaskStatus } from "../../types/task";
 
 export interface Database {
@@ -253,6 +254,60 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_preferences"]["Insert"]>;
+        Relationships: [];
+      };
+      hub_resources: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          url: string | null;
+          type: HubResourceType;
+          collection: string | null;
+          tags: string | null;
+          notes: string | null;
+          favorite: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          title: string;
+          url?: string | null;
+          type: HubResourceType;
+          collection?: string | null;
+          tags?: string | null;
+          notes?: string | null;
+          favorite?: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["hub_resources"]["Insert"]>;
+        Relationships: [];
+      };
+      hub_notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          body: string;
+          tags: string | null;
+          favorite: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          title: string;
+          body: string;
+          tags?: string | null;
+          favorite?: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["hub_notes"]["Insert"]>;
         Relationships: [];
       };
     };

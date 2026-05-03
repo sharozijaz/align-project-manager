@@ -1,5 +1,6 @@
 import type { CalendarEvent } from "../../types/calendar";
 import type { Project, ProjectNote } from "../../types/project";
+import type { HubNote, HubResource } from "../../types/studio";
 import type { Task } from "../../types/task";
 import { normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../../config/taskOptions";
 import type { Database } from "./types";
@@ -7,6 +8,8 @@ import type { Database } from "./types";
 type ProjectRow = Database["public"]["Tables"]["projects"]["Row"];
 type TaskRow = Database["public"]["Tables"]["tasks"]["Row"];
 type CalendarEventRow = Database["public"]["Tables"]["calendar_events"]["Row"];
+type HubResourceRow = Database["public"]["Tables"]["hub_resources"]["Row"];
+type HubNoteRow = Database["public"]["Tables"]["hub_notes"]["Row"];
 
 export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   id: project.id,
@@ -105,6 +108,54 @@ export const rowToCalendarEvent = (row: CalendarEventRow): CalendarEvent => ({
   endDate: row.end_date ?? undefined,
   linkedTaskId: row.linked_task_id ?? undefined,
   source: row.source,
+});
+
+export const hubResourceToRow = (resource: HubResource, userId: string): HubResourceRow => ({
+  id: resource.id,
+  user_id: userId,
+  title: resource.title,
+  url: resource.url ?? null,
+  type: resource.type,
+  collection: resource.collection ?? null,
+  tags: resource.tags ?? null,
+  notes: resource.notes ?? null,
+  favorite: resource.favorite ?? false,
+  created_at: resource.createdAt,
+  updated_at: resource.updatedAt,
+});
+
+export const rowToHubResource = (row: HubResourceRow): HubResource => ({
+  id: row.id,
+  title: row.title,
+  url: row.url ?? undefined,
+  type: row.type,
+  collection: row.collection ?? undefined,
+  tags: row.tags ?? undefined,
+  notes: row.notes ?? undefined,
+  favorite: row.favorite,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export const hubNoteToRow = (note: HubNote, userId: string): HubNoteRow => ({
+  id: note.id,
+  user_id: userId,
+  title: note.title,
+  body: note.body,
+  tags: note.tags ?? null,
+  favorite: note.favorite ?? false,
+  created_at: note.createdAt,
+  updated_at: note.updatedAt,
+});
+
+export const rowToHubNote = (row: HubNoteRow): HubNote => ({
+  id: row.id,
+  title: row.title,
+  body: row.body,
+  tags: row.tags ?? undefined,
+  favorite: row.favorite,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
 });
 
 function normalizeTimeValue(value?: string | null) {

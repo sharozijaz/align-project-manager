@@ -39,6 +39,8 @@ drop policy if exists "Users can manage their own notifications" on public.notif
 drop policy if exists "Users can manage their own project shares" on public.project_shares;
 drop policy if exists "Users can manage their own client share links" on public.client_share_links;
 drop policy if exists "Users can manage their own preferences" on public.user_preferences;
+drop policy if exists "Users can manage their own hub resources" on public.hub_resources;
+drop policy if exists "Users can manage their own hub notes" on public.hub_notes;
 drop policy if exists "Allowed users can manage their own projects" on public.projects;
 drop policy if exists "Allowed users can manage their own tasks" on public.tasks;
 drop policy if exists "Allowed users can manage their own calendar events" on public.calendar_events;
@@ -46,6 +48,8 @@ drop policy if exists "Allowed users can manage their own notifications" on publ
 drop policy if exists "Allowed users can manage their own project shares" on public.project_shares;
 drop policy if exists "Allowed users can manage their own client share links" on public.client_share_links;
 drop policy if exists "Allowed users can manage their own preferences" on public.user_preferences;
+drop policy if exists "Allowed users can manage their own hub resources" on public.hub_resources;
+drop policy if exists "Allowed users can manage their own hub notes" on public.hub_notes;
 
 create policy "Allowed users can manage their own projects"
 on public.projects
@@ -85,6 +89,18 @@ with check (auth.uid() = user_id and public.is_allowed_user());
 
 create policy "Allowed users can manage their own preferences"
 on public.user_preferences
+for all
+using (auth.uid() = user_id and public.is_allowed_user())
+with check (auth.uid() = user_id and public.is_allowed_user());
+
+create policy "Allowed users can manage their own hub resources"
+on public.hub_resources
+for all
+using (auth.uid() = user_id and public.is_allowed_user())
+with check (auth.uid() = user_id and public.is_allowed_user());
+
+create policy "Allowed users can manage their own hub notes"
+on public.hub_notes
 for all
 using (auth.uid() = user_id and public.is_allowed_user())
 with check (auth.uid() = user_id and public.is_allowed_user());

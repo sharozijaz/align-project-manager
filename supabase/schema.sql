@@ -71,6 +71,31 @@ create table if not exists public.user_preferences (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.hub_resources (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  url text,
+  type text not null check (type in ('inspiration', 'tools', 'assets', 'learning', 'snippets')),
+  collection text,
+  tags text,
+  notes text,
+  favorite boolean not null default false,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+);
+
+create table if not exists public.hub_notes (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  body text not null,
+  tags text,
+  favorite boolean not null default false,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+);
+
 create table if not exists public.project_shares (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -103,6 +128,8 @@ alter table public.notifications enable row level security;
 alter table public.project_shares enable row level security;
 alter table public.client_share_links enable row level security;
 alter table public.user_preferences enable row level security;
+alter table public.hub_resources enable row level security;
+alter table public.hub_notes enable row level security;
 
 create policy "Users can manage their own projects"
 on public.projects
@@ -146,6 +173,18 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create policy "Users can manage their own hub resources"
+on public.hub_resources
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "Users can manage their own hub notes"
+on public.hub_notes
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
 create index if not exists projects_user_id_idx on public.projects(user_id);
 create index if not exists tasks_user_id_idx on public.tasks(user_id);
 create index if not exists tasks_due_date_idx on public.tasks(due_date);
@@ -167,6 +206,10 @@ create index if not exists client_share_links_user_id_idx on public.client_share
 create index if not exists client_share_links_token_idx on public.client_share_links(token);
 create index if not exists client_share_links_enabled_idx on public.client_share_links(enabled);
 create index if not exists user_preferences_email_reminders_idx on public.user_preferences(email_reminders_enabled);
+create index if not exists hub_resources_user_id_idx on public.hub_resources(user_id);
+create index if not exists hub_resources_type_idx on public.hub_resources(type);
+create index if not exists hub_resources_collection_idx on public.hub_resources(collection);
+create index if not exists hub_notes_user_id_idx on public.hub_notes(user_id);
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.projects to authenticated;
@@ -176,6 +219,8 @@ grant select, insert, update, delete on public.notifications to authenticated;
 grant select, insert, update, delete on public.project_shares to authenticated;
 grant select, insert, update, delete on public.client_share_links to authenticated;
 grant select, insert, update, delete on public.user_preferences to authenticated;
+grant select, insert, update, delete on public.hub_resources to authenticated;
+grant select, insert, update, delete on public.hub_notes to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
 grant select, insert, update, delete on public.tasks to service_role;
 grant select, insert, update, delete on public.calendar_events to service_role;
@@ -183,3 +228,5 @@ grant select, insert, update, delete on public.notifications to service_role;
 grant select, insert, update, delete on public.project_shares to service_role;
 grant select, insert, update, delete on public.client_share_links to service_role;
 grant select, insert, update, delete on public.user_preferences to service_role;
+grant select, insert, update, delete on public.hub_resources to service_role;
+grant select, insert, update, delete on public.hub_notes to service_role;
