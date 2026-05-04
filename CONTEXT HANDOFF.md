@@ -12,7 +12,7 @@
 - Dashboard keeps the dark visual hero/header direction from the supplied mockup.
 - Calendar is a custom monthly calendar component rather than FullCalendar.
 - Google Calendar is not implemented yet; only a placeholder integration layer exists.
-- Desktop packaging is not implemented, but code is kept web-first and suitable for future Tauri/Electron wrapping.
+- Desktop packaging now uses Tauri. The web app remains the source of truth, and Windows installer builds are working locally.
 
 ## Files Created/Modified
 
@@ -294,7 +294,7 @@ CalendarEvent {
 8. Add Google Calendar OAuth through backend-managed credentials.
 9. Add tests for stores and date/task filtering utilities.
 10. Add richer calendar recurrence/reminders after sync is stable.
-11. Prepare optional Tauri/Electron wrapper after hosted MVP stabilizes.
+11. Continue optional desktop polish now that the Tauri wrapper and Windows installer build are working.
 
 ## Constraints We Agreed On
 
@@ -309,7 +309,7 @@ CalendarEvent {
 - Use date-fns for date logic.
 - Do not fully implement Google Calendar OAuth now.
 - Provide a clean Google Calendar integration layer for later.
-- Build web app first; desktop packaging comes later.
+- Build web app first; desktop packaging uses Tauri as a wrapper around the same React/Vite app.
 - Keep UI premium, minimal, clean, and responsive.
 - Avoid copying the old plain HTML/CSS/JS app structure.
 - Use reusable components.
@@ -563,6 +563,10 @@ Never commit `.env.local`, service-role keys, Google client secrets, Resend keys
   - Desktop icons are generated from `public/align-icon.png`.
   - Desktop auth needs Supabase redirect allowlist entry `https://tauri.localhost/**`.
   - Building an installer requires Rust/Cargo and Microsoft C++ Build Tools with MSVC/Windows SDK on the local machine.
+  - A Windows desktop build succeeded after installing those prerequisites.
+  - Installer outputs:
+    - `src-tauri/target/release/bundle/nsis/Align_0.1.0_x64-setup.exe`
+    - `src-tauri/target/release/bundle/msi/Align_0.1.0_x64_en-US.msi`
 - Google sign-in is implemented in the UI:
   - The Supabase Google Auth provider must be enabled in Supabase before it works in production.
   - Expected UX: user clicks "Continue with Google", Google opens, user selects an account, and Align signs them in.

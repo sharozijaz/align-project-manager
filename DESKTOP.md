@@ -33,7 +33,14 @@ This starts Vite and opens the Tauri desktop shell.
 npm run desktop:build
 ```
 
-The Windows installer output will be created under `src-tauri/target/release/bundle/`.
+The Windows installer output is created under `src-tauri/target/release/bundle/`:
+
+```text
+src-tauri/target/release/bundle/nsis/Align_0.1.0_x64-setup.exe
+src-tauri/target/release/bundle/msi/Align_0.1.0_x64_en-US.msi
+```
+
+Use the NSIS `.exe` installer for the easiest local install.
 
 ## Auth Redirects
 
