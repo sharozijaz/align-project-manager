@@ -1,6 +1,7 @@
 import type { Task } from "../../types/task";
 import type { CalendarEvent } from "../../types/calendar";
-import { getAuthRedirectUrl, supabase } from "../supabase/client";
+import { appUrl, getAuthRedirectUrl, supabase } from "../supabase/client";
+import { isTauriRuntime, openExternalUrl } from "../desktop/runtime";
 import type {
   GoogleCalendarConfig,
   GoogleCalendarConnection,
@@ -14,7 +15,7 @@ const GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events
 
 export function getGoogleCalendarConfig(): GoogleCalendarConfig {
   return {
-    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "",
+    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "server-managed",
     redirectUri: import.meta.env.VITE_GOOGLE_REDIRECT_URI ?? getAuthRedirectUrl(),
     calendarId: import.meta.env.VITE_GOOGLE_CALENDAR_ID ?? "primary",
     scopes: GOOGLE_CALENDAR_SCOPES,
@@ -24,7 +25,6 @@ export function getGoogleCalendarConfig(): GoogleCalendarConfig {
 export function getGoogleCalendarReadiness(): GoogleCalendarReadiness {
   const config = getGoogleCalendarConfig();
   const missing = [
-    !config.clientId ? "VITE_GOOGLE_CLIENT_ID" : "",
     !config.redirectUri ? "VITE_GOOGLE_REDIRECT_URI or VITE_APP_URL" : "",
   ].filter(Boolean);
 
@@ -43,7 +43,7 @@ export async function connectGoogleCalendar(): Promise<GoogleCalendarConnection>
   }
 
   const token = await getAccessToken();
-  const response = await fetch("/api/google-calendar/connect", {
+  const response = await fetch(apiEndpoint("/api/google-calendar/connect"), {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -55,13 +55,13 @@ export async function connectGoogleCalendar(): Promise<GoogleCalendarConnection>
     throw new Error(data.error || "Could not start Google Calendar connection.");
   }
 
-  window.location.assign(data.url);
+  await openExternalUrl(data.url);
   return { connected: false };
 }
 
 export async function getGoogleCalendarConnection(): Promise<GoogleCalendarConnection> {
   const token = await getAccessToken();
-  const response = await fetch("/api/google-calendar/status", {
+  const response = await fetch(apiEndpoint("/api/google-calendar/status"), {
     headers: {
       authorization: `Bearer ${token}`,
     },
@@ -77,7 +77,7 @@ export async function getGoogleCalendarConnection(): Promise<GoogleCalendarConne
 
 export async function fetchGoogleEvents(): Promise<GoogleCalendarEvent[]> {
   const token = await getAccessToken();
-  const response = await fetch("/api/google-calendar/events", {
+  const response = await fetch(apiEndpoint("/api/google-calendar/events"), {
     headers: {
       authorization: `Bearer ${token}`,
     },
@@ -93,7 +93,7 @@ export async function fetchGoogleEvents(): Promise<GoogleCalendarEvent[]> {
 
 export async function syncTasksToGoogleCalendar(tasks: Task[], options: GoogleCalendarSyncOptions = {}): Promise<GoogleCalendarSyncResult> {
   const token = await getAccessToken();
-  const response = await fetch("/api/google-calendar/sync", {
+  const response = await fetch(apiEndpoint("/api/google-calendar/sync"), {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -122,7 +122,7 @@ export async function syncTaskToGoogleCalendar(task: Task): Promise<void> {
 
 export async function disconnectGoogleCalendar(): Promise<void> {
   const token = await getAccessToken();
-  const response = await fetch("/api/google-calendar/disconnect", {
+  const response = await fetch(apiEndpoint("/api/google-calendar/disconnect"), {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -133,6 +133,13 @@ export async function disconnectGoogleCalendar(): Promise<void> {
   if (!response.ok) {
     throw new Error(data.error || "Could not disconnect Google Calendar.");
   }
+}
+
+function apiEndpoint(path: string) {
+  if (!isTauriRuntime()) return path;
+
+  const baseUrl = appUrl || "https://align.sharoz.dev/";
+  return new URL(path, baseUrl).toString();
 }
 
 async function getAccessToken() {

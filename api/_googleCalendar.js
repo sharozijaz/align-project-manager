@@ -58,6 +58,20 @@ export function requireMethod(req, res, method) {
   return true;
 }
 
+export function applyApiCors(req, res, methods = "GET,POST,OPTIONS") {
+  const origin = req.headers.origin || "*";
+
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
+
+  if (req.method !== "OPTIONS") return false;
+
+  res.status(204).end();
+  return true;
+}
+
 export function requireCronAuthorization(req, res, env) {
   if (!env.cronSecret) {
     res.status(500).json({ error: "Missing server configuration: cronSecret." });

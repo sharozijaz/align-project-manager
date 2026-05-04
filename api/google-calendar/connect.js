@@ -1,4 +1,5 @@
 import {
+  applyApiCors,
   buildGoogleAuthUrl,
   ensureEnv,
   getEnv,
@@ -8,6 +9,7 @@ import {
 } from "../_googleCalendar.js";
 
 export default async function handler(req, res) {
+  if (applyApiCors(req, res, "POST,OPTIONS")) return;
   if (requireMethod(req, res, "POST")) return;
 
   const env = getEnv();
