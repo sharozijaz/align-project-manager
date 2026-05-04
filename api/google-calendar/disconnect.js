@@ -2,9 +2,9 @@ import {
   deleteGoogleConnection,
   ensureEnv,
   getEnv,
+  getGoogleConnection,
   getSupabaseUser,
   handleApiError,
-  requireGoogleConnection,
   requireMethod,
   revokeGoogleToken,
 } from "../_googleCalendar.js";
@@ -27,9 +27,15 @@ export default async function handler(req, res) {
 
   try {
     const user = await getSupabaseUser(req, env);
-    const connection = await requireGoogleConnection(env, user.id);
+    const connection = await getGoogleConnection(env, user.id);
 
-    await revokeGoogleToken(connection.refresh_token || connection.access_token);
+    if (connection) {
+      try {
+        await revokeGoogleToken(connection.refresh_token || connection.access_token);
+      } catch {
+        // If Google already revoked/expired the token, still clear Align's saved connection.
+      }
+    }
     await deleteGoogleConnection(env, user.id);
 
     res.status(200).json({ disconnected: true });
