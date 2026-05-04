@@ -558,7 +558,11 @@ Never commit `.env.local`, service-role keys, Google client secrets, Resend keys
 
 - Browser/mobile push notifications are intentionally skipped for now because email reminders are enough.
 - Native mobile app is not needed yet; responsive PWA is the chosen path.
-- Desktop packaging with Tauri/Electron remains optional.
+- Desktop packaging has started with a Tauri scaffold in `src-tauri/`.
+  - Scripts: `npm run desktop:dev` and `npm run desktop:build`.
+  - Desktop icons are generated from `public/align-icon.png`.
+  - Desktop auth needs Supabase redirect allowlist entry `https://tauri.localhost/**`.
+  - Building an installer requires Rust/Cargo and Microsoft C++ Build Tools with MSVC/Windows SDK on the local machine.
 - Google sign-in is implemented in the UI:
   - The Supabase Google Auth provider must be enabled in Supabase before it works in production.
   - Expected UX: user clicks "Continue with Google", Google opens, user selects an account, and Align signs them in.

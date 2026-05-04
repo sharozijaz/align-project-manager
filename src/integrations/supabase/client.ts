@@ -43,7 +43,23 @@ const normalizeAppUrl = (value?: string) => {
 };
 
 export const appUrl = normalizeAppUrl(rawAppUrl);
-export const getAuthRedirectUrl = () => appUrl || `${window.location.origin}/`;
+const getRuntimeRedirectUrl = () => {
+  if (typeof window === "undefined") return "";
+
+  const { origin, protocol } = window.location;
+
+  if (protocol === "tauri:" || origin.includes("tauri.localhost")) {
+    return "https://tauri.localhost/";
+  }
+
+  if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+    return `${origin.replace(/\/$/u, "")}/`;
+  }
+
+  return "";
+};
+
+export const getAuthRedirectUrl = () => getRuntimeRedirectUrl() || appUrl || `${window.location.origin}/`;
 
 export const supabase = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl, supabaseAnonKey!, {

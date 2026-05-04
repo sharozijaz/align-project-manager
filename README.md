@@ -28,6 +28,7 @@ npm run build
 Deployment notes live in `DEPLOYMENT.md`.
 Security notes live in `SECURITY.md`.
 Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
+Desktop app notes live in `DESKTOP.md`.
 
 ## Production Setup
 
@@ -162,14 +163,16 @@ If Supabase reports a schema-cache error after a migration, run:
 notify pgrst, 'reload schema';
 ```
 
-## Desktop App Path
+## Desktop App
 
-Because this is a normal Vite web app, it can later be wrapped with Tauri or Electron:
+Align has a Tauri desktop scaffold in `src-tauri/`.
 
-- Tauri: point the Tauri frontend dev/build settings at Vite.
-- Electron: load the Vite dev server in development and the built `dist/` folder in production.
+```bash
+npm run desktop:dev
+npm run desktop:build
+```
 
-Keep filesystem, notifications, and OS-specific APIs behind service modules so the React UI stays portable.
+Install Rust before building the desktop app. Full desktop setup, installer, and Supabase redirect notes are in `DESKTOP.md`.
 
 ## Roadmap
 
