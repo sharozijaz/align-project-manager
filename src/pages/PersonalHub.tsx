@@ -4,7 +4,6 @@ import {
   ExternalLink,
   FileText,
   Grid2X2,
-  Link2,
   Plus,
   Save,
   Search,
@@ -33,7 +32,59 @@ const resourceTypes: Array<{ value: HubResourceType; label: string; tone: "blue"
   { value: "snippets", label: "Snippets", tone: "slate" },
 ];
 
-type DetailItem = { kind: "resource"; item: HubResource } | null;
+type ResourceFormState = {
+  title: string;
+  url: string;
+  type: HubResourceType;
+  collection: string;
+  tags: string;
+  notes: string;
+};
+
+const emptyResourceForm: ResourceFormState = {
+  title: "",
+  url: "",
+  type: "inspiration",
+  collection: "",
+  tags: "",
+  notes: "",
+};
+
+function normalizeResourceUrl(url?: string) {
+  const trimmed = url?.trim();
+  if (!trimmed) return undefined;
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withProtocol).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+function getResourceHost(url?: string) {
+  const normalized = normalizeResourceUrl(url);
+  if (!normalized) return "";
+  try {
+    return new URL(normalized).hostname.replace(/^www\./, "");
+  } catch {
+    return normalized.replace(/^https?:\/\//i, "").split("/")[0];
+  }
+}
+
+function getResourceFavicon(url?: string) {
+  const host = getResourceHost(url);
+  return host ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64` : undefined;
+}
+
+function getResourceInitials(title: string) {
+  const initials = title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+  return initials || "A";
+}
 
 export function PersonalHub() {
   const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote } = useStudioStore();
@@ -41,11 +92,12 @@ export function PersonalHub() {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<HubResourceType | "all">("all");
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
-  const [selected, setSelected] = useState<DetailItem>(null);
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteForm, setEditNoteForm] = useState({ title: "", body: "", tags: "" });
-  const [resourceForm, setResourceForm] = useState({ title: "", url: "", type: "inspiration" as HubResourceType, collection: "", tags: "", notes: "" });
+  const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
   const [noteForm, setNoteForm] = useState({ title: "", body: "", tags: "" });
 
   useEffect(() => {
@@ -68,6 +120,7 @@ export function PersonalHub() {
 
   const collections = useMemo(() => Array.from(new Set(resources.map((item) => item.collection).filter(Boolean))) as string[], [resources]);
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
+  const selectedResource = selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId) ?? null : null;
 
   useEffect(() => {
     if (view !== "notes") return;
@@ -76,12 +129,26 @@ export function PersonalHub() {
     }
   }, [filteredNotes, selectedNoteId, view]);
 
+  useEffect(() => {
+    if (selectedResourceId && !resources.some((resource) => resource.id === selectedResourceId)) {
+      setSelectedResourceId(null);
+      setEditingResourceId(null);
+    }
+  }, [resources, selectedResourceId]);
+
   const submitResource = (event: FormEvent) => {
     event.preventDefault();
     if (!resourceForm.title.trim()) return;
-    const payload = { ...resourceForm, title: resourceForm.title.trim(), url: resourceForm.url.trim() || undefined };
+    const payload = {
+      ...resourceForm,
+      title: resourceForm.title.trim(),
+      url: normalizeResourceUrl(resourceForm.url),
+      collection: resourceForm.collection.trim() || undefined,
+      tags: resourceForm.tags.trim() || undefined,
+      notes: resourceForm.notes.trim() || undefined,
+    };
     addResource(payload);
-    setResourceForm({ title: "", url: "", type: "inspiration", collection: "", tags: "", notes: "" });
+    setResourceForm(emptyResourceForm);
     setShowForm(null);
     setView("resources");
   };
@@ -111,6 +178,35 @@ export function PersonalHub() {
     setEditingNoteId(null);
   };
 
+  const startEditingResource = (resource: HubResource) => {
+    setSelectedResourceId(resource.id);
+    setEditingResourceId(resource.id);
+    setResourceForm({
+      title: resource.title,
+      url: resource.url ?? "",
+      type: resource.type,
+      collection: resource.collection ?? "",
+      tags: resource.tags ?? "",
+      notes: resource.notes ?? "",
+    });
+    setShowForm(null);
+    setView("resources");
+  };
+
+  const saveEditingResource = () => {
+    if (!editingResourceId || !resourceForm.title.trim()) return;
+    updateResource(editingResourceId, {
+      title: resourceForm.title.trim(),
+      url: normalizeResourceUrl(resourceForm.url),
+      type: resourceForm.type,
+      collection: resourceForm.collection.trim() || undefined,
+      tags: resourceForm.tags.trim() || undefined,
+      notes: resourceForm.notes.trim() || undefined,
+    });
+    setEditingResourceId(null);
+    setResourceForm(emptyResourceForm);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -135,7 +231,7 @@ export function PersonalHub() {
         }
       />
 
-      <div className={view === "notes" ? "grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]" : "grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_360px]"}>
+      <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <Card className="p-4">
             <div className="flex items-center gap-3">
@@ -260,16 +356,49 @@ export function PersonalHub() {
           {view === "resources" ? (
             filteredResources.length ? (
               <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {filteredResources.map((item) => (
-                  <ResourceCard
-                    key={item.id}
-                    item={item}
-                    selected={selected?.kind === "resource" && selected.item.id === item.id}
-                    onSelect={() => setSelected({ kind: "resource", item })}
-                    onDelete={() => deleteResource(item.id)}
-                    onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
-                  />
-                ))}
+                {filteredResources.map((item) => {
+                  const isSelected = selectedResourceId === item.id;
+                  const isEditing = editingResourceId === item.id;
+                  return (
+                    <div key={item.id} className="contents">
+                      <ResourceCard
+                        item={item}
+                        selected={isSelected}
+                        onSelect={() => {
+                          setSelectedResourceId(isSelected ? null : item.id);
+                          if (isSelected) setEditingResourceId(null);
+                        }}
+                        onEdit={() => startEditingResource(item)}
+                        onDelete={() => {
+                          deleteResource(item.id);
+                          if (selectedResourceId === item.id) setSelectedResourceId(null);
+                        }}
+                        onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
+                      />
+                      {isSelected ? (
+                        <div className="md:col-span-2 2xl:col-span-3">
+                          <ResourceDetailInline
+                            item={selectedResource ?? item}
+                            isEditing={isEditing}
+                            form={resourceForm}
+                            onFormChange={setResourceForm}
+                            onStartEdit={() => startEditingResource(selectedResource ?? item)}
+                            onCancelEdit={() => {
+                              setEditingResourceId(null);
+                              setResourceForm(emptyResourceForm);
+                            }}
+                            onSaveEdit={saveEditingResource}
+                            onDelete={() => {
+                              deleteResource(item.id);
+                              setSelectedResourceId(null);
+                            }}
+                            onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <EmptyState>No matching resources yet.</EmptyState>
@@ -290,8 +419,6 @@ export function PersonalHub() {
             />
           )}
         </main>
-
-        {view === "resources" ? <DetailPanel selected={selected} /> : null}
       </div>
     </div>
   );
@@ -476,21 +603,36 @@ function ResourceCard({
   item,
   selected,
   onSelect,
+  onEdit,
   onDelete,
   onToggleFavorite,
 }: {
   item: HubResource;
   selected: boolean;
   onSelect: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   onToggleFavorite: () => void;
 }) {
   const type = resourceTypes.find((entry) => entry.value === item.type) ?? resourceTypes[0];
+  const host = getResourceHost(item.url);
+  const favicon = getResourceFavicon(item.url);
   return (
     <Card className={`group overflow-hidden p-0 ${selected ? "border-[var(--brand-primary)]" : ""}`}>
       <button type="button" onClick={onSelect} className="block w-full p-4 text-left">
-        <div className="mb-4 grid h-28 place-items-center rounded-[var(--radius-sm)] bg-[radial-gradient(circle_at_top_left,var(--brand-primary),transparent_35%),var(--bg-soft)] text-sm font-semibold text-[var(--text-muted)]">
-          {item.url ? new URL(item.url, window.location.origin).hostname.replace("www.", "") : "Resource"}
+        <div className="mb-4 flex h-32 flex-col justify-between overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.32),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface-raised))] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+              {favicon ? <img src={favicon} alt="" className="h-7 w-7" loading="lazy" /> : <span className="font-display text-sm font-bold text-[var(--brand-primary)]">{getResourceInitials(item.title)}</span>}
+            </span>
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-soft)]">
+              {host ? "Website" : "Saved item"}
+            </span>
+          </div>
+          <div>
+            <p className="line-clamp-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-soft)]">{host || item.collection || type.label}</p>
+            <p className="mt-1 line-clamp-1 text-sm font-semibold text-[var(--text-muted)]">{item.collection || item.tags || "Resource reference"}</p>
+          </div>
         </div>
         <div className="flex items-start justify-between gap-3">
           <h3 className="line-clamp-2 font-display text-lg font-bold text-[var(--text)]">{item.title}</h3>
@@ -506,6 +648,7 @@ function ResourceCard({
         <span className="text-xs text-[var(--text-soft)]">{format(new Date(item.createdAt), "MMM d, yyyy")}</span>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={onToggleFavorite} icon={<Star size={15} />} aria-label="Favorite resource" />
+          <Button variant="secondary" onClick={onEdit} icon={<Edit3 size={15} />} aria-label="Edit resource" />
           <Button variant="danger" onClick={onDelete} icon={<Trash2 size={15} />} aria-label="Delete resource" />
         </div>
       </div>
@@ -513,42 +656,122 @@ function ResourceCard({
   );
 }
 
-function DetailPanel({ selected }: { selected: DetailItem }) {
-  if (!selected) {
+function ResourceDetailInline({
+  item,
+  isEditing,
+  form,
+  onFormChange,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+  onToggleFavorite,
+}: {
+  item: HubResource;
+  isEditing: boolean;
+  form: ResourceFormState;
+  onFormChange: (form: ResourceFormState) => void;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void;
+  onDelete: () => void;
+  onToggleFavorite: () => void;
+}) {
+  if (isEditing) {
     return (
-      <Card className="p-5 xl:sticky xl:top-4 xl:self-start">
-        <h2 className="font-display text-lg font-bold text-[var(--text)]">Select an item</h2>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">Pick a resource to preview details, copy links, and review context.</p>
+      <Card className="border-[var(--brand-primary)] bg-[var(--surface-raised)] p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Editing resource</p>
+            <h2 className="font-display text-xl font-bold text-[var(--text)]">{item.title}</h2>
+          </div>
+          <Button variant="ghost" icon={<X size={16} />} onClick={onCancelEdit} aria-label="Cancel editing" />
+        </div>
+        <div className="grid gap-3">
+          <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px]">
+            <Input value={form.title} onChange={(event) => onFormChange({ ...form, title: event.target.value })} placeholder="Resource title" />
+            <Input value={form.url} onChange={(event) => onFormChange({ ...form, url: event.target.value })} placeholder="https://..." />
+            <Select value={form.type} onChange={(event) => onFormChange({ ...form, type: event.target.value as HubResourceType })}>
+              {resourceTypes.map((entry) => (
+                <option key={entry.value} value={entry.value}>
+                  {entry.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Input value={form.collection} onChange={(event) => onFormChange({ ...form, collection: event.target.value })} placeholder="Collection" />
+            <Input value={form.tags} onChange={(event) => onFormChange({ ...form, tags: event.target.value })} placeholder="Tags, comma separated" />
+          </div>
+          <StudioTextarea value={form.notes} onChange={(event) => onFormChange({ ...form, notes: event.target.value })} placeholder="Why this is useful..." />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={onCancelEdit}>
+              Cancel
+            </Button>
+            <Button type="button" icon={<Save size={15} />} onClick={onSaveEdit}>
+              Save Resource
+            </Button>
+          </div>
+        </div>
       </Card>
     );
   }
 
-  const item = selected.item;
+  const host = getResourceHost(item.url);
+  const favicon = getResourceFavicon(item.url);
   return (
-    <Card className="p-5 xl:sticky xl:top-4 xl:self-start">
-      <div className="grid h-36 place-items-center rounded-[var(--radius-sm)] bg-[radial-gradient(circle_at_top_left,var(--brand-primary),transparent_35%),var(--bg-soft)] text-[var(--text-muted)]">
-        <Link2 size={24} />
-      </div>
-      <h2 className="mt-4 font-display text-xl font-bold text-[var(--text)]">{item.title}</h2>
-      <p className="mt-2 text-sm text-[var(--text-muted)]">{item.notes || "No notes yet."}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {item.tags
-          ?.split(",")
-          .filter(Boolean)
-          .map((tag) => (
-            <Badge key={tag.trim()}>{tag.trim()}</Badge>
-          ))}
-      </div>
-      {item.url ? (
-        <div className="mt-5 flex gap-2">
-          <Button variant="secondary" onClick={() => navigator.clipboard.writeText(item.url!)} icon={<Copy size={15} />}>
-            Copy
-          </Button>
-          <Button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>
-            Open
-          </Button>
+    <Card className="overflow-hidden border-[var(--brand-primary)] bg-[var(--surface-raised)] p-0">
+      <div className="grid gap-5 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="flex min-h-48 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.38),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface))] p-5">
+          <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+            {favicon ? <img src={favicon} alt="" className="h-10 w-10" loading="lazy" /> : <span className="font-display text-lg font-bold text-[var(--brand-primary)]">{getResourceInitials(item.title)}</span>}
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">{host || "Saved resource"}</p>
+            {item.url ? <p className="mt-1 break-all text-sm text-[var(--text-muted)]">{item.url}</p> : <p className="mt-1 text-sm text-[var(--text-muted)]">Add a URL when you edit this resource.</p>}
+          </div>
         </div>
-      ) : null}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Resource details</p>
+              <h2 className="mt-1 font-display text-2xl font-bold text-[var(--text)]">{item.title}</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" icon={<Star size={15} />} onClick={onToggleFavorite}>
+                {item.favorite ? "Favorited" : "Favorite"}
+              </Button>
+              <Button variant="secondary" icon={<Edit3 size={15} />} onClick={onStartEdit}>
+                Edit
+              </Button>
+              <Button variant="danger" icon={<Trash2 size={15} />} onClick={onDelete}>
+                Delete
+              </Button>
+            </div>
+          </div>
+          <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--text-muted)]">{item.notes || "No notes yet. Add context, why this is useful, login hints, or when you reach for it."}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Badge tone={(resourceTypes.find((entry) => entry.value === item.type) ?? resourceTypes[0]).tone}>{(resourceTypes.find((entry) => entry.value === item.type) ?? resourceTypes[0]).label}</Badge>
+            {item.collection ? <Badge>{item.collection}</Badge> : null}
+            {item.tags
+              ?.split(",")
+              .filter(Boolean)
+              .map((tag) => (
+                <Badge key={tag.trim()}>{tag.trim()}</Badge>
+              ))}
+          </div>
+          {item.url ? (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => navigator.clipboard.writeText(item.url!)} icon={<Copy size={15} />}>
+                Copy Link
+              </Button>
+              <Button onClick={() => window.open(normalizeResourceUrl(item.url), "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>
+                Open Website
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </Card>
   );
 }
