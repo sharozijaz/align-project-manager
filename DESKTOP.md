@@ -36,13 +36,41 @@ npm run desktop:build
 The Windows installer output is created under `src-tauri/target/release/bundle/`:
 
 ```text
-src-tauri/target/release/bundle/nsis/Align_0.2.0_x64-setup.exe
-src-tauri/target/release/bundle/msi/Align_0.2.0_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/Align_0.2.1_x64-setup.exe
+src-tauri/target/release/bundle/msi/Align_0.2.1_x64_en-US.msi
 ```
 
 Use the NSIS `.exe` installer for the easiest local install.
 
 For normal Align updates, run the newer NSIS installer over the current install. You should not need to uninstall first as long as the app identifier stays the same.
+
+## Desktop Shell Polish
+
+The Windows desktop build uses a custom Align shell instead of the default native title bar:
+
+- The Tauri window is frameless (`decorations: false`).
+- `src/components/desktop/DesktopTitleBar.tsx` renders the Align title bar.
+- The title bar has custom minimize, maximize/restore, and close-to-tray controls.
+- Double-clicking the draggable title area toggles maximize/restore.
+- The close button still follows the existing desktop model: it hides Align to the tray, keeping reminders alive.
+
+The desktop app also owns its scroll surface:
+
+- `src/app/App.tsx` applies the `align-desktop-root`, `align-desktop-shell`, and `align-app-scroll` classes only in Tauri.
+- Page scrolling happens inside `.align-app-scroll`, not on the raw WebView edge.
+- `src/styles/globals.css` styles the scrollbar to match Align's theme and avoid the bright default Windows/WebView scrollbar rail.
+
+These shell changes are intentionally lightweight: they are CSS plus a small desktop-only React component using Tauri window APIs. There is no animation loop or heavy runtime work.
+
+## Desktop Cache and Weather Behavior
+
+The desktop build disables stale PWA caching:
+
+- `src/pwa/registerServiceWorker.ts` unregisters service workers and clears caches in Tauri.
+- `public/sw.js` self-disables on `tauri.localhost`.
+- The web/PWA build still keeps service-worker behavior for browser use.
+
+The dashboard weather widget does not request desktop geolocation. In Tauri, it uses the app's default coordinates silently so Windows/WebView does not show a `tauri.localhost wants to know your location` prompt. Browser builds can still use normal geolocation fallback behavior.
 
 ## Background Running and Reminders
 

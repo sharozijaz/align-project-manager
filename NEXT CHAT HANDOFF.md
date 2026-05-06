@@ -2,6 +2,64 @@
 
 Use this file as the starting context for the next chat. The previous thread became very long and compacted multiple times, so the safest path is to treat this as the source of truth and avoid replaying old implementation loops.
 
+## Desktop Shell Polish Checkpoint - May 6, 2026
+
+This checkpoint is the newest source of truth for desktop polish.
+
+Completed after the final desktop release pass:
+
+- Fixed stale desktop UI risk from PWA/WebView caching.
+  - `src/pwa/registerServiceWorker.ts` unregisters service workers and clears caches in Tauri.
+  - `public/sw.js` self-disables on `tauri.localhost`.
+- Bumped app/package/Tauri metadata to `0.2.1`.
+- Added a custom frameless desktop shell.
+  - `src-tauri/tauri.conf.json` uses `decorations: false`.
+  - `src/components/desktop/DesktopTitleBar.tsx` renders the Align title bar and custom window controls.
+  - Tauri window permissions were added in `src-tauri/capabilities/default.json`.
+- Polished desktop scrollbars.
+  - Desktop uses an internal `.align-app-scroll` viewport instead of the raw page/window scrollbar.
+  - Global scrollbar styling is quieter and app-colored.
+- Removed the desktop geolocation permission prompt.
+  - `src/components/dashboard/Glance.tsx` uses default weather coordinates in Tauri instead of calling `navigator.geolocation`.
+- Built a fresh Windows desktop installer from the latest code.
+
+Fresh Windows build artifacts:
+
+```text
+C:\Users\Sharoz Ijaz\Documents\Codex\2026-04-27\files-mentioned-by-the-user-app\src-tauri\target\release\bundle\nsis\Align_0.2.1_x64-setup.exe
+C:\Users\Sharoz Ijaz\Documents\Codex\2026-04-27\files-mentioned-by-the-user-app\src-tauri\target\release\bundle\msi\Align_0.2.1_x64_en-US.msi
+```
+
+Recommended installer for local use:
+
+```text
+C:\Users\Sharoz Ijaz\Documents\Codex\2026-04-27\files-mentioned-by-the-user-app\src-tauri\target\release\bundle\nsis\Align_0.2.1_x64-setup.exe
+```
+
+Verification completed for the latest desktop polish:
+
+```powershell
+npm run build
+npm run desktop:build
+git diff --check
+```
+
+Results:
+
+- `npm run build`: passed
+- `npm run desktop:build`: passed
+- `git diff --check`: passed with only expected line-ending warnings
+
+Latest pushed commits:
+
+- `ca94c39 Refine desktop viewport polish`
+- `875f5cc Polish desktop shell`
+- `663e810 Finalize desktop release build`
+
+Current repo status after push was clean and synced: `main...origin/main`.
+
+Do not revisit accepted web features unless the user reports a bug.
+
 ## Final Desktop Release Checkpoint - May 6, 2026
 
 This checkpoint supersedes the remaining-work list below where it conflicts.
