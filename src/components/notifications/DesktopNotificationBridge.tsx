@@ -4,6 +4,7 @@ import {
   canUseDesktopNotifications,
   getDesktopNotificationsEnabled,
   sendDesktopNotification,
+  setDesktopReminderHeartbeat,
 } from "../../integrations/desktop/notifications";
 import { useTaskStore } from "../../store/taskStore";
 import type { Task } from "../../types/task";
@@ -32,7 +33,17 @@ export function DesktopNotificationBridge() {
   const canLoad = canUseDesktopNotifications();
 
   const checkForNotifications = useCallback(async () => {
-    if (!canLoad || !getDesktopNotificationsEnabled()) return;
+    if (!canLoad) return;
+
+    if (!getDesktopNotificationsEnabled()) {
+      setDesktopReminderHeartbeat({
+        checkedAt: new Date().toISOString(),
+        status: "disabled",
+        sentCount: 0,
+        message: "Desktop reminders are paused on this PC.",
+      });
+      return;
+    }
 
     try {
       const now = new Date();
@@ -43,16 +54,40 @@ export function DesktopNotificationBridge() {
         .filter((item) => !sentIds.includes(item.id))
         .sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime());
 
-      if (!dueNotifications.length) return;
+      if (!dueNotifications.length) {
+        setDesktopReminderHeartbeat({
+          checkedAt: now.toISOString(),
+          status: "idle",
+          sentCount: 0,
+          message: "Checked reminders. Nothing due right now.",
+        });
+        return;
+      }
 
       const nextSentIds = [...sentIds];
+      let sentCount = 0;
       for (const item of dueNotifications) {
         const sent = await sendDesktopNotification(item.title, item.message);
-        if (sent) nextSentIds.push(item.id);
+        if (sent) {
+          nextSentIds.push(item.id);
+          sentCount += 1;
+        }
       }
 
       rememberSentIds(nextSentIds);
-    } catch {
+      setDesktopReminderHeartbeat({
+        checkedAt: now.toISOString(),
+        status: sentCount > 0 ? "sent" : "error",
+        sentCount,
+        message: sentCount > 0 ? `${sentCount} desktop reminder${sentCount === 1 ? "" : "s"} sent.` : "No reminders could be delivered.",
+      });
+    } catch (error) {
+      setDesktopReminderHeartbeat({
+        checkedAt: new Date().toISOString(),
+        status: "error",
+        sentCount: 0,
+        message: error instanceof Error ? error.message : "Desktop reminder check failed.",
+      });
       // Desktop toasts should never interrupt the app if Windows notification delivery fails.
     }
   }, [canLoad, tasks]);

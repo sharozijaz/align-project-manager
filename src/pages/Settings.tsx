@@ -17,10 +17,12 @@ import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue
 import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
 import {
   canUseDesktopNotifications,
+  getDesktopReminderHeartbeat,
   getDesktopNotificationsEnabled,
   requestDesktopNotificationPermission,
   sendDesktopNotification,
   setDesktopNotificationsEnabled,
+  type DesktopReminderHeartbeat,
 } from "../integrations/desktop/notifications";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
@@ -61,6 +63,7 @@ export function Settings() {
   const [autoCleanTasks, setAutoCleanTasks] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_TASKS_KEY));
   const [autoCleanProjects, setAutoCleanProjects] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_PROJECTS_KEY));
   const [desktopNotificationMessage, setDesktopNotificationMessage] = useState("");
+  const [desktopReminderHeartbeat, setDesktopReminderHeartbeatState] = useState<DesktopReminderHeartbeat | null>(null);
   const [preferenceMessage, setPreferenceMessage] = useState("");
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
@@ -130,6 +133,18 @@ export function Settings() {
 
   useEffect(() => {
     setDesktopNotificationsEnabledState(getDesktopNotificationsEnabled());
+    setDesktopReminderHeartbeatState(getDesktopReminderHeartbeat());
+  }, []);
+
+  useEffect(() => {
+    const updateHeartbeat = () => setDesktopReminderHeartbeatState(getDesktopReminderHeartbeat());
+
+    window.addEventListener("align:desktop-reminder-heartbeat", updateHeartbeat);
+    window.addEventListener("storage", updateHeartbeat);
+    return () => {
+      window.removeEventListener("align:desktop-reminder-heartbeat", updateHeartbeat);
+      window.removeEventListener("storage", updateHeartbeat);
+    };
   }, []);
 
   const exportData = () => {
@@ -361,6 +376,7 @@ export function Settings() {
 
     setDesktopNotificationsEnabled(enabled);
     setDesktopNotificationsEnabledState(enabled);
+    setDesktopReminderHeartbeatState(getDesktopReminderHeartbeat());
     setDesktopNotificationMessage(enabled ? "Desktop notifications enabled on this PC." : "Desktop notifications paused on this PC.");
   };
 
@@ -575,6 +591,24 @@ export function Settings() {
               Send test
             </Button>
           </div>
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-[var(--text)]">Reminder check</p>
+                <p className="text-[var(--text-muted)]">
+                  {desktopReminderHeartbeat?.message ?? (canUseDesktopNotifications() ? "Waiting for the next reminder check." : "Desktop checks run inside the installed app.")}
+                </p>
+              </div>
+              <Badge tone={desktopReminderHeartbeatTone(desktopReminderHeartbeat)}>
+                {desktopReminderHeartbeat?.status ?? (canUseDesktopNotifications() ? "waiting" : "unavailable")}
+              </Badge>
+            </div>
+            {desktopReminderHeartbeat?.checkedAt ? (
+              <p className="mt-2 text-xs text-[var(--text-soft)]">
+                Last checked {new Date(desktopReminderHeartbeat.checkedAt).toLocaleString()}
+              </p>
+            ) : null}
+          </div>
           {desktopNotificationMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{desktopNotificationMessage}</p> : null}
         </Card>
         <Card className="p-4 sm:p-5 lg:col-span-2">
@@ -683,6 +717,14 @@ export function Settings() {
       </p>
     </div>
   );
+}
+
+function desktopReminderHeartbeatTone(heartbeat: DesktopReminderHeartbeat | null) {
+  if (!heartbeat) return "slate";
+  if (heartbeat.status === "sent") return "emerald";
+  if (heartbeat.status === "error") return "red";
+  if (heartbeat.status === "disabled") return "amber";
+  return "blue";
 }
 
 function CleanupToggle({

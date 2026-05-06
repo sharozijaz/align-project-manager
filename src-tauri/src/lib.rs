@@ -12,6 +12,12 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
+fn hide_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -23,6 +29,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .on_menu_event(|app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
+            "hide" => hide_main_window(app),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -44,10 +51,11 @@ pub fn run() {
             }
 
             let show_item = MenuItem::with_id(app, "show", "Show Align", true, None::<&str>)?;
+            let hide_item = MenuItem::with_id(app, "hide", "Hide to tray", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit Align", true, None::<&str>)?;
-            let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            let tray_menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
             let mut tray_builder = TrayIconBuilder::with_id("align-tray")
-                .tooltip("Align")
+                .tooltip("Align is running. Click to open, or use the menu to hide or quit.")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, event| {
