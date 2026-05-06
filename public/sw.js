@@ -1,4 +1,4 @@
-const CACHE_NAME = "align-static-v3";
+const CACHE_NAME = "align-static-v4";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -6,46 +6,64 @@ const STATIC_ASSETS = [
   "/align-logo.png",
   "/hero-mountain.webp"
 ];
+const IS_TAURI_RUNTIME =
+  self.location.protocol === "tauri:" || self.location.origin.includes("tauri.localhost");
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
-  );
-});
+if (IS_TAURI_RUNTIME) {
+  self.addEventListener("install", (event) => {
+    event.waitUntil(self.skipWaiting());
+  });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
-});
+  self.addEventListener("activate", (event) => {
+    event.waitUntil(
+      caches
+        .keys()
+        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    );
+  });
+} else {
+  self.addEventListener("install", (event) => {
+    event.waitUntil(
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
+    );
+  });
 
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  self.addEventListener("activate", (event) => {
+    event.waitUntil(
+      caches
+        .keys()
+        .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+        .then(() => self.clients.claim())
+    );
+  });
 
-  if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) {
-    return;
-  }
+  self.addEventListener("fetch", (event) => {
+    const { request } = event;
+    const url = new URL(request.url);
 
-  if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/")));
-    return;
-  }
+    if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) {
+      return;
+    }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
+    if (request.mode === "navigate") {
+      event.respondWith(fetch(request).catch(() => caches.match("/")));
+      return;
+    }
 
-      return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== "basic") return response;
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
 
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        return response;
-      });
-    })
-  );
-});
+        return fetch(request).then((response) => {
+          if (!response || response.status !== 200 || response.type !== "basic") return response;
+
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          return response;
+        });
+      })
+    );
+  });
+}

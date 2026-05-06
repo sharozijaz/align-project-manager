@@ -2,17 +2,20 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { motion } from "motion/react";
 import { AuthGate } from "../components/auth/AuthGate";
+import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
 import { Navbar } from "../components/layout/Navbar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
 import { DesktopNotificationBridge } from "../components/notifications/DesktopNotificationBridge";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
 import { useThemeStore } from "../store/themeStore";
+import { isTauriRuntime } from "../integrations/desktop/runtime";
 import { cleanupTrash } from "../utils/trashCleanup";
 
 export function App() {
   const theme = useThemeStore((state) => state.theme);
   const location = useLocation();
+  const isDesktop = isTauriRuntime();
 
   useEffect(() => {
     cleanupTrash();
@@ -20,7 +23,8 @@ export function App() {
 
   return (
     <AuthGate>
-      <div data-theme={theme}>
+      <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
+        <DesktopTitleBar />
         <div className="min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
           <div className="w-full overflow-x-hidden p-2 sm:p-4">
             <div className="mx-auto max-w-[1760px] space-y-4">

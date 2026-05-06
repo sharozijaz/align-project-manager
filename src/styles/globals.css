@@ -20,6 +20,9 @@
   --stat-border: #e4e0f0;
   --progress-track: #e4e0f0;
   --progress-fill: #6357d4;
+  --scrollbar-track: #edeaf6;
+  --scrollbar-thumb: #c8c2e0;
+  --scrollbar-thumb-hover: #a99fd2;
 
   --brand-50: #f7f5ff;
   --brand-100: #eee9ff;
@@ -167,6 +170,9 @@
   --stat-border: #2a2740;
   --progress-track: #2a2740;
   --progress-fill: #7c6fed;
+  --scrollbar-track: #100e18;
+  --scrollbar-thumb: #342f50;
+  --scrollbar-thumb-hover: #4a426e;
 
   --brand-50: #2a2448;
   --brand-100: #342d58;
@@ -307,6 +313,9 @@
   --stat-border: #3d2e1e;
   --progress-track: #3d2e1e;
   --progress-fill: #c8922a;
+  --scrollbar-track: #17110d;
+  --scrollbar-thumb: #4a3826;
+  --scrollbar-thumb-hover: #6a4f32;
 
   --brand-50: #2e2010;
   --brand-100: #3d2e1e;
@@ -434,6 +443,35 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background:
+    linear-gradient(90deg, transparent 0 2px, var(--scrollbar-track) 2px calc(100% - 2px), transparent calc(100% - 2px));
+}
+
+::-webkit-scrollbar-thumb {
+  min-height: 3rem;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--scrollbar-thumb), color-mix(in srgb, var(--scrollbar-thumb) 72%, var(--brand-primary)));
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scrollbar-thumb-hover), color-mix(in srgb, var(--scrollbar-thumb-hover) 68%, var(--brand-primary)));
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
 }
 
 html {
@@ -453,6 +491,112 @@ body {
     radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 34rem),
     var(--bg);
   color: var(--text);
+}
+
+.align-desktop-shell {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.align-desktop-shell > .min-h-screen {
+  min-height: calc(100vh - 38px);
+}
+
+.desktop-titlebar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: 38px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface-nav) 95%, #000 5%), color-mix(in srgb, var(--bg) 92%, var(--brand-primary) 8%)),
+    var(--surface-nav);
+  color: var(--text);
+  user-select: none;
+}
+
+.desktop-titlebar__drag {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 0.75rem;
+}
+
+.desktop-titlebar__brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: "Space Grotesk", Jost, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.desktop-titlebar__mark {
+  display: grid;
+  height: 1.25rem;
+  width: 1.25rem;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--brand-gradient);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-accent) 28%, transparent);
+}
+
+.desktop-titlebar__mark img {
+  height: 1rem;
+  width: 1rem;
+  object-fit: contain;
+}
+
+.desktop-titlebar__name,
+.desktop-titlebar__status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-titlebar__status {
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.desktop-titlebar__controls {
+  display: grid;
+  grid-template-columns: repeat(3, 42px);
+}
+
+.desktop-titlebar__control {
+  display: grid;
+  height: 38px;
+  width: 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.desktop-titlebar__control:hover {
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  color: var(--text);
+}
+
+.desktop-titlebar__control--close:hover {
+  background: #d9364f;
+  color: #ffffff;
+}
+
+.desktop-titlebar__control:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--brand-primary) 52%, transparent);
 }
 
 h1,
