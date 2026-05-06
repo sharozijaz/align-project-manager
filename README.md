@@ -29,6 +29,7 @@ Deployment notes live in `DEPLOYMENT.md`.
 Security notes live in `SECURITY.md`.
 Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
 Desktop app notes live in `DESKTOP.md`.
+Owner maintenance and update steps live in `MAINTENANCE.md`.
 
 ## Production Setup
 

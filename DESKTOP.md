@@ -116,6 +116,8 @@ npm run desktop:build
 
 Then run the new installer from `src-tauri/target/release/bundle/`.
 
+For the full owner maintenance workflow, including monthly security checks, dependency updates, cleanup, and release tagging, see `MAINTENANCE.md`.
+
 ## Ubuntu GNOME Build
 
 Tauri Linux builds must be built on Linux. On Ubuntu GNOME, install the Tauri v2 Linux dependencies, Rust, and Node.js.

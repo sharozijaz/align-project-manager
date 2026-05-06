@@ -22,6 +22,11 @@ Completed after the final desktop release pass:
 - Removed the desktop geolocation permission prompt.
   - `src/components/dashboard/Glance.tsx` uses default weather coordinates in Tauri instead of calling `navigator.geolocation`.
 - Built a fresh Windows desktop installer from the latest code.
+- Cleaned generated build folders to reduce the local project folder from about 9 GB to about 11 MB.
+  - Removed rebuildable `node_modules`, `dist`, `src-tauri/target`, `.vercel/output`, TypeScript build info files, and `vite-dev.log`.
+  - Source code, Git history, docs, Supabase/API files, lock files, and `.env.local` were preserved.
+- Added `MAINTENANCE.md` as the owner maintenance/update guide.
+  - It documents monthly security checks, safe dependency updates, rebuild commands, desktop release steps, cleanup, secrets handling, and troubleshooting.
 
 Fresh Windows build artifacts:
 
@@ -50,8 +55,11 @@ Results:
 - `npm run desktop:build`: passed
 - `git diff --check`: passed with only expected line-ending warnings
 
+Important after cleanup: local installer artifacts under `src-tauri/target/` were intentionally removed to save space. Recreate them with `npm install`, `npm run build`, and `npm run desktop:build`.
+
 Latest pushed commits:
 
+- `d68fc66 Update desktop polish docs`
 - `ca94c39 Refine desktop viewport polish`
 - `875f5cc Polish desktop shell`
 - `663e810 Finalize desktop release build`
