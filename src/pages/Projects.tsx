@@ -1,5 +1,5 @@
 import { Archive, CheckCircle2, GripVertical, Plus, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { ClientProjectsSharePanel } from "../components/projects/ClientProjectsSharePanel";
 import { ProjectCard } from "../components/projects/ProjectCard";
@@ -25,27 +25,79 @@ export function Projects() {
   const [completingProject, setCompletingProject] = useState<Project | null>(null);
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
+  const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
   const { projects, addProject, updateProject, deleteProject, reorderProjects, completeProject, archiveProject, restoreProject } = useProjectStore();
   const { tasks } = useTaskStore();
-  const liveProjects = projects.filter((project) => !project.deletedAt);
-  const lifecycleProjects = liveProjects.filter((project) => project.status === lifecycleFilter);
-  const shareableProjects = liveProjects.filter((project) => project.status !== "archived");
+  const liveProjects = useMemo(() => projects.filter((project) => !project.deletedAt), [projects]);
+  const lifecycleProjects = useMemo(() => liveProjects.filter((project) => project.status === lifecycleFilter), [lifecycleFilter, liveProjects]);
+  const shareableProjects = useMemo(() => liveProjects.filter((project) => project.status !== "archived"), [liveProjects]);
   const activeCount = liveProjects.filter((project) => project.status === "active").length;
   const completedCount = liveProjects.filter((project) => project.status === "completed").length;
   const archivedCount = liveProjects.filter((project) => project.status === "archived").length;
   const businessCount = lifecycleProjects.filter((project) => (project.area ?? "business") === "business").length;
   const personalCount = lifecycleProjects.filter((project) => project.area === "personal").length;
   const search = searchQuery.trim().toLowerCase();
-  const filteredProjects = (areaFilter === "all" ? lifecycleProjects : lifecycleProjects.filter((project) => (project.area ?? "business") === areaFilter)).filter((project) =>
-    search ? `${project.name} ${project.description ?? ""}`.toLowerCase().includes(search) : true,
+  const filteredProjects = useMemo(
+    () =>
+      (areaFilter === "all" ? lifecycleProjects : lifecycleProjects.filter((project) => (project.area ?? "business") === areaFilter)).filter((project) =>
+        search ? `${project.name} ${project.description ?? ""}`.toLowerCase().includes(search) : true,
+      ),
+    [areaFilter, lifecycleProjects, search],
   );
-  const visibleProjects = [...filteredProjects].sort((a, b) => {
-    if (sortMode === "manual") return 0;
-    if (sortMode === "name") return a.name.localeCompare(b.name);
-    if (sortMode === "due") return (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31");
-    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-  });
+  const visibleProjects = useMemo(
+    () =>
+      [...filteredProjects].sort((a, b) => {
+        if (sortMode === "manual") return 0;
+        if (sortMode === "name") return a.name.localeCompare(b.name);
+        if (sortMode === "due") return (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31");
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }),
+    [filteredProjects, sortMode],
+  );
   const lifecycleLabel = lifecycleFilter === "active" ? "active" : lifecycleFilter === "completed" ? "completed" : "archived";
+
+  useEffect(() => {
+    if (!draggedProjectId || sortMode !== "manual") return;
+
+    const findTargetId = () => {
+      const position = pointerPositionRef.current;
+      if (!position) return null;
+      const element = document.elementFromPoint(position.x, position.y);
+      return element?.closest<HTMLElement>("[data-project-reorder-id]")?.dataset.projectReorderId ?? null;
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      const targetId = findTargetId();
+      setDragOverProjectId(targetId && targetId !== draggedProjectId ? targetId : null);
+    };
+
+    const handlePointerUp = () => {
+      const targetId = findTargetId();
+      if (targetId && targetId !== draggedProjectId) {
+        const reorderedLiveIds = mergeVisibleOrder(
+          liveProjects,
+          visibleProjects,
+          moveBefore(visibleProjects.map((item) => item.id), draggedProjectId, targetId),
+        );
+        const deletedProjectIds = projects.filter((item) => item.deletedAt).map((item) => item.id);
+        reorderProjects([...reorderedLiveIds, ...deletedProjectIds]);
+      }
+      pointerPositionRef.current = null;
+      setDraggedProjectId(null);
+      setDragOverProjectId(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    window.addEventListener("pointercancel", handlePointerUp, { once: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [draggedProjectId, liveProjects, projects, reorderProjects, sortMode, visibleProjects]);
 
   return (
     <div className="space-y-5">
@@ -95,6 +147,7 @@ export function Projects() {
         {visibleProjects.map((project) => (
           <div
             key={project.id}
+            data-project-reorder-id={project.id}
             onDragOver={(event) => {
               if (draggedProjectId === project.id) return;
               event.preventDefault();
@@ -127,10 +180,17 @@ export function Projects() {
               disabled={sortMode !== "manual"}
               title={sortMode === "manual" ? "Drag to reorder" : "Switch to manual order to drag"}
               aria-label="Drag to reorder project"
+              onPointerDown={(event) => {
+                if (sortMode !== "manual" || event.button !== 0) return;
+                event.preventDefault();
+                pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+                setDraggedProjectId(project.id);
+              }}
               onDragStart={(event) => {
                 if (sortMode !== "manual") return;
                 setDraggedProjectId(project.id);
                 event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", project.id);
               }}
               className={`hidden w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition sm:flex ${
                 sortMode === "manual" ? "cursor-grab hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing" : "cursor-not-allowed opacity-40"

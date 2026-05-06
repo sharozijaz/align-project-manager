@@ -1,5 +1,5 @@
 import { GripVertical } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskTable } from "./TaskTable";
@@ -30,6 +30,44 @@ export function TaskList({
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!draggedId || !onReorder) return;
+
+    const findTargetId = () => {
+      const position = pointerPositionRef.current;
+      if (!position) return null;
+      const element = document.elementFromPoint(position.x, position.y);
+      return element?.closest<HTMLElement>("[data-task-reorder-id]")?.dataset.taskReorderId ?? null;
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      const targetId = findTargetId();
+      setDragOverId(targetId && targetId !== draggedId ? targetId : null);
+    };
+
+    const handlePointerUp = () => {
+      const targetId = findTargetId();
+      if (targetId && targetId !== draggedId) {
+        onReorder(moveBefore(tasks.map((item) => item.id), draggedId, targetId));
+      }
+      pointerPositionRef.current = null;
+      setDraggedId(null);
+      setDragOverId(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    window.addEventListener("pointercancel", handlePointerUp, { once: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [draggedId, onReorder, tasks]);
 
   if (!tasks.length) {
     return (
@@ -50,6 +88,7 @@ export function TaskList({
       {tasks.map((task) => (
         <motion.div
           key={task.id}
+          data-task-reorder-id={task.id}
           layout
           initial={{ opacity: 0, y: 10, scale: 0.99 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -80,9 +119,16 @@ export function TaskList({
               draggable
               title="Drag to reorder"
               aria-label="Drag to reorder task"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+                setDraggedId(task.id);
+              }}
               onDragStart={(event) => {
                 setDraggedId(task.id);
                 event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", task.id);
               }}
               className="flex w-8 shrink-0 cursor-grab items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing"
             >
