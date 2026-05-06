@@ -42,7 +42,16 @@ export function Tasks() {
         <TaskFilters filter={filter} search={search} sort={sort} onFilterChange={setFilter} onSearchChange={setSearch} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />
       </div>
-      <TaskList tasks={visibleTasks} projects={projects} onUpdate={updateTask} onDelete={deleteTask} onComplete={completeTask} view={view} onReorder={sort === "manual" ? reorderTasks : undefined} />
+      <TaskList
+        tasks={visibleTasks}
+        projects={projects}
+        onUpdate={updateTask}
+        onDelete={deleteTask}
+        onComplete={completeTask}
+        view={view}
+        onReorder={sort === "manual" ? reorderTasks : undefined}
+        groupByProject={view === "cards"}
+      />
     </div>
   );
 }

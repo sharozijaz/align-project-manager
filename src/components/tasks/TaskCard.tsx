@@ -19,6 +19,7 @@ export function TaskCard({
   onUpdate,
   onDelete,
   onComplete,
+  showProjectBadge = true,
 }: {
   task: Task;
   project?: Project;
@@ -26,6 +27,7 @@ export function TaskCard({
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
   onComplete: (id: string) => void;
+  showProjectBadge?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -38,7 +40,7 @@ export function TaskCard({
           <div className="mt-3 flex flex-wrap gap-2">
             <OptionBadge option={getTaskPriorityOption(task.priority)} />
             <OptionBadge option={getTaskStatusOption(task.status)} />
-            <Badge>{project?.name ?? task.category}</Badge>
+            {showProjectBadge ? <Badge tone={project ? "purple" : "slate"}>{project?.name ?? task.category}</Badge> : null}
             {task.startDate ? <Badge>{startDateLabel(task.startDate, task.startTime)}</Badge> : null}
             <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate, task.dueTime)}</Badge>
             {task.startDate ? <Badge>{durationLabel(task.startDate, task.dueDate)}</Badge> : null}

@@ -1,5 +1,5 @@
-import { GripVertical } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { FolderKanban, GripVertical } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskTable } from "./TaskTable";
@@ -17,6 +17,7 @@ export function TaskList({
   view = "cards",
   lockedProjectId,
   onReorder,
+  groupByProject = false,
 }: {
   tasks: Task[];
   projects: Project[];
@@ -27,10 +28,12 @@ export function TaskList({
   view?: TaskViewMode;
   lockedProjectId?: string;
   onReorder?: (orderedIds: string[]) => void;
+  groupByProject?: boolean;
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const dragScopeIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!draggedId || !onReorder) return;
@@ -39,7 +42,9 @@ export function TaskList({
       const position = pointerPositionRef.current;
       if (!position) return null;
       const element = document.elementFromPoint(position.x, position.y);
-      return element?.closest<HTMLElement>("[data-task-reorder-id]")?.dataset.taskReorderId ?? null;
+      const targetId = element?.closest<HTMLElement>("[data-task-reorder-id]")?.dataset.taskReorderId ?? null;
+      if (!targetId) return null;
+      return dragScopeIdsRef.current.length && !dragScopeIdsRef.current.includes(targetId) ? null : targetId;
     };
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -54,6 +59,7 @@ export function TaskList({
         onReorder(moveBefore(tasks.map((item) => item.id), draggedId, targetId));
       }
       pointerPositionRef.current = null;
+      dragScopeIdsRef.current = [];
       setDraggedId(null);
       setDragOverId(null);
     };
@@ -69,6 +75,9 @@ export function TaskList({
     };
   }, [draggedId, onReorder, tasks]);
 
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+  const taskGroups = useMemo(() => groupTasksByProject(tasks, projectById), [projectById, tasks]);
+
   if (!tasks.length) {
     return (
       <motion.div
@@ -82,10 +91,13 @@ export function TaskList({
     );
   }
 
-  const cards = (
+  const renderCards = (activeTasks: Task[], options?: { hideProjectBadge?: boolean }) => (
     <motion.div className="space-y-3" layout>
       <AnimatePresence initial={false}>
-      {tasks.map((task) => (
+      {activeTasks.map((task) => {
+        const project = task.projectId ? projectById.get(task.projectId) : undefined;
+
+        return (
         <motion.div
           key={task.id}
           data-task-reorder-id={task.id}
@@ -103,7 +115,7 @@ export function TaskList({
           onDrop={(event) => {
             event.preventDefault();
             if (!onReorder || !draggedId || draggedId === task.id) return;
-            onReorder(moveBefore(tasks.map((item) => item.id), draggedId, task.id));
+            onReorder(moveBefore(activeTasks.map((item) => item.id), draggedId, task.id));
             setDraggedId(null);
             setDragOverId(null);
           }}
@@ -123,10 +135,12 @@ export function TaskList({
                 if (event.button !== 0) return;
                 event.preventDefault();
                 pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+                dragScopeIdsRef.current = activeTasks.map((item) => item.id);
                 setDraggedId(task.id);
               }}
               onDragStart={(event) => {
                 setDraggedId(task.id);
+                dragScopeIdsRef.current = activeTasks.map((item) => item.id);
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", task.id);
               }}
@@ -139,16 +153,31 @@ export function TaskList({
             <TaskCard
               task={task}
               projects={projects}
-              project={projects.find((project) => project.id === task.projectId)}
+              project={project}
               onUpdate={onUpdate}
               onDelete={onDelete}
               onComplete={onComplete}
+              showProjectBadge={!options?.hideProjectBadge}
             />
           </div>
         </motion.div>
-      ))}
+        );
+      })}
       </AnimatePresence>
     </motion.div>
+  );
+
+  const cards = groupByProject ? (
+    <div className="space-y-4">
+      {taskGroups.map((group) => (
+        <section key={group.key} className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+          <ProjectTaskGroupHeader project={group.project} fallbackLabel={group.label} count={group.tasks.length} />
+          <div className="p-3 sm:p-4">{renderCards(group.tasks, { hideProjectBadge: Boolean(group.project) })}</div>
+        </section>
+      ))}
+    </div>
+  ) : (
+    renderCards(tasks)
   );
 
   if (view === "cards") return cards;
@@ -168,6 +197,61 @@ export function TaskList({
       </div>
     </>
   );
+}
+
+function ProjectTaskGroupHeader({ project, fallbackLabel, count }: { project?: Project; fallbackLabel: string; count: number }) {
+  const initials = getProjectInitials(project?.name ?? fallbackLabel);
+  const area = project?.area ?? "business";
+
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--brand-primary)_22%,var(--surface-raised)),var(--surface))] px-4 py-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--brand-gradient)] text-sm font-black text-white shadow-[var(--shadow-sm)]">
+          {project ? initials : <FolderKanban size={20} />}
+        </div>
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-bold text-[var(--text)] sm:text-lg">{project?.name ?? fallbackLabel}</h3>
+          <p className="truncate text-xs font-medium text-[var(--text-muted)] sm:text-sm">{project?.description || (project ? `${area} project` : "Tasks without a linked project")}</p>
+        </div>
+      </div>
+      <div className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
+        {count} {count === 1 ? "task" : "tasks"}
+      </div>
+    </div>
+  );
+}
+
+function groupTasksByProject(tasks: Task[], projectById: Map<string, Project>) {
+  const groups: { key: string; label: string; project?: Project; tasks: Task[] }[] = [];
+  const groupByKey = new Map<string, { key: string; label: string; project?: Project; tasks: Task[] }>();
+
+  tasks.forEach((task) => {
+    const project = task.projectId ? projectById.get(task.projectId) : undefined;
+    const key = project?.id ?? `category:${task.category}`;
+    let group = groupByKey.get(key);
+
+    if (!group) {
+      group = {
+        key,
+        label: project?.name ?? task.category,
+        project,
+        tasks: [],
+      };
+      groupByKey.set(key, group);
+      groups.push(group);
+    }
+
+    group.tasks.push(task);
+  });
+
+  return groups;
+}
+
+function getProjectInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "PR";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
 function moveBefore(ids: string[], draggedId: string, targetId: string) {

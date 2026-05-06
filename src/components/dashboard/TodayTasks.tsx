@@ -21,7 +21,15 @@ export function TodayTasks({
       <h2 className="text-xl font-semibold text-slate-950">Today's Tasks</h2>
       <p className="mt-2 text-sm text-slate-400">Task, goal, or personal chore</p>
       <div className="mt-6">
-        <TaskList tasks={tasks} projects={projects} onUpdate={onUpdate} onDelete={onDelete} onComplete={onComplete} emptyText="Nothing due today. Add a due date to keep work visible here." />
+        <TaskList
+          tasks={tasks}
+          projects={projects}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onComplete={onComplete}
+          emptyText="Nothing due today. Add a due date to keep work visible here."
+          groupByProject
+        />
       </div>
     </Card>
   );
