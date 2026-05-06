@@ -32,6 +32,48 @@ Never expose:
 
 If one of those secrets is ever pushed to GitHub, rotate it in the provider dashboard immediately. Removing it from a later commit is not enough because Git history may still contain it.
 
+## Final Desktop Release Audit
+
+The desktop app should be treated as a packaged frontend client. It must not include server-only secrets.
+
+Before building or publishing an installer:
+
+```bash
+git status --short
+git ls-files .env .env.local .vercel/.env.production.local
+git grep -n "SUPABASE_SERVICE_ROLE_KEY\|GOOGLE_CLIENT_SECRET\|RESEND_API_KEY\|CRON_SECRET" -- . ":(exclude).env.example"
+```
+
+Expected results:
+
+- `git status --short` should not show accidental `.env` or `.vercel` files.
+- `git ls-files ...` should return nothing for real local env files.
+- Secret-name matches may appear in docs, API code, and `.env.example`; real secret values must not appear in tracked files.
+
+Desktop reminders use local device settings and Windows toast permissions. They do not need Supabase service role keys, Google client secrets, Resend keys, or cron secrets in the packaged client.
+
+Public/client share routes must stay server-side API routes backed by service-role env vars in Vercel. They should only return read-only project/task payloads and project notes where `visibility` is `client`.
+
+Personal Hub resources and notes remain owner/member data behind Supabase Auth and RLS. They should not be exposed by public share APIs.
+
+## Manual Supabase SQL Checklist
+
+For a fresh Supabase project, run:
+
+```text
+supabase/schema.sql
+supabase/project-lifecycle-trash.sql
+supabase/project-notes.sql
+supabase/project-shares.sql
+supabase/client-share-links.sql
+supabase/share-passwords.sql
+supabase/personal-hub.sql
+supabase/feature-access.sql
+supabase/security-hardening.sql
+```
+
+Some existing Supabase projects may already have these migrations. Re-run only the idempotent scripts needed for missing tables, columns, policies, or grants.
+
 Run:
 
 ```text

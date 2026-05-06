@@ -2,17 +2,139 @@
 
 Use this file as the starting context for the next chat. The previous thread became very long and compacted multiple times, so the safest path is to treat this as the source of truth and avoid replaying old implementation loops.
 
+## Final Desktop Release Checkpoint - May 6, 2026
+
+This checkpoint supersedes the remaining-work list below where it conflicts.
+
+Completed in the final desktop release pass:
+
+- Added Tauri autostart support so Align can launch at OS login.
+- Added a Settings toggle: **Start with Windows**.
+- Autostart launches Align with `--background`, and the Tauri shell hides the window to tray on that launch path.
+- Existing tray behavior remains: close hides to tray, tray menu has Show/Hide/Quit, and reminders continue while the app is open or hidden to tray.
+- Documented the supported reminder model in `DESKTOP.md`: open, hidden-to-tray, or autostarted-after-login works; fully quit/off/asleep still needs server/email reminders.
+- Documented reinstall/update flow and Ubuntu GNOME build steps in `DESKTOP.md`.
+- Added final desktop release security audit notes and manual Supabase SQL checklist in `SECURITY.md`.
+- Built a fresh Windows desktop installer from current code.
+
+Fresh Windows build artifacts:
+
+```text
+C:\Users\Sharoz Ijaz\Documents\Codex\2026-04-27\files-mentioned-by-the-user-app\src-tauri\target\release\bundle\nsis\Align_0.2.0_x64-setup.exe
+C:\Users\Sharoz Ijaz\Documents\Codex\2026-04-27\files-mentioned-by-the-user-app\src-tauri\target\release\bundle\msi\Align_0.2.0_x64_en-US.msi
+```
+
+Recommended installer for local use:
+
+```text
+C:\Users\Sharoz Ijaz\Documents\Codex\2026-04-27\files-mentioned-by-the-user-app\src-tauri\target\release\bundle\nsis\Align_0.2.0_x64-setup.exe
+```
+
+Verification completed:
+
+```powershell
+npm run build
+Set-Location src-tauri
+cargo check
+Set-Location ..
+npm run desktop:build
+git diff --check
+```
+
+Results:
+
+- `npm run build`: passed
+- `cargo check`: passed
+- `npm run desktop:build`: passed
+- `git diff --check`: passed with only expected line-ending warnings
+- Security scan confirmed real `.env` and `.vercel` env files are not tracked.
+
+Current expected dirty files:
+
+- `DESKTOP.md`
+- `NEXT CHAT HANDOFF.md`
+- `SECURITY.md`
+- `package.json`
+- `package-lock.json`
+- `src/integrations/desktop/autostart.ts`
+- `src/pages/Settings.tsx`
+- `src-tauri/Cargo.toml`
+- `src-tauri/Cargo.lock`
+- `src-tauri/capabilities/default.json`
+- `src-tauri/src/lib.rs`
+
+Do not revisit accepted web features unless the user reports a bug.
+
+## Final Desktop Release Handoff - May 6, 2026
+
+This section is the current source of truth for the next chat. It supersedes older “remaining work” notes below where they conflict.
+
+### User-confirmed complete
+
+- Resource editing works.
+- Resource favorites work.
+- Sticky right-side resource preview behaves correctly.
+- Private project notes work as intended.
+- Client-visible project notes work as intended.
+- The current web app/product UI is accepted enough to move into final desktop release work.
+
+### Current remaining work
+
+1. **Refresh the desktop app build**
+   - The desktop app installed on the user’s machine still has an old layout.
+   - Build a fresh Windows desktop app from the current codebase.
+   - Provide the exact final `.exe`, `.msi`, or installer path after building.
+
+2. **Implement deeper/native desktop reminders**
+   - The user wants the desktop app to handle reminders more reliably.
+   - Preferred behavior: reminders should work while Align Desktop is open or running in the background/tray.
+   - If true reminders while the app is fully closed are not feasible without OS startup/background registration, document that clearly and implement the best native tray/background option.
+   - Do not break existing email reminders, Vercel cron reminders, or the web notification bell.
+
+3. **Final security check**
+   - Confirm no `.env` files, Supabase service role keys, Google client secrets, Resend keys, OAuth secrets, or passwords are committed.
+   - Confirm frontend code only exposes public `VITE_*` values.
+   - Confirm service-role logic stays server-only in API routes or Vercel env vars.
+   - Confirm public/client share links expose only intended read-only project data and client-visible notes.
+   - Confirm private project notes never appear in client share routes.
+   - Confirm Personal Hub resources/notes remain private to the signed-in owner/member.
+   - Review Supabase RLS expectations and document any SQL that must be run manually.
+
+4. **Cleanup and optimization**
+   - Keep changes focused; avoid another large UI rewrite.
+   - Remove debug logs or dead code if found.
+   - Run `npm run build`.
+   - Run `cargo check` inside `src-tauri` or via the repo’s desktop script if available.
+   - Run `git diff --check`.
+
+5. **Final desktop packaging**
+   - Windows expected workflow: `npm install` if needed, then `npm run build`, then `npm run desktop:build` or the repo’s Tauri build command.
+   - Expected output is under `src-tauri\target\release\bundle\...`.
+   - Give the user the exact installer/executable path.
+
+6. **Linux GNOME / Ubuntu build instructions**
+   - The user also uses Ubuntu GNOME and may want to compile Align there later.
+   - Document Linux setup at handoff: install Node.js, npm/pnpm as used by the repo, Rust, and Tauri Linux dependencies including WebKitGTK.
+   - Clone/pull repo, add required env vars locally, run install, web build, then Tauri build.
+   - Expected output is usually under `src-tauri/target/release/bundle/` as `.deb`, `.AppImage`, or equivalent.
+
+7. **Reinstall/update guidance**
+   - If the user reinstalls Align Desktop, data should come back after signing in with the same account because workspace data is stored in Supabase.
+   - The desktop app is a client shell; it does not need manual data restore unless Supabase sync is disabled.
+   - For future features: pull latest GitHub changes, ensure env vars exist, deploy web to Vercel, then rebuild the desktop installer.
+
+### Suggested prompt for the next chat
+
+“Read `NEXT CHAT HANDOFF.md` first. The web app is accepted and the user confirmed Resource editing, Favorites, sticky Resource preview, private notes, and client notes are working. Do not revisit those unless a bug appears. Focus on final desktop release: native/deeper desktop reminders, final security audit, cleanup/optimization, building a fresh Windows installer, and documenting reinstall/update plus Linux GNOME/Ubuntu build steps.”
+
 ## Verified Handoff Check - May 6, 2026
 
 This file was re-checked after the context reset so the next chat can start cleanly.
 
 Current repo status at the time of this check:
 
-- Modified: `src/components/notifications/DesktopNotificationBridge.tsx`
-- Modified: `src/integrations/desktop/notifications.ts`
-- Modified: `src/pages/Settings.tsx`
-- Modified: `src-tauri/src/lib.rs`
-- Untracked: `NEXT CHAT HANDOFF.md`
+- Current `git status --short` after this handoff update shows only this documentation file modified: `NEXT CHAT HANDOFF.md`.
+- Earlier source-file modifications mentioned in older context were already resolved before this final handoff update.
 
 Verification run after the reset:
 

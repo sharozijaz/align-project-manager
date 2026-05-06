@@ -3,6 +3,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, WindowEvent,
 };
+use tauri_plugin_autostart::MacosLauncher;
 
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -25,6 +26,10 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_main_window(app);
         }))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--background"]),
+        ))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -74,6 +79,9 @@ pub fn run() {
             }
 
             tray_builder.build(app)?;
+            if std::env::args().any(|arg| arg == "--background") {
+                hide_main_window(app.handle());
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -24,6 +24,7 @@ import {
   setDesktopNotificationsEnabled,
   type DesktopReminderHeartbeat,
 } from "../integrations/desktop/notifications";
+import { canUseDesktopAutostart, getDesktopAutostartEnabled, setDesktopAutostartEnabled } from "../integrations/desktop/autostart";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import {
@@ -60,6 +61,7 @@ export function Settings() {
   const [email, setEmail] = useState("");
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [desktopNotificationsEnabled, setDesktopNotificationsEnabledState] = useState(false);
+  const [desktopAutostartEnabled, setDesktopAutostartEnabledState] = useState(false);
   const [autoCleanTasks, setAutoCleanTasks] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_TASKS_KEY));
   const [autoCleanProjects, setAutoCleanProjects] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_PROJECTS_KEY));
   const [desktopNotificationMessage, setDesktopNotificationMessage] = useState("");
@@ -134,6 +136,11 @@ export function Settings() {
   useEffect(() => {
     setDesktopNotificationsEnabledState(getDesktopNotificationsEnabled());
     setDesktopReminderHeartbeatState(getDesktopReminderHeartbeat());
+    if (canUseDesktopAutostart()) {
+      void getDesktopAutostartEnabled()
+        .then(setDesktopAutostartEnabledState)
+        .catch(() => setDesktopAutostartEnabledState(false));
+    }
   }, []);
 
   useEffect(() => {
@@ -386,6 +393,27 @@ export function Settings() {
     setDesktopNotificationMessage(sent ? "Test notification sent." : "Could not send test notification. Check Windows notification permissions.");
   };
 
+  const updateDesktopAutostartPreference = async (enabled: boolean) => {
+    setDesktopNotificationMessage("");
+
+    try {
+      const saved = await setDesktopAutostartEnabled(enabled);
+      if (!saved) {
+        setDesktopNotificationMessage("Startup reminders are available in the installed desktop app.");
+        return;
+      }
+
+      setDesktopAutostartEnabledState(enabled);
+      setDesktopNotificationMessage(
+        enabled
+          ? "Align will start with Windows in the tray so desktop reminders can run after login."
+          : "Align will no longer start with Windows.",
+      );
+    } catch (error) {
+      setDesktopNotificationMessage(errorMessage(error, "Could not update Windows startup preference."));
+    }
+  };
+
   const updateTrashCleanupPreference = (
     key: string,
     enabled: boolean,
@@ -608,6 +636,23 @@ export function Settings() {
                 Last checked {new Date(desktopReminderHeartbeat.checkedAt).toLocaleString()}
               </p>
             ) : null}
+          </div>
+          <div className="mt-3 flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div>
+              <p className="font-semibold text-[var(--text)]">Start with Windows</p>
+              <p className="text-sm text-[var(--text-muted)]">
+                {canUseDesktopAutostart()
+                  ? "Launches Align hidden to tray after login so reminder checks keep running."
+                  : "Available in the installed desktop app."}
+              </p>
+            </div>
+            <Button
+              variant={desktopAutostartEnabled ? "secondary" : "ghost"}
+              onClick={() => void updateDesktopAutostartPreference(!desktopAutostartEnabled)}
+              disabled={!canUseDesktopAutostart()}
+            >
+              {desktopAutostartEnabled ? "Enabled" : "Paused"}
+            </Button>
           </div>
           {desktopNotificationMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{desktopNotificationMessage}</p> : null}
         </Card>
