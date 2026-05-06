@@ -35,15 +35,7 @@ export const taskPriorityOptions = [
 
 export const taskStatusOptions = [
   {
-    value: "in-progress",
-    label: "In Progress",
-    rank: 1,
-    bg: "#e0f2fe",
-    text: "#075985",
-    border: "#0ea5e9",
-  },
-  {
-    value: "not-started",
+    value: "not_started",
     label: "Not Started",
     rank: 0,
     bg: "#eff6ff",
@@ -51,16 +43,32 @@ export const taskStatusOptions = [
     border: "#60a5fa",
   },
   {
-    value: "approval-pending",
-    label: "Approval Pending",
-    rank: 5,
+    value: "in_progress",
+    label: "In Progress",
+    rank: 1,
+    bg: "#e0f2fe",
+    text: "#075985",
+    border: "#0ea5e9",
+  },
+  {
+    value: "delivered",
+    label: "Delivered",
+    rank: 2,
+    bg: "#ccfbf1",
+    text: "#115e59",
+    border: "#14b8a6",
+  },
+  {
+    value: "waiting",
+    label: "Waiting",
+    rank: 3,
     bg: "#fef3c7",
     text: "#92400e",
     border: "#f59e0b",
   },
   {
-    value: "under-review",
-    label: "Under Review",
+    value: "review",
+    label: "Review",
     rank: 4,
     bg: "#ede9fe",
     text: "#5b21b6",
@@ -69,7 +77,7 @@ export const taskStatusOptions = [
   {
     value: "approved",
     label: "Approved",
-    rank: 6,
+    rank: 5,
     bg: "#dcfce7",
     text: "#166534",
     border: "#22c55e",
@@ -77,58 +85,10 @@ export const taskStatusOptions = [
   {
     value: "done",
     label: "Done",
-    rank: 9,
+    rank: 6,
     bg: "#dcfce7",
     text: "#166534",
     border: "#22c55e",
-  },
-  {
-    value: "delivered",
-    label: "Delivered",
-    rank: 10,
-    bg: "#ccfbf1",
-    text: "#115e59",
-    border: "#14b8a6",
-  },
-  {
-    value: "postponed",
-    label: "Postponed",
-    rank: 8,
-    bg: "#f1f5f9",
-    text: "#334155",
-    border: "#94a3b8",
-  },
-  {
-    value: "cancelled",
-    label: "Cancelled",
-    rank: 11,
-    bg: "#f3f4f6",
-    text: "#4b5563",
-    border: "#9ca3af",
-  },
-  {
-    value: "waiting",
-    label: "Waiting",
-    rank: 7,
-    bg: "#fef3c7",
-    text: "#92400e",
-    border: "#f59e0b",
-  },
-  {
-    value: "blocked",
-    label: "Blocked",
-    rank: 3,
-    bg: "#fee2e2",
-    text: "#991b1b",
-    border: "#ef4444",
-  },
-  {
-    value: "review",
-    label: "Review",
-    rank: 2,
-    bg: "#ede9fe",
-    text: "#5b21b6",
-    border: "#8b5cf6",
   },
 ] as const;
 
@@ -212,9 +172,12 @@ export const normalizeTaskPriority = (priority: string): TaskPriorityValue =>
   priority === "critical" ? "urgent" : isKnownTaskPriority(priority) ? (priority as TaskPriorityValue) : "medium";
 
 export const normalizeTaskStatus = (status: string): TaskStatusValue => {
+  if (status === "not-started" || status === "backlog") return "not_started";
+  if (status === "in-progress") return "in_progress";
   if (status === "completed") return "done";
-  if (status === "backlog") return "not-started";
-  return isKnownTaskStatus(status) ? (status as TaskStatusValue) : "not-started";
+  if (status === "approval-pending" || status === "under-review") return "review";
+  if (status === "blocked" || status === "postponed" || status === "cancelled") return "waiting";
+  return isKnownTaskStatus(status) ? (status as TaskStatusValue) : "not_started";
 };
 
 export const isKnownTaskReminder = (reminder: string) =>
@@ -235,12 +198,11 @@ export const normalizeTaskRecurrence = (recurrence?: string): TaskRecurrenceValu
 export const getTaskRecurrenceOption = (recurrence?: string) =>
   taskRecurrenceOptions.find((option) => option.value === normalizeTaskRecurrence(recurrence)) ?? taskRecurrenceOptions[0];
 
-export const isTerminalTaskStatus = (status: string) =>
-  status === "done" || status === "delivered" || status === "cancelled" || status === "completed";
+export const isTerminalTaskStatus = (status: string) => normalizeTaskStatus(status) === "done";
 
 export const titleizeOption = (value: string) =>
   value
-    .split("-")
+    .split(/[-_]/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ") || "Unknown";

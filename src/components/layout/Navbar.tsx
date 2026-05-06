@@ -8,6 +8,7 @@ import {
   ListTodo,
   Settings,
   Shield,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -149,6 +150,20 @@ export function Navbar() {
                 >
                   <CircleHelp size={16} />
                   Help
+                </NavLink>
+                <NavLink
+                  to="/trash"
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                      isActive
+                        ? "align-gradient text-white"
+                        : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
+                    }`
+                  }
+                  onClick={() => setOpenMenu(null)}
+                >
+                  <Trash2 size={16} />
+                  Trash
                 </NavLink>
                 {access?.profile.role === "owner" && hasFeature("admin") ? (
                   <NavLink

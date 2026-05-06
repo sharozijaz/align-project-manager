@@ -1,5 +1,5 @@
 import type { CalendarEvent } from "../../types/calendar";
-import type { Project, ProjectNote } from "../../types/project";
+import type { Project, ProjectNote, ProjectStatus } from "../../types/project";
 import type { HubNote, HubResource } from "../../types/studio";
 import type { Task } from "../../types/task";
 import { normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../../config/taskOptions";
@@ -17,7 +17,7 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   name: project.name,
   description: project.description ?? null,
   area: normalizeProjectArea(project.area),
-  status: project.status,
+  status: normalizeProjectStatus(project.status),
   priority: normalizeTaskPriority(project.priority),
   start_date: project.startDate ?? null,
   start_time: normalizeTimeValue(project.startTime) ?? null,
@@ -25,6 +25,9 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   due_time: normalizeTimeValue(project.dueTime) ?? null,
   sort_order: project.sortOrder ?? null,
   notes: normalizeProjectNotes(project.notes),
+  completed_at: project.completedAt ?? null,
+  archived_at: project.archivedAt ?? null,
+  deleted_at: project.deletedAt ?? null,
   created_at: project.createdAt,
   updated_at: project.updatedAt,
 });
@@ -34,7 +37,7 @@ export const rowToProject = (row: ProjectRow): Project => ({
   name: row.name,
   description: row.description ?? undefined,
   area: normalizeProjectArea(row.area),
-  status: row.status,
+  status: normalizeProjectStatus(row.status),
   priority: row.priority,
   startDate: row.start_date ?? undefined,
   startTime: normalizeTimeValue(row.start_time),
@@ -42,6 +45,9 @@ export const rowToProject = (row: ProjectRow): Project => ({
   dueTime: normalizeTimeValue(row.due_time),
   sortOrder: row.sort_order ?? undefined,
   notes: normalizeProjectNotes(row.notes),
+  completedAt: row.completed_at ?? undefined,
+  archivedAt: row.archived_at ?? undefined,
+  deletedAt: row.deleted_at ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -175,6 +181,10 @@ function normalizeTimeValue(value?: string | null) {
 
 function normalizeProjectArea(value?: string | null) {
   return value === "personal" ? "personal" : "business";
+}
+
+function normalizeProjectStatus(value?: string | null): ProjectStatus {
+  return value === "completed" || value === "archived" ? value : "active";
 }
 
 function normalizeProjectNotes(value?: ProjectNote[] | null): ProjectNote[] {

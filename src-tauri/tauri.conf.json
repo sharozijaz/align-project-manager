@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Align",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "dev.sharoz.align",
   "build": {
     "frontendDist": "../dist",
@@ -19,6 +19,9 @@
         "minHeight": 720,
         "center": true,
         "resizable": true,
+        "decorations": true,
+        "theme": "Dark",
+        "backgroundColor": "#0b0a14",
         "fullscreen": false
       }
     ],
@@ -41,6 +44,13 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["align"]
+      }
     }
   }
 }

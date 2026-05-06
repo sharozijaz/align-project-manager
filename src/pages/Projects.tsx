@@ -1,45 +1,96 @@
-import { GripVertical, Plus } from "lucide-react";
+import { Archive, CheckCircle2, GripVertical, Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { ClientProjectsSharePanel } from "../components/projects/ClientProjectsSharePanel";
 import { ProjectCard } from "../components/projects/ProjectCard";
 import { ProjectForm } from "../components/projects/ProjectForm";
 import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { Select } from "../components/ui/Select";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
-import type { ProjectArea } from "../types/project";
+import type { Project, ProjectArea, ProjectStatus } from "../types/project";
 
 type ProjectAreaFilter = "all" | ProjectArea;
+type ProjectLifecycleFilter = Extract<ProjectStatus, "active" | "completed" | "archived">;
+type ProjectSort = "manual" | "updated" | "name" | "due";
 
 export function Projects() {
   const [creating, setCreating] = useState(false);
   const [areaFilter, setAreaFilter] = useState<ProjectAreaFilter>("all");
+  const [lifecycleFilter, setLifecycleFilter] = useState<ProjectLifecycleFilter>("active");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<ProjectSort>("manual");
+  const [completingProject, setCompletingProject] = useState<Project | null>(null);
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
-  const { projects, addProject, updateProject, deleteProject, reorderProjects } = useProjectStore();
+  const { projects, addProject, updateProject, deleteProject, reorderProjects, completeProject, archiveProject, restoreProject } = useProjectStore();
   const { tasks } = useTaskStore();
-  const businessCount = projects.filter((project) => (project.area ?? "business") === "business").length;
-  const personalCount = projects.filter((project) => project.area === "personal").length;
-  const visibleProjects = areaFilter === "all" ? projects : projects.filter((project) => (project.area ?? "business") === areaFilter);
+  const liveProjects = projects.filter((project) => !project.deletedAt);
+  const lifecycleProjects = liveProjects.filter((project) => project.status === lifecycleFilter);
+  const shareableProjects = liveProjects.filter((project) => project.status !== "archived");
+  const activeCount = liveProjects.filter((project) => project.status === "active").length;
+  const completedCount = liveProjects.filter((project) => project.status === "completed").length;
+  const archivedCount = liveProjects.filter((project) => project.status === "archived").length;
+  const businessCount = lifecycleProjects.filter((project) => (project.area ?? "business") === "business").length;
+  const personalCount = lifecycleProjects.filter((project) => project.area === "personal").length;
+  const search = searchQuery.trim().toLowerCase();
+  const filteredProjects = (areaFilter === "all" ? lifecycleProjects : lifecycleProjects.filter((project) => (project.area ?? "business") === areaFilter)).filter((project) =>
+    search ? `${project.name} ${project.description ?? ""}`.toLowerCase().includes(search) : true,
+  );
+  const visibleProjects = [...filteredProjects].sort((a, b) => {
+    if (sortMode === "manual") return 0;
+    if (sortMode === "name") return a.name.localeCompare(b.name);
+    if (sortMode === "due") return (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31");
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+  const lifecycleLabel = lifecycleFilter === "active" ? "active" : lifecycleFilter === "completed" ? "completed" : "archived";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
         title="Projects"
-        description="Group related tasks, track status, and keep active work easy to scan."
+        description="Manage active, completed, archived, and shared client projects."
         actions={
           <Button icon={<Plus size={16} />} onClick={() => setCreating(true)}>
             New Project
           </Button>
         }
       />
-      <div className="flex flex-wrap gap-2 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-2">
-        <ProjectAreaButton active={areaFilter === "all"} onClick={() => setAreaFilter("all")} label="All" count={projects.length} />
-        <ProjectAreaButton active={areaFilter === "business"} onClick={() => setAreaFilter("business")} label="Business" count={businessCount} />
-        <ProjectAreaButton active={areaFilter === "personal"} onClick={() => setAreaFilter("personal")} label="Personal" count={personalCount} />
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
+        <div className="grid gap-3 lg:grid-cols-[minmax(260px,1.2fr)_180px_180px_210px]">
+          <label className="relative block">
+            <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search projects..."
+              className="pl-10"
+            />
+          </label>
+          <Select value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as ProjectLifecycleFilter)} aria-label="Project status">
+            <option value="active">Status: Active ({activeCount})</option>
+            <option value="completed">Status: Completed ({completedCount})</option>
+            <option value="archived">Status: Archived ({archivedCount})</option>
+          </Select>
+          <Select value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as ProjectAreaFilter)} aria-label="Project category">
+            <option value="all">Category: All ({lifecycleProjects.length})</option>
+            <option value="business">Category: Business ({businessCount})</option>
+            <option value="personal">Category: Personal ({personalCount})</option>
+          </Select>
+          <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as ProjectSort)} aria-label="Project sort">
+            <option value="manual">Sort: Manual order</option>
+            <option value="updated">Sort: Recently updated</option>
+            <option value="name">Sort: Name</option>
+            <option value="due">Sort: Due date</option>
+          </Select>
+        </div>
       </div>
-      <ClientProjectsSharePanel projects={visibleProjects} />
+      {lifecycleFilter !== "archived" ? <ClientProjectsSharePanel projects={shareableProjects} /> : null}
+      <p className="text-sm font-medium text-[var(--text-muted)]">
+        Showing <span className="font-bold text-[var(--brand-primary)]">{visibleProjects.length}</span> {lifecycleLabel} projects
+      </p>
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         {visibleProjects.map((project) => (
           <div
@@ -53,7 +104,14 @@ export function Projects() {
             onDrop={(event) => {
               event.preventDefault();
               if (!draggedProjectId || draggedProjectId === project.id) return;
-              reorderProjects(mergeVisibleOrder(projects, visibleProjects, moveBefore(visibleProjects.map((item) => item.id), draggedProjectId, project.id)));
+              if (sortMode !== "manual") return;
+              const reorderedLiveIds = mergeVisibleOrder(
+                liveProjects,
+                visibleProjects,
+                moveBefore(visibleProjects.map((item) => item.id), draggedProjectId, project.id),
+              );
+              const deletedProjectIds = projects.filter((item) => item.deletedAt).map((item) => item.id);
+              reorderProjects([...reorderedLiveIds, ...deletedProjectIds]);
               setDraggedProjectId(null);
               setDragOverProjectId(null);
             }}
@@ -61,18 +119,22 @@ export function Projects() {
               setDraggedProjectId(null);
               setDragOverProjectId(null);
             }}
-            className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-all duration-200 ${draggedProjectId === project.id ? "scale-[0.99] opacity-45" : ""} ${dragOverProjectId === project.id ? "translate-y-1 border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
+              className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-all duration-200 ${draggedProjectId === project.id ? "scale-[0.99] opacity-45" : ""} ${dragOverProjectId === project.id ? "translate-y-1 border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
           >
             <button
               type="button"
-              draggable
-              title="Drag to reorder"
+              draggable={sortMode === "manual"}
+              disabled={sortMode !== "manual"}
+              title={sortMode === "manual" ? "Drag to reorder" : "Switch to manual order to drag"}
               aria-label="Drag to reorder project"
               onDragStart={(event) => {
+                if (sortMode !== "manual") return;
                 setDraggedProjectId(project.id);
                 event.dataTransfer.effectAllowed = "move";
               }}
-              className="flex w-8 shrink-0 cursor-grab items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing"
+              className={`hidden w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition sm:flex ${
+                sortMode === "manual" ? "cursor-grab hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing" : "cursor-not-allowed opacity-40"
+              }`}
             >
               <GripVertical size={16} />
             </button>
@@ -81,9 +143,17 @@ export function Projects() {
                 project={project}
                 tasks={tasks.filter((task) => !task.deletedAt)}
                 onUpdate={updateProject}
+                onComplete={setCompletingProject}
+                onArchive={(projectId) => {
+                  const project = projects.find((item) => item.id === projectId);
+                  if (window.confirm(`Archive "${project?.name ?? "this project"}"? It will move out of the active workspace.`)) {
+                    archiveProject(projectId);
+                  }
+                }}
+                onRestore={restoreProject}
                 onDelete={(projectId) => {
                   const project = projects.find((item) => item.id === projectId);
-                  if (window.confirm(`Delete "${project?.name ?? "this project"}"? Tasks will stay in your workspace.`)) {
+                  if (window.confirm(`Move "${project?.name ?? "this project"}" to Trash? You can restore it later.`)) {
                     deleteProject(projectId);
                   }
                 }}
@@ -94,7 +164,7 @@ export function Projects() {
       </div>
       {!visibleProjects.length ? (
         <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
-          {projects.length ? `No ${areaFilter} projects yet.` : "Create your first project to start grouping tasks."}
+          {liveProjects.length ? "No projects match these filters." : "Create your first project to start grouping tasks."}
         </div>
       ) : null}
       <Modal title="Create project" open={creating} onClose={() => setCreating(false)}>
@@ -106,34 +176,38 @@ export function Projects() {
           onCancel={() => setCreating(false)}
         />
       </Modal>
+      <Modal title="Mark project as completed?" open={Boolean(completingProject)} onClose={() => setCompletingProject(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--text-muted)]">
+            Keep the project visible in Completed, or complete it and move it straight into Archive.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Button
+              icon={<CheckCircle2 size={16} />}
+              onClick={() => {
+                if (completingProject) completeProject(completingProject.id);
+                setCompletingProject(null);
+              }}
+            >
+              Mark Completed
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Archive size={16} />}
+              onClick={() => {
+                if (completingProject) completeProject(completingProject.id, true);
+                setCompletingProject(null);
+              }}
+            >
+              Mark Completed & Archive
+            </Button>
+            <Button variant="ghost" onClick={() => setCompletingProject(null)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
-  );
-}
-
-function ProjectAreaButton({
-  active,
-  onClick,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-4 text-sm font-bold transition ${
-        active
-          ? "bg-[var(--brand-primary)] text-white shadow-[var(--shadow-sm)]"
-          : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
-      }`}
-    >
-      <span>{label}</span>
-      <span className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-white/20 text-white" : "bg-[var(--badge-bg)] text-[var(--text-soft)]"}`}>{count}</span>
-    </button>
   );
 }
 

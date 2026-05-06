@@ -1,6 +1,7 @@
 import type { ProjectNote } from "../../types/project";
 import type { AppRole, FeatureKey } from "../../features/access/featureRegistry";
 import type { HubResourceType } from "../../types/studio";
+import type { ProjectStatus } from "../../types/project";
 import type { TaskCategory, TaskPriority, TaskRecurrence, TaskReminder, TaskStatus } from "../../types/task";
 
 export interface Database {
@@ -55,7 +56,7 @@ export interface Database {
           name: string;
           description: string | null;
           area: "business" | "personal";
-          status: "active" | "paused" | "completed";
+          status: ProjectStatus;
           priority: TaskPriority;
           start_date: string | null;
           start_time: string | null;
@@ -63,6 +64,9 @@ export interface Database {
           due_time: string | null;
           sort_order: number | null;
           notes: ProjectNote[] | null;
+          completed_at: string | null;
+          archived_at: string | null;
+          deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -72,7 +76,7 @@ export interface Database {
           name: string;
           description?: string | null;
           area?: "business" | "personal";
-          status: "active" | "paused" | "completed";
+          status: ProjectStatus;
           priority: TaskPriority;
           start_date?: string | null;
           start_time?: string | null;
@@ -80,6 +84,9 @@ export interface Database {
           due_time?: string | null;
           sort_order?: number | null;
           notes?: ProjectNote[] | null;
+          completed_at?: string | null;
+          archived_at?: string | null;
+          deleted_at?: string | null;
           created_at: string;
           updated_at: string;
         };

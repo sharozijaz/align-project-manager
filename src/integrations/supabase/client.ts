@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { DESKTOP_AUTH_REDIRECT_URL, isTauriRuntime } from "../desktop/runtime";
 import type { Database } from "./types";
 
 const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -46,10 +47,10 @@ export const appUrl = normalizeAppUrl(rawAppUrl);
 const getRuntimeRedirectUrl = () => {
   if (typeof window === "undefined") return "";
 
-  const { origin, protocol } = window.location;
+  const { origin } = window.location;
 
-  if (protocol === "tauri:" || origin.includes("tauri.localhost")) {
-    return "https://tauri.localhost/";
+  if (isTauriRuntime()) {
+    return DESKTOP_AUTH_REDIRECT_URL;
   }
 
   if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
@@ -66,6 +67,7 @@ export const supabase = isSupabaseConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        flowType: "pkce",
       },
     })
   : null;

@@ -1,15 +1,22 @@
 import { Outlet, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { AuthGate } from "../components/auth/AuthGate";
 import { Navbar } from "../components/layout/Navbar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
+import { DesktopNotificationBridge } from "../components/notifications/DesktopNotificationBridge";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
 import { useThemeStore } from "../store/themeStore";
+import { cleanupTrash } from "../utils/trashCleanup";
 
 export function App() {
   const theme = useThemeStore((state) => state.theme);
   const location = useLocation();
+
+  useEffect(() => {
+    cleanupTrash();
+  }, []);
 
   return (
     <AuthGate>
@@ -32,6 +39,7 @@ export function App() {
             </motion.main>
             <WorkspaceAutoSync />
             <GoogleCalendarAutoSync />
+            <DesktopNotificationBridge />
             <DeletedTaskToast />
           </div>
         </div>

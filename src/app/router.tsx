@@ -71,6 +71,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "trash",
+        lazy: async () => {
+          const { Trash } = await import("../pages/Trash");
+          return { Component: () => <RequireFeature feature="project_management"><Trash /></RequireFeature> };
+        },
+      },
+      {
         path: "hub",
         lazy: async () => {
           const { PersonalHub } = await import("../pages/PersonalHub");

@@ -7,7 +7,7 @@ import type { Project } from "../../types/project";
 import type { Task } from "../../types/task";
 
 export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks: Task[] }) {
-  const active = projects.filter((project) => project.status !== "completed").slice(0, 4);
+  const active = projects.filter((project) => project.status === "active" && !project.deletedAt).slice(0, 4);
 
   return (
     <Card className="overflow-hidden p-5 sm:p-6">

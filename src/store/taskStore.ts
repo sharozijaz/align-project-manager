@@ -4,6 +4,7 @@ import { addDays, addMonths, addWeeks, addYears, differenceInCalendarDays, forma
 import { demoTasks } from "./demoData";
 import { isTerminalTaskStatus, normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
+import { isDeletedBeyondRetention } from "../utils/trash";
 
 interface TaskState {
   tasks: Task[];
@@ -13,6 +14,7 @@ interface TaskState {
   deleteTask: (id: string) => void;
   restoreTask: (id: string) => void;
   permanentlyDeleteTask: (id: string) => void;
+  cleanupDeletedTasks: (retentionDays: number) => void;
   completeTask: (id: string) => void;
   reorderTasks: (orderedIds: string[]) => void;
   dismissDeleteNotice: () => void;
@@ -32,6 +34,8 @@ export const useTaskStore = create<TaskState>()(
           tasks: [
             {
               ...input,
+              priority: normalizeTaskPriority(input.priority),
+              status: normalizeTaskStatus(input.status),
               reminder: normalizeTaskReminder(input.reminder),
               recurrence: normalizeTaskRecurrence(input.recurrence),
               sortOrder: nextTopSortOrder(state.tasks),
@@ -49,6 +53,8 @@ export const useTaskStore = create<TaskState>()(
               ? {
                   ...task,
                   ...updates,
+                  ...(updates.priority ? { priority: normalizeTaskPriority(updates.priority) } : {}),
+                  ...(updates.status ? { status: normalizeTaskStatus(updates.status) } : {}),
                   ...(updates.reminder ? { reminder: normalizeTaskReminder(updates.reminder) } : {}),
                   ...(updates.recurrence ? { recurrence: normalizeTaskRecurrence(updates.recurrence) } : {}),
                   updatedAt: stamp(),
@@ -74,6 +80,15 @@ export const useTaskStore = create<TaskState>()(
         set((state) => ({
           lastDeletedTaskId: state.lastDeletedTaskId === taskId ? undefined : state.lastDeletedTaskId,
           tasks: state.tasks.filter((task) => task.id !== taskId),
+        })),
+      cleanupDeletedTasks: (retentionDays) =>
+        set((state) => ({
+          lastDeletedTaskId:
+            state.lastDeletedTaskId &&
+            state.tasks.some((task) => task.id === state.lastDeletedTaskId && isDeletedBeyondRetention(task.deletedAt, retentionDays))
+              ? undefined
+              : state.lastDeletedTaskId,
+          tasks: state.tasks.filter((task) => !isDeletedBeyondRetention(task.deletedAt, retentionDays)),
         })),
       completeTask: (taskId) =>
         set((state) => {
@@ -144,7 +159,7 @@ function createNextRecurringTask(task: Task, createdAt: string): Task | null {
   return {
     ...task,
     id: id(),
-    status: "not-started",
+    status: "not_started",
     startDate: nextRecurringStartDate(task.startDate, task.dueDate, nextDueDate) ?? undefined,
     dueDate: nextDueDate,
     sortOrder: task.sortOrder,

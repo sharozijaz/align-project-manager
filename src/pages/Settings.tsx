@@ -1,5 +1,6 @@
-import { CalendarDays, Cloud, Download, Mail, Palette, RotateCcw, Trash2, Upload, UserRound } from "lucide-react";
+import { BellRing, CalendarDays, Cloud, Download, Mail, Palette, Trash2, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -14,6 +15,13 @@ import { useTaskStore } from "../store/taskStore";
 import { themeOptions, useThemeStore } from "../store/themeStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
+import {
+  canUseDesktopNotifications,
+  getDesktopNotificationsEnabled,
+  requestDesktopNotificationPermission,
+  sendDesktopNotification,
+  setDesktopNotificationsEnabled,
+} from "../integrations/desktop/notifications";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import {
@@ -28,8 +36,15 @@ import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkC
 import { dateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
 import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup } from "../utils/storage";
-import { priorityTone } from "../utils/taskVisuals";
 import { appBuild, appVersion } from "../utils/appVersion";
+import {
+  AUTO_CLEANUP_DELETED_PROJECTS_KEY,
+  AUTO_CLEANUP_DELETED_TASKS_KEY,
+  getTrashCleanupPreference,
+  setTrashCleanupPreference,
+  TRASH_PROJECT_RETENTION_DAYS,
+  TRASH_TASK_RETENTION_DAYS,
+} from "../utils/trash";
 
 export function Settings() {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -42,11 +57,15 @@ export function Settings() {
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
+  const [desktopNotificationsEnabled, setDesktopNotificationsEnabledState] = useState(false);
+  const [autoCleanTasks, setAutoCleanTasks] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_TASKS_KEY));
+  const [autoCleanProjects, setAutoCleanProjects] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_PROJECTS_KEY));
+  const [desktopNotificationMessage, setDesktopNotificationMessage] = useState("");
   const [preferenceMessage, setPreferenceMessage] = useState("");
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
   const { projects, replaceProjects } = useProjectStore();
-  const { tasks, restoreTask, permanentlyDeleteTask, replaceTasks } = useTaskStore();
+  const { tasks, replaceTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
   const { resources, notes, replaceResources, replaceNotes } = useStudioStore();
   const syncState = useSyncStore();
@@ -56,7 +75,6 @@ export function Settings() {
   const activeTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
   const googleReadiness = getGoogleCalendarReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
-  const deletedTasks = tasks.filter((task) => task.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -109,6 +127,10 @@ export function Settings() {
       cancelled = true;
     };
   }, [session]);
+
+  useEffect(() => {
+    setDesktopNotificationsEnabledState(getDesktopNotificationsEnabled());
+  }, []);
 
   const exportData = () => {
     const backup = createWorkspaceBackup({ tasks, projects, events });
@@ -326,6 +348,37 @@ export function Settings() {
     }
   };
 
+  const updateDesktopNotificationPreference = async (enabled: boolean) => {
+    setDesktopNotificationMessage("");
+
+    if (enabled) {
+      const permissionGranted = await requestDesktopNotificationPermission();
+      if (!permissionGranted) {
+        setDesktopNotificationMessage("Windows notification permission was not granted.");
+        return;
+      }
+    }
+
+    setDesktopNotificationsEnabled(enabled);
+    setDesktopNotificationsEnabledState(enabled);
+    setDesktopNotificationMessage(enabled ? "Desktop notifications enabled on this PC." : "Desktop notifications paused on this PC.");
+  };
+
+  const sendTestDesktopNotification = async () => {
+    setDesktopNotificationMessage("");
+    const sent = await sendDesktopNotification("Align test notification", "Desktop reminders are working on this PC.");
+    setDesktopNotificationMessage(sent ? "Test notification sent." : "Could not send test notification. Check Windows notification permissions.");
+  };
+
+  const updateTrashCleanupPreference = (
+    key: string,
+    enabled: boolean,
+    setter: (value: boolean) => void,
+  ) => {
+    setTrashCleanupPreference(key, enabled);
+    setter(enabled);
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
@@ -496,6 +549,35 @@ export function Settings() {
           {preferenceMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{preferenceMessage}</p> : null}
         </Card>
         <Card className="p-4 sm:p-5 lg:col-span-2">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><BellRing size={18} /> Desktop Notifications</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            Windows toast notifications mirror the same reminder bell items while the desktop app is open.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div>
+              <p className="font-semibold text-[var(--text)]">Show Windows reminders</p>
+              <p className="text-sm text-[var(--text-muted)]">
+                {canUseDesktopNotifications() ? "Saved on this device." : "Available in the installed desktop app."}
+              </p>
+            </div>
+            <Button
+              variant={desktopNotificationsEnabled ? "secondary" : "ghost"}
+              onClick={() => void updateDesktopNotificationPreference(!desktopNotificationsEnabled)}
+              disabled={!canUseDesktopNotifications()}
+            >
+              {desktopNotificationsEnabled ? "Enabled" : "Paused"}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => void sendTestDesktopNotification()}
+              disabled={!canUseDesktopNotifications() || !desktopNotificationsEnabled}
+            >
+              Send test
+            </Button>
+          </div>
+          {desktopNotificationMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{desktopNotificationMessage}</p> : null}
+        </Card>
+        <Card className="p-4 sm:p-5 lg:col-span-2">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
             <Cloud size={18} /> Supabase Sync
           </h2>
@@ -568,62 +650,61 @@ export function Settings() {
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div>
             <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
-              <Trash2 size={18} /> Deleted Tasks
+              <Trash2 size={18} /> Data Cleanup Settings
             </h2>
             <p className="mt-3 text-sm text-[var(--text-muted)]">
-              Restore accidentally deleted tasks or permanently remove them from this workspace.
+              Trash keeps deleted projects and tasks recoverable before permanent cleanup.
             </p>
           </div>
-          <Badge tone={deletedTasks.length ? "red" : "slate"}>{deletedTasks.length} in bin</Badge>
+          <Link
+            to="/trash"
+            className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+          >
+            Open Trash
+          </Link>
         </div>
-        <div className="mt-5 space-y-3">
-          {deletedTasks.length ? (
-            deletedTasks.map((task) => {
-              const project = projects.find((item) => item.id === task.projectId);
-
-              return (
-                <div
-                  key={task.id}
-                  className="flex flex-col justify-between gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:p-4"
-                >
-                  <div className="min-w-0 overflow-hidden">
-                    <h3 className="break-words font-semibold text-[var(--text)]">{task.title}</h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge tone={priorityTone(task.priority)}>{task.priority}</Badge>
-                      <Badge>{project?.name ?? task.category}</Badge>
-                      <Badge>{dateLabel(task.dueDate)}</Badge>
-                      <Badge tone="red">Deleted {task.deletedAt ? dateLabel(task.deletedAt.slice(0, 10)) : ""}</Badge>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:flex">
-                    <Button variant="secondary" icon={<RotateCcw size={16} />} onClick={() => restoreTask(task.id)}>
-                      Restore
-                    </Button>
-                    <Button
-                      variant="danger"
-                      icon={<Trash2 size={16} />}
-                      onClick={() => {
-                        if (window.confirm(`Permanently delete "${task.title}"? This cannot be undone.`)) {
-                          permanentlyDeleteTask(task.id);
-                        }
-                      }}
-                    >
-                      Delete Forever
-                    </Button>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center text-sm text-[var(--text-muted)]">
-              No deleted tasks. When you delete a task, it will appear here for recovery.
-            </div>
-          )}
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <CleanupToggle
+            label={`Auto-delete deleted tasks after ${TRASH_TASK_RETENTION_DAYS} days`}
+            description="Keeps accidental task deletes recoverable for a month."
+            enabled={autoCleanTasks}
+            onToggle={(enabled) => updateTrashCleanupPreference(AUTO_CLEANUP_DELETED_TASKS_KEY, enabled, setAutoCleanTasks)}
+          />
+          <CleanupToggle
+            label={`Auto-delete deleted projects after ${TRASH_PROJECT_RETENTION_DAYS} days`}
+            description="Projects stay in Trash longer because they carry more context."
+            enabled={autoCleanProjects}
+            onToggle={(enabled) => updateTrashCleanupPreference(AUTO_CLEANUP_DELETED_PROJECTS_KEY, enabled, setAutoCleanProjects)}
+          />
         </div>
       </Card>
       <p className="pb-2 text-center text-xs text-[var(--text-soft)]">
         Align v{appVersion} · Build {appBuild}
       </p>
+    </div>
+  );
+}
+
+function CleanupToggle({
+  label,
+  description,
+  enabled,
+  onToggle,
+}: {
+  label: string;
+  description: string;
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-semibold text-[var(--text)]">{label}</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">{description}</p>
+      </div>
+      <Button variant={enabled ? "secondary" : "ghost"} onClick={() => onToggle(!enabled)}>
+        {enabled ? "Enabled" : "Paused"}
+      </Button>
     </div>
   );
 }

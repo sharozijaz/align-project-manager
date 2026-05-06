@@ -1,13 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { demoProjects } from "./demoData";
-import type { Project, ProjectInput } from "../types/project";
+import type { Project, ProjectInput, ProjectStatus } from "../types/project";
+import { isDeletedBeyondRetention } from "../utils/trash";
 
 interface ProjectState {
   projects: Project[];
   addProject: (input: ProjectInput) => void;
   updateProject: (id: string, updates: Partial<ProjectInput>) => void;
+  completeProject: (id: string, archive?: boolean) => void;
+  archiveProject: (id: string) => void;
+  restoreProject: (id: string) => void;
   deleteProject: (id: string) => void;
+  permanentlyDeleteProject: (id: string) => void;
+  cleanupDeletedProjects: (retentionDays: number) => void;
   reorderProjects: (orderedIds: string[]) => void;
   replaceProjects: (projects: Project[]) => void;
 }
@@ -24,6 +30,7 @@ export const useProjectStore = create<ProjectState>()(
           projects: [
             {
               ...input,
+              status: normalizeProjectStatus(input.status),
               id: id(),
               sortOrder: nextTopSortOrder(state.projects),
               createdAt: stamp(),
@@ -35,11 +42,70 @@ export const useProjectStore = create<ProjectState>()(
       updateProject: (projectId, updates) =>
         set((state) => ({
           projects: state.projects.map((project) =>
-            project.id === projectId ? { ...project, ...updates, updatedAt: stamp() } : project,
+            project.id === projectId ? applyProjectUpdates(project, updates) : project,
+          ),
+        })),
+      completeProject: (projectId, archive = false) =>
+        set((state) => {
+          const now = stamp();
+          return {
+            projects: state.projects.map((project) =>
+              project.id === projectId
+                ? {
+                    ...project,
+                    status: archive ? "archived" : "completed",
+                    completedAt: project.completedAt ?? now,
+                    archivedAt: archive ? (project.archivedAt ?? now) : project.archivedAt,
+                    deletedAt: undefined,
+                    updatedAt: now,
+                  }
+                : project,
+            ),
+          };
+        }),
+      archiveProject: (projectId) =>
+        set((state) => {
+          const now = stamp();
+          return {
+            projects: state.projects.map((project) =>
+              project.id === projectId
+                ? {
+                    ...project,
+                    status: "archived",
+                    archivedAt: project.archivedAt ?? now,
+                    deletedAt: undefined,
+                    updatedAt: now,
+                  }
+                : project,
+            ),
+          };
+        }),
+      restoreProject: (projectId) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  status: project.deletedAt ? normalizeProjectStatus(project.status) : "active",
+                  archivedAt: project.deletedAt ? project.archivedAt : undefined,
+                  deletedAt: undefined,
+                  updatedAt: stamp(),
+                }
+              : project,
           ),
         })),
       deleteProject: (projectId) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId ? { ...project, deletedAt: stamp(), updatedAt: stamp() } : project,
+          ),
+        })),
+      permanentlyDeleteProject: (projectId) =>
         set((state) => ({ projects: state.projects.filter((project) => project.id !== projectId) })),
+      cleanupDeletedProjects: (retentionDays) =>
+        set((state) => ({
+          projects: state.projects.filter((project) => !isDeletedBeyondRetention(project.deletedAt, retentionDays)),
+        })),
       reorderProjects: (orderedIds) =>
         set((state) => {
           const order = new Map(orderedIds.map((projectId, index) => [projectId, index]));
@@ -55,6 +121,7 @@ export const useProjectStore = create<ProjectState>()(
             .map((project, index) => ({
               ...project,
               area: project.area ?? "business",
+              status: normalizeProjectStatus(project.status),
               sortOrder: Number.isFinite(project.sortOrder) ? project.sortOrder : index,
             }))
             .sort(compareSortOrder),
@@ -71,4 +138,40 @@ function compareSortOrder(a: Project, b: Project) {
 function nextTopSortOrder(projects: Project[]) {
   const orders = projects.map((project) => project.sortOrder).filter((value): value is number => Number.isFinite(value));
   return orders.length ? Math.min(...orders) - 1 : 0;
+}
+
+function normalizeProjectStatus(status?: string): ProjectStatus {
+  return status === "completed" || status === "archived" ? status : "active";
+}
+
+function applyProjectUpdates(project: Project, updates: Partial<ProjectInput>): Project {
+  const now = stamp();
+  const nextStatus = updates.status ? normalizeProjectStatus(updates.status) : normalizeProjectStatus(project.status);
+  const next: Project = {
+    ...project,
+    ...updates,
+    status: nextStatus,
+    updatedAt: now,
+  };
+
+  if (updates.status) {
+    if (nextStatus === "completed") {
+      next.completedAt = project.completedAt ?? now;
+      next.archivedAt = undefined;
+      next.deletedAt = undefined;
+    }
+
+    if (nextStatus === "archived") {
+      next.archivedAt = project.archivedAt ?? now;
+      next.deletedAt = undefined;
+    }
+
+    if (nextStatus === "active") {
+      next.completedAt = undefined;
+      next.archivedAt = undefined;
+      next.deletedAt = undefined;
+    }
+  }
+
+  return next;
 }

@@ -41,6 +41,8 @@ type ResourceFormState = {
   notes: string;
 };
 
+type ResourceFilter = HubResourceType | "all" | "favorites";
+
 const emptyResourceForm: ResourceFormState = {
   title: "",
   url: "",
@@ -90,7 +92,7 @@ export function PersonalHub() {
   const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote } = useStudioStore();
   const [view, setView] = useState<HubView>("resources");
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<HubResourceType | "all">("all");
+  const [type, setType] = useState<ResourceFilter>("all");
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
@@ -108,7 +110,8 @@ export function PersonalHub() {
     () =>
       resources.filter((item) => {
         const haystack = `${item.title} ${item.url ?? ""} ${item.collection ?? ""} ${item.tags ?? ""} ${item.notes ?? ""}`.toLowerCase();
-        return (type === "all" || item.type === type) && haystack.includes(query.toLowerCase());
+        const matchesFilter = type === "all" || (type === "favorites" ? item.favorite : item.type === type);
+        return matchesFilter && haystack.includes(query.toLowerCase());
       }),
     [query, resources, type],
   );
@@ -119,6 +122,7 @@ export function PersonalHub() {
   );
 
   const collections = useMemo(() => Array.from(new Set(resources.map((item) => item.collection).filter(Boolean))) as string[], [resources]);
+  const favoriteResourceCount = useMemo(() => resources.filter((item) => item.favorite).length, [resources]);
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
   const selectedResource = selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId) ?? null : null;
 
@@ -231,7 +235,7 @@ export function PersonalHub() {
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
+      <div className={`grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)] ${view === "resources" ? "2xl:grid-cols-[260px_minmax(0,1fr)_400px]" : ""}`}>
         <aside className="space-y-4">
           <Card className="p-4">
             <div className="flex items-center gap-3">
@@ -265,6 +269,15 @@ export function PersonalHub() {
                   count={resources.filter((resource) => resource.type === item.value).length}
                 />
               ))}
+              <SidebarButton
+                active={view === "resources" && type === "favorites"}
+                onClick={() => {
+                  setView("resources");
+                  setType("favorites");
+                }}
+                label="Favorites"
+                count={favoriteResourceCount}
+              />
               <SidebarButton active={view === "notes"} onClick={() => setView("notes")} label="Notes" count={notes.length} />
             </div>
           </Card>
@@ -302,6 +315,9 @@ export function PersonalHub() {
                     {item.label}
                   </FilterChip>
                 ))}
+                <FilterChip active={type === "favorites"} onClick={() => setType("favorites")}>
+                  Favorites
+                </FilterChip>
               </div>
             ) : null}
           </Card>
@@ -355,48 +371,22 @@ export function PersonalHub() {
 
           {view === "resources" ? (
             filteredResources.length ? (
-              <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 {filteredResources.map((item) => {
                   const isSelected = selectedResourceId === item.id;
-                  const isEditing = editingResourceId === item.id;
                   return (
-                    <div key={item.id} className="contents">
-                      <ResourceCard
-                        item={item}
-                        selected={isSelected}
-                        onSelect={() => {
-                          setSelectedResourceId(isSelected ? null : item.id);
-                          if (isSelected) setEditingResourceId(null);
-                        }}
-                        onEdit={() => startEditingResource(item)}
-                        onDelete={() => {
-                          deleteResource(item.id);
-                          if (selectedResourceId === item.id) setSelectedResourceId(null);
-                        }}
-                        onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
-                      />
-                      {isSelected ? (
-                        <div className="md:col-span-2 2xl:col-span-3">
-                          <ResourceDetailInline
-                            item={selectedResource ?? item}
-                            isEditing={isEditing}
-                            form={resourceForm}
-                            onFormChange={setResourceForm}
-                            onStartEdit={() => startEditingResource(selectedResource ?? item)}
-                            onCancelEdit={() => {
-                              setEditingResourceId(null);
-                              setResourceForm(emptyResourceForm);
-                            }}
-                            onSaveEdit={saveEditingResource}
-                            onDelete={() => {
-                              deleteResource(item.id);
-                              setSelectedResourceId(null);
-                            }}
-                            onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
+                    <ResourceCard
+                      key={item.id}
+                      item={item}
+                      selected={isSelected}
+                      onSelect={() => setSelectedResourceId(item.id)}
+                      onEdit={() => startEditingResource(item)}
+                      onDelete={() => {
+                        deleteResource(item.id);
+                        if (selectedResourceId === item.id) setSelectedResourceId(null);
+                      }}
+                      onToggleFavorite={() => updateResource(item.id, { favorite: !item.favorite })}
+                    />
                   );
                 })}
               </div>
@@ -419,6 +409,69 @@ export function PersonalHub() {
             />
           )}
         </main>
+
+        {view === "resources" ? (
+          <aside className="hidden 2xl:block">
+            <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto pr-1">
+              {selectedResource ? (
+                <ResourceDetailInline
+                  compact
+                  item={selectedResource}
+                  isEditing={editingResourceId === selectedResource.id}
+                  form={resourceForm}
+                  onFormChange={setResourceForm}
+                  onStartEdit={() => startEditingResource(selectedResource)}
+                  onCancelEdit={() => {
+                    setEditingResourceId(null);
+                    setResourceForm(emptyResourceForm);
+                  }}
+                  onSaveEdit={saveEditingResource}
+                  onDelete={() => {
+                    deleteResource(selectedResource.id);
+                    setSelectedResourceId(null);
+                  }}
+                  onToggleFavorite={() => updateResource(selectedResource.id, { favorite: !selectedResource.favorite })}
+                />
+              ) : (
+                <Card className="p-5">
+                  <div className="grid min-h-72 place-items-center rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] p-6 text-center">
+                    <div>
+                      <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--button-secondary-bg)] text-[var(--brand-primary)]">
+                        <ExternalLink size={18} />
+                      </span>
+                      <h2 className="mt-4 font-display text-lg font-bold text-[var(--text)]">Select a resource</h2>
+                      <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                        Click any resource card to preview its link, notes, tags, and actions here while the grid stays in place.
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </aside>
+        ) : null}
+
+        {view === "resources" && selectedResource ? (
+          <div className="2xl:hidden">
+            <ResourceDetailInline
+              item={selectedResource}
+              isEditing={editingResourceId === selectedResource.id}
+              form={resourceForm}
+              onFormChange={setResourceForm}
+              onStartEdit={() => startEditingResource(selectedResource)}
+              onCancelEdit={() => {
+                setEditingResourceId(null);
+                setResourceForm(emptyResourceForm);
+              }}
+              onSaveEdit={saveEditingResource}
+              onDelete={() => {
+                deleteResource(selectedResource.id);
+                setSelectedResourceId(null);
+              }}
+              onToggleFavorite={() => updateResource(selectedResource.id, { favorite: !selectedResource.favorite })}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -657,6 +710,7 @@ function ResourceCard({
 }
 
 function ResourceDetailInline({
+  compact = false,
   item,
   isEditing,
   form,
@@ -667,6 +721,7 @@ function ResourceDetailInline({
   onDelete,
   onToggleFavorite,
 }: {
+  compact?: boolean;
   item: HubResource;
   isEditing: boolean;
   form: ResourceFormState;
@@ -677,6 +732,13 @@ function ResourceDetailInline({
   onDelete: () => void;
   onToggleFavorite: () => void;
 }) {
+  const editFieldGridClass = compact ? "grid gap-3" : "grid gap-3 lg:grid-cols-[1fr_1fr_180px]";
+  const editMetaGridClass = compact ? "grid gap-3" : "grid gap-3 lg:grid-cols-2";
+  const detailLayoutClass = compact ? "grid gap-4 p-4" : "grid gap-5 p-5 lg:grid-cols-[280px_minmax(0,1fr)]";
+  const previewCardClass = compact
+    ? "flex min-h-44 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.38),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface))] p-5"
+    : "flex min-h-48 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.38),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface))] p-5";
+
   if (isEditing) {
     return (
       <Card className="border-[var(--brand-primary)] bg-[var(--surface-raised)] p-4">
@@ -688,7 +750,7 @@ function ResourceDetailInline({
           <Button variant="ghost" icon={<X size={16} />} onClick={onCancelEdit} aria-label="Cancel editing" />
         </div>
         <div className="grid gap-3">
-          <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px]">
+          <div className={editFieldGridClass}>
             <Input value={form.title} onChange={(event) => onFormChange({ ...form, title: event.target.value })} placeholder="Resource title" />
             <Input value={form.url} onChange={(event) => onFormChange({ ...form, url: event.target.value })} placeholder="https://..." />
             <Select value={form.type} onChange={(event) => onFormChange({ ...form, type: event.target.value as HubResourceType })}>
@@ -699,7 +761,7 @@ function ResourceDetailInline({
               ))}
             </Select>
           </div>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className={editMetaGridClass}>
             <Input value={form.collection} onChange={(event) => onFormChange({ ...form, collection: event.target.value })} placeholder="Collection" />
             <Input value={form.tags} onChange={(event) => onFormChange({ ...form, tags: event.target.value })} placeholder="Tags, comma separated" />
           </div>
@@ -721,8 +783,8 @@ function ResourceDetailInline({
   const favicon = getResourceFavicon(item.url);
   return (
     <Card className="overflow-hidden border-[var(--brand-primary)] bg-[var(--surface-raised)] p-0">
-      <div className="grid gap-5 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="flex min-h-48 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.38),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface))] p-5">
+      <div className={detailLayoutClass}>
+        <div className={previewCardClass}>
           <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
             {favicon ? <img src={favicon} alt="" className="h-10 w-10" loading="lazy" /> : <span className="font-display text-lg font-bold text-[var(--brand-primary)]">{getResourceInitials(item.title)}</span>}
           </span>
@@ -732,12 +794,12 @@ function ResourceDetailInline({
           </div>
         </div>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className={compact ? "grid gap-3" : "flex flex-wrap items-start justify-between gap-3"}>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Resource details</p>
-              <h2 className="mt-1 font-display text-2xl font-bold text-[var(--text)]">{item.title}</h2>
+              <h2 className={`mt-1 font-display font-bold text-[var(--text)] ${compact ? "text-xl" : "text-2xl"}`}>{item.title}</h2>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className={compact ? "grid grid-cols-1 gap-2 sm:grid-cols-3 2xl:grid-cols-1" : "flex flex-wrap gap-2"}>
               <Button variant="secondary" icon={<Star size={15} />} onClick={onToggleFavorite}>
                 {item.favorite ? "Favorited" : "Favorite"}
               </Button>
@@ -761,7 +823,7 @@ function ResourceDetailInline({
               ))}
           </div>
           {item.url ? (
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className={compact ? "mt-6 grid gap-2" : "mt-6 flex flex-wrap gap-2"}>
               <Button variant="secondary" onClick={() => navigator.clipboard.writeText(item.url!)} icon={<Copy size={15} />}>
                 Copy Link
               </Button>

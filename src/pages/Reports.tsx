@@ -37,7 +37,7 @@ export function Reports() {
     .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"))
     .slice(0, 6);
   const atRiskProjects = projectRows
-    .filter((row) => row.overdue || row.blocked || row.openHighPriority > 0)
+    .filter((row) => row.overdue || row.waitingReview || row.openHighPriority > 0)
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.openHighPriority - a.openHighPriority)
     .slice(0, 5);
   const reportSummary = useMemo(
@@ -140,16 +140,16 @@ export function Reports() {
                 <div className="min-w-0">
                   <h3 className="break-words font-semibold text-[var(--text)]">{row.project.name}</h3>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    {row.open} open · {row.openHighPriority} high/urgent · {row.blocked} blocked
+                    {row.open} open · {row.openHighPriority} high/urgent · {row.waitingReview} waiting/review
                   </p>
                 </div>
-                <Badge tone={row.overdue ? "red" : row.blocked ? "amber" : "blue"}>
-                  {row.overdue ? "overdue" : row.blocked ? "blocked" : "priority"}
+                <Badge tone={row.overdue ? "red" : row.waitingReview ? "amber" : "blue"}>
+                  {row.overdue ? "overdue" : row.waitingReview ? "waiting" : "priority"}
                 </Badge>
               </div>
             </div>
           ))}
-          {!atRiskProjects.length ? <EmptyReport message="No overdue, blocked, or urgent project work right now." /> : null}
+          {!atRiskProjects.length ? <EmptyReport message="No overdue, waiting/review, or urgent project work right now." /> : null}
         </div>
       </Card>
 
@@ -268,12 +268,12 @@ function projectReport(project: Project, tasks: Task[]) {
   const open = projectTasks.length - completed;
   const progress = projectTasks.length ? Math.round((completed / projectTasks.length) * 100) : 0;
   const overdue = projectTasks.some((task) => !isTerminalTaskStatus(task.status) && isOverdue(task.dueDate));
-  const blocked = projectTasks.filter((task) => task.status === "blocked").length;
+  const waitingReview = projectTasks.filter((task) => task.status === "waiting" || task.status === "review").length;
   const openHighPriority = projectTasks.filter(
     (task) => !isTerminalTaskStatus(task.status) && (task.priority === "high" || task.priority === "urgent"),
   ).length;
 
-  return { project, completed, open, progress, overdue, blocked, openHighPriority };
+  return { project, completed, open, progress, overdue, waitingReview, openHighPriority };
 }
 
 function getTaskRecurrenceLabel(task: Task) {

@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { LockKeyhole } from "lucide-react";
 import { FeatureAccessProvider } from "../../features/access/FeatureAccessProvider";
+import { initDesktopAuthHandler } from "../../integrations/desktop/auth";
+import { isTauriRuntime, openExternalUrl } from "../../integrations/desktop/runtime";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../../hooks/useMagicLinkCooldown";
@@ -18,6 +20,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [sending, setSending] = useState(false);
   const [googleSending, setGoogleSending] = useState(false);
   const magicLinkCooldown = useMagicLinkCooldown();
+
+  useEffect(() => {
+    void initDesktopAuthHandler();
+  }, []);
 
   if (!isSupabaseConfigured) return <FeatureAccessProvider session={null}>{children}</FeatureAccessProvider>;
 
@@ -62,14 +68,21 @@ export function AuthGate({ children }: { children: ReactNode }) {
     setMessage("");
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const desktop = isTauriRuntime();
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: getAuthRedirectUrl(),
+          skipBrowserRedirect: desktop,
         },
       });
 
       if (error) throw error;
+      if (desktop && data.url) {
+        await openExternalUrl(data.url);
+        setMessage("Google opened in your browser. Complete sign-in there, then return to Align.");
+        setGoogleSending(false);
+      }
     } catch (error) {
       setGoogleSending(false);
       setMessage(errorMessage(error, "Could not start Google sign-in."));

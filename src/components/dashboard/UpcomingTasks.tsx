@@ -29,7 +29,7 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
     }));
 
   const upcomingProjects: UpcomingItem[] = projects
-    .filter((project) => project.status !== "completed" && isUpcoming(project.dueDate))
+    .filter((project) => project.status === "active" && !project.deletedAt && isUpcoming(project.dueDate))
     .map((project) => ({
       id: project.id,
       title: project.name,

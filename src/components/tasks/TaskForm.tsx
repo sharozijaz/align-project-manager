@@ -24,7 +24,7 @@ const blank: TaskInput = {
   description: "",
   category: "personal",
   priority: "medium",
-  status: "not-started",
+  status: "not_started",
   startDate: "",
   startTime: "",
   dueDate: "",
@@ -274,9 +274,9 @@ function DateTimeField({
   return (
     <label className="grid gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
       <span>{label}</span>
-      <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_112px]">
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
         <Input className="min-w-0" type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
-        <Input className="min-w-0" type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
+        <Input className="min-w-[9rem]" type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
       </div>
     </label>
   );

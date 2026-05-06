@@ -10,3 +10,5 @@ coverage/
 *.tsbuildinfo
 *.log
 vite-dev.log
+
+.vercel

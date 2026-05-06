@@ -1,6 +1,6 @@
 import type { TaskPriority } from "./task";
 
-export type ProjectStatus = "active" | "paused" | "completed";
+export type ProjectStatus = "active" | "completed" | "archived";
 export type ProjectArea = "business" | "personal";
 export type ProjectNoteVisibility = "private" | "client";
 
@@ -27,8 +27,11 @@ export interface Project {
   dueTime?: string;
   sortOrder?: number;
   notes?: ProjectNote[];
+  completedAt?: string;
+  archivedAt?: string;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ProjectInput = Omit<Project, "id" | "createdAt" | "updatedAt">;
+export type ProjectInput = Omit<Project, "id" | "createdAt" | "updatedAt" | "completedAt" | "archivedAt" | "deletedAt">;
