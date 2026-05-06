@@ -21,11 +21,16 @@ export function App() {
     cleanupTrash();
   }, []);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("align-desktop-root", isDesktop);
+    return () => document.documentElement.classList.remove("align-desktop-root");
+  }, [isDesktop]);
+
   return (
     <AuthGate>
       <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
         <DesktopTitleBar />
-        <div className="min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
+        <div className="align-app-scroll min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
           <div className="w-full overflow-x-hidden p-2 sm:p-4">
             <div className="mx-auto max-w-[1760px] space-y-4">
               <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-soft)] p-2 shadow-[var(--shadow-sm)] sm:p-3">

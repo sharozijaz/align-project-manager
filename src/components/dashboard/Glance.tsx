@@ -1,6 +1,7 @@
 import { Cloud, CloudRain, CloudSun, Sun } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { isTauriRuntime } from "../../integrations/desktop/runtime";
 
 interface WeatherState {
   temperature?: number;
@@ -69,7 +70,7 @@ export function Glance() {
 
     const updateWeather = async () => {
       try {
-        const position = await getPosition().catch(() => null);
+        const position = isTauriRuntime() ? null : await getPosition().catch(() => null);
         const coords = position
           ? { latitude: position.coords.latitude, longitude: position.coords.longitude }
           : defaultCoords;
