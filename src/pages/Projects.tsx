@@ -13,7 +13,7 @@ import { useTaskStore } from "../store/taskStore";
 import type { Project, ProjectArea, ProjectStatus } from "../types/project";
 
 type ProjectAreaFilter = "all" | ProjectArea;
-type ProjectLifecycleFilter = Extract<ProjectStatus, "active" | "completed" | "archived">;
+type ProjectLifecycleFilter = Extract<ProjectStatus, "active" | "paused" | "completed" | "archived">;
 type ProjectSort = "manual" | "updated" | "name" | "due";
 
 export function Projects() {
@@ -32,6 +32,7 @@ export function Projects() {
   const lifecycleProjects = useMemo(() => liveProjects.filter((project) => project.status === lifecycleFilter), [lifecycleFilter, liveProjects]);
   const shareableProjects = useMemo(() => liveProjects.filter((project) => project.status !== "archived"), [liveProjects]);
   const activeCount = liveProjects.filter((project) => project.status === "active").length;
+  const pausedCount = liveProjects.filter((project) => project.status === "paused").length;
   const completedCount = liveProjects.filter((project) => project.status === "completed").length;
   const archivedCount = liveProjects.filter((project) => project.status === "archived").length;
   const businessCount = lifecycleProjects.filter((project) => (project.area ?? "business") === "business").length;
@@ -54,7 +55,8 @@ export function Projects() {
       }),
     [filteredProjects, sortMode],
   );
-  const lifecycleLabel = lifecycleFilter === "active" ? "active" : lifecycleFilter === "completed" ? "completed" : "archived";
+  const lifecycleLabel =
+    lifecycleFilter === "active" ? "active" : lifecycleFilter === "paused" ? "paused" : lifecycleFilter === "completed" ? "completed" : "archived";
 
   useEffect(() => {
     if (!draggedProjectId || sortMode !== "manual") return;
@@ -103,7 +105,7 @@ export function Projects() {
     <div className="space-y-5">
       <PageHeader
         title="Projects"
-        description="Manage active, completed, archived, and shared client projects."
+        description="Manage active, paused, completed, archived, and shared client projects."
         actions={
           <Button icon={<Plus size={16} />} onClick={() => setCreating(true)}>
             New Project
@@ -123,6 +125,7 @@ export function Projects() {
           </label>
           <Select value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as ProjectLifecycleFilter)} aria-label="Project status">
             <option value="active">Status: Active ({activeCount})</option>
+            <option value="paused">Status: Paused ({pausedCount})</option>
             <option value="completed">Status: Completed ({completedCount})</option>
             <option value="archived">Status: Archived ({archivedCount})</option>
           </Select>

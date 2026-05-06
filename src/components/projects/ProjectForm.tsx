@@ -27,7 +27,10 @@ export function ProjectForm({
   onSubmit: (input: ProjectInput) => void;
   onCancel?: () => void;
 }) {
-  const initialStatus = initialProject?.status === "completed" || initialProject?.status === "archived" ? initialProject.status : "active";
+  const initialStatus =
+    initialProject?.status === "paused" || initialProject?.status === "completed" || initialProject?.status === "archived"
+      ? initialProject.status
+      : "active";
   const [form, setForm] = useState<ProjectInput>({
     ...blank,
     ...initialProject,
@@ -62,6 +65,7 @@ export function ProjectForm({
         </Select>
         <Select value={form.status} onChange={(event) => update("status", event.target.value)}>
           <option value="active">Active</option>
+          <option value="paused">Paused</option>
           <option value="completed">Completed</option>
           <option value="archived">Archived</option>
         </Select>

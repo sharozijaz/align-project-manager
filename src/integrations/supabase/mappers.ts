@@ -184,7 +184,7 @@ function normalizeProjectArea(value?: string | null) {
 }
 
 function normalizeProjectStatus(value?: string | null): ProjectStatus {
-  return value === "completed" || value === "archived" ? value : "active";
+  return value === "paused" || value === "completed" || value === "archived" ? value : "active";
 }
 
 function normalizeProjectNotes(value?: ProjectNote[] | null): ProjectNote[] {

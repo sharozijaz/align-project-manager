@@ -69,7 +69,7 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
                   <h3 className="truncate text-sm font-bold text-[var(--text)] sm:text-base">{group.project?.name ?? group.label}</h3>
                   <p className="truncate text-xs text-[var(--text-muted)]">{group.project?.description || (group.project ? `${group.project.area} project` : "Workspace deadlines")}</p>
                 </div>
-                <Badge tone={group.project?.status === "completed" ? "emerald" : "blue"}>{group.items.length}</Badge>
+                <Badge tone={group.project?.status === "completed" ? "emerald" : group.project?.status === "paused" ? "amber" : "blue"}>{group.items.length}</Badge>
               </div>
               <div className="space-y-2 p-3">
                 {group.items.map((item) => {

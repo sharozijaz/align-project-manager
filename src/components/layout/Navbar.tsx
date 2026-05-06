@@ -39,6 +39,8 @@ export function Navbar() {
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const shellRef = useRef<HTMLElement | null>(null);
   const isProfileMenuOpen = openMenu === "profile";
+  const profileName = access?.profile.displayName || access?.profile.email?.split("@")[0] || "Profile";
+  const profileEmail = access?.profile.email;
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -75,7 +77,7 @@ export function Navbar() {
             aria-expanded={isProfileMenuOpen}
             aria-haspopup="menu"
           >
-            <span className="hidden sm:inline">Sharoz</span>
+            <span className="hidden sm:inline">{profileName}</span>
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
               <UserRound size={16} />
             </span>
@@ -91,8 +93,8 @@ export function Navbar() {
             >
               <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
                 <div className="border-b border-[var(--border)] px-3 py-2">
-                  <p className="text-sm font-semibold text-[var(--text)]">Sharoz</p>
-                  <p className="text-xs text-[var(--text-soft)]">Workspace profile</p>
+                  <p className="truncate text-sm font-semibold text-[var(--text)]">{profileName}</p>
+                  <p className="truncate text-xs text-[var(--text-soft)]">{profileEmail ?? "Workspace profile"}</p>
                 </div>
                 <div className="mt-2 grid gap-2">
                   <SyncIndicator className="w-full justify-center rounded-md" />

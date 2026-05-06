@@ -53,40 +53,32 @@ export function WorkspaceAutoSync() {
         if (cancelled) return;
 
         if (hasWorkspaceData(cloudWorkspace)) {
-          const shouldUploadLocalHub = (resources.length > 0 || notes.length > 0) && cloudWorkspace.resources.length === 0 && cloudWorkspace.notes.length === 0;
-          const nextResources = cloudWorkspace.resources.length ? cloudWorkspace.resources : resources;
-          const nextNotes = cloudWorkspace.notes.length ? cloudWorkspace.notes : notes;
-
           applyingCloudRef.current = true;
           replaceTasks(cloudWorkspace.tasks);
           replaceProjects(cloudWorkspace.projects);
           replaceEvents(cloudWorkspace.events);
-          replaceResources(nextResources);
-          replaceNotes(nextNotes);
+          replaceResources(cloudWorkspace.resources);
+          replaceNotes(cloudWorkspace.notes);
           window.setTimeout(() => {
             applyingCloudRef.current = false;
             readyToPushRef.current = true;
           }, 0);
 
-          if (shouldUploadLocalHub) {
-            await pushWorkspaceToSupabase({
-              tasks: cloudWorkspace.tasks,
-              projects: cloudWorkspace.projects,
-              events: cloudWorkspace.events,
-              resources: nextResources,
-              notes: nextNotes,
-            });
-          }
-
           setSynced("Cloud workspace downloaded.");
           return;
         }
 
-        setSyncState("pushing", "Cloud is empty. Uploading local workspace...");
-        await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes });
-        if (cancelled) return;
-        readyToPushRef.current = true;
-        setSynced("Local workspace uploaded to cloud.");
+        applyingCloudRef.current = true;
+        replaceTasks([]);
+        replaceProjects([]);
+        replaceEvents([]);
+        replaceResources([]);
+        replaceNotes([]);
+        window.setTimeout(() => {
+          applyingCloudRef.current = false;
+          readyToPushRef.current = true;
+        }, 0);
+        setSynced("Cloud workspace is empty. Fresh workspace ready.");
       })
       .catch((error) => {
         if (cancelled) return;

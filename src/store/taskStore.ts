@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { addDays, addMonths, addWeeks, addYears, differenceInCalendarDays, formatISO, parseISO } from "date-fns";
 import { demoTasks } from "./demoData";
 import { isTerminalTaskStatus, normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
+import { isSupabaseConfigured } from "../integrations/supabase/client";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
 import { isDeletedBeyondRetention } from "../utils/trash";
 
@@ -27,7 +28,7 @@ const id = () => crypto.randomUUID();
 export const useTaskStore = create<TaskState>()(
   persist(
     (set) => ({
-      tasks: demoTasks,
+      tasks: isSupabaseConfigured ? [] : demoTasks,
       lastDeletedTaskId: undefined,
       addTask: (input) =>
         set((state) => ({
@@ -101,10 +102,10 @@ export const useTaskStore = create<TaskState>()(
           const completedTasks: Task[] = state.tasks.map((item) =>
             item.id === taskId ? { ...item, status: "done" satisfies TaskStatus, updatedAt: completedAt } : item,
           );
-          const nextTask = createNextRecurringTask(task, completedAt);
+          const nextTask = createNextRecurringTask(task, completedAt, nextBottomSortOrder(completedTasks));
 
           return {
-            tasks: nextTask ? [nextTask, ...completedTasks] : completedTasks,
+            tasks: nextTask ? [...completedTasks, nextTask].sort(compareSortOrder) : completedTasks,
           };
         }),
       reorderTasks: (orderedIds) =>
@@ -149,7 +150,12 @@ function nextTopSortOrder(tasks: Task[]) {
   return orders.length ? Math.min(...orders) - 1 : 0;
 }
 
-function createNextRecurringTask(task: Task, createdAt: string): Task | null {
+function nextBottomSortOrder(tasks: Task[]) {
+  const orders = tasks.map((task) => task.sortOrder).filter((value): value is number => Number.isFinite(value));
+  return orders.length ? Math.max(...orders) + 1 : 0;
+}
+
+function createNextRecurringTask(task: Task, createdAt: string, sortOrder: number): Task | null {
   const recurrence = normalizeTaskRecurrence(task.recurrence);
   if (isTerminalTaskStatus(task.status) || recurrence === "none" || !task.dueDate || task.deletedAt) return null;
 
@@ -162,7 +168,7 @@ function createNextRecurringTask(task: Task, createdAt: string): Task | null {
     status: "not_started",
     startDate: nextRecurringStartDate(task.startDate, task.dueDate, nextDueDate) ?? undefined,
     dueDate: nextDueDate,
-    sortOrder: task.sortOrder,
+    sortOrder,
     recurringParentId: task.recurringParentId ?? task.id,
     createdAt,
     updatedAt: createdAt,

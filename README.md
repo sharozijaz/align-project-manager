@@ -136,6 +136,7 @@ supabase/project-notes.sql
 supabase/start-dates.sql
 supabase/time-and-manual-order.sql
 supabase/task-options.sql
+supabase/project-paused-status.sql
 ```
 
 5. Insert allowed users:

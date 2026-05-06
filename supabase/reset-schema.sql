@@ -10,7 +10,7 @@ create table public.projects (
   name text not null,
   description text,
   area text not null default 'business' check (area in ('business', 'personal')),
-  status text not null check (status in ('active', 'paused', 'completed')),
+  status text not null check (status in ('active', 'paused', 'completed', 'archived')),
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
   start_date date,
   start_time time,

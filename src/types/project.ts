@@ -1,6 +1,6 @@
 import type { TaskPriority } from "./task";
 
-export type ProjectStatus = "active" | "completed" | "archived";
+export type ProjectStatus = "active" | "paused" | "completed" | "archived";
 export type ProjectArea = "business" | "personal";
 export type ProjectNoteVisibility = "private" | "client";
 

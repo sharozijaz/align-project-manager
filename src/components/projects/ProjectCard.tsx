@@ -48,7 +48,7 @@ export function ProjectCard({
           <Button variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </Button>
-          {project.status === "active" ? (
+          {project.status === "active" || project.status === "paused" ? (
             <Button
               variant="secondary"
               className="min-h-9 px-3 sm:min-h-10"
@@ -59,7 +59,7 @@ export function ProjectCard({
               <CheckCircle2 size={16} />
             </Button>
           ) : null}
-          {project.status === "active" || project.status === "completed" ? (
+          {project.status === "active" || project.status === "paused" || project.status === "completed" ? (
             <Button
               variant="secondary"
               className="min-h-9 px-3 sm:min-h-10"
@@ -88,7 +88,7 @@ export function ProjectCard({
       </div>
       <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         <Badge tone={area === "personal" ? "purple" : "blue"}>{area}</Badge>
-        <Badge tone={project.status === "completed" ? "emerald" : project.status === "archived" ? "slate" : "blue"}>{project.status}</Badge>
+        <Badge tone={project.status === "completed" ? "emerald" : project.status === "archived" ? "slate" : project.status === "paused" ? "amber" : "blue"}>{project.status}</Badge>
         {project.startDate ? <Badge>{startDateLabel(project.startDate, project.startTime)}</Badge> : null}
         <Badge>{dateLabel(project.dueDate, project.dueTime)}</Badge>
         {project.startDate ? <Badge>{durationLabel(project.startDate, project.dueDate)}</Badge> : null}

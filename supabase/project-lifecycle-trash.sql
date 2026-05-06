@@ -10,14 +10,13 @@ alter table public.projects drop constraint if exists projects_status_check;
 update public.projects
 set status = 'active'
 where status is null
-  or status = 'paused'
-  or status not in ('active', 'completed', 'archived');
+  or status not in ('active', 'paused', 'completed', 'archived');
 
 alter table public.projects alter column status set default 'active';
 
 alter table public.projects
 add constraint projects_status_check
-check (status in ('active', 'completed', 'archived'));
+check (status in ('active', 'paused', 'completed', 'archived'));
 
 create index if not exists projects_deleted_at_idx on public.projects(deleted_at);
 create index if not exists projects_status_idx on public.projects(status);

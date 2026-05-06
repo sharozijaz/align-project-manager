@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { demoProjects } from "./demoData";
+import { isSupabaseConfigured } from "../integrations/supabase/client";
 import type { Project, ProjectInput, ProjectStatus } from "../types/project";
 import { isDeletedBeyondRetention } from "../utils/trash";
 
@@ -24,7 +25,7 @@ const id = () => crypto.randomUUID();
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set) => ({
-      projects: demoProjects,
+      projects: isSupabaseConfigured ? [] : demoProjects,
       addProject: (input) =>
         set((state) => ({
           projects: [
@@ -141,7 +142,7 @@ function nextTopSortOrder(projects: Project[]) {
 }
 
 function normalizeProjectStatus(status?: string): ProjectStatus {
-  return status === "completed" || status === "archived" ? status : "active";
+  return status === "paused" || status === "completed" || status === "archived" ? status : "active";
 }
 
 function applyProjectUpdates(project: Project, updates: Partial<ProjectInput>): Project {
@@ -166,7 +167,7 @@ function applyProjectUpdates(project: Project, updates: Partial<ProjectInput>): 
       next.deletedAt = undefined;
     }
 
-    if (nextStatus === "active") {
+    if (nextStatus === "active" || nextStatus === "paused") {
       next.completedAt = undefined;
       next.archivedAt = undefined;
       next.deletedAt = undefined;
