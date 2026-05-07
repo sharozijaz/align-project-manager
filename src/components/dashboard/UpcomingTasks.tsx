@@ -1,4 +1,5 @@
 import { CalendarClock } from "lucide-react";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
@@ -22,7 +23,7 @@ interface UpcomingItem {
 export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Project[] }) {
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const upcomingTasks: UpcomingItem[] = tasks
-    .filter((task) => !isTerminalTaskStatus(task.status) && isUpcoming(task.dueDate))
+    .filter((task) => !isTerminalTaskStatus(task.status) && isUpcoming(task.dueDate) && shouldShowUpcomingTask(task))
     .map((task) => ({
       id: task.id,
       title: task.title,
@@ -131,4 +132,14 @@ function groupUpcomingByProject(items: UpcomingItem[], projectById: Map<string, 
   });
 
   return groups;
+}
+
+function shouldShowUpcomingTask(task: Task) {
+  if (task.recurrence === "none" && !task.recurringParentId) return true;
+  if (!task.dueDate) return false;
+
+  const dueDate = parseISO(task.dueDate);
+  if (Number.isNaN(dueDate.getTime())) return false;
+
+  return differenceInCalendarDays(dueDate, new Date()) <= 3;
 }
