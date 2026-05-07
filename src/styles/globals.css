@@ -326,11 +326,11 @@
   --brand-700: #918b83;
   --brand-900: #232226;
 
-  --brand-primary: #c9c3b7;
-  --brand-primary-hover: #ded8cc;
+  --brand-primary: #343238;
+  --brand-primary-hover: #403d44;
   --brand-secondary: #66b6d9;
   --brand-accent: #8f87c9;
-  --brand-gradient: linear-gradient(135deg, #ded8cc 0%, #c9c3b7 62%, #8f87c9 100%);
+  --brand-gradient: linear-gradient(135deg, #343238 0%, #2d2d33 100%);
 
   --surface-app: var(--canvas);
   --surface-nav: var(--nav-bg);
@@ -363,23 +363,31 @@
   --shadow-lg: 0 26px 76px rgba(0, 0, 0, 0.58);
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 28%, transparent);
 
-  --status-not-started-bg: #29292f;
-  --status-not-started-text: #d0ccd6;
-  --status-in-progress-bg: #102433;
-  --status-in-progress-text: #75c7e8;
-  --status-completed-bg: #10251a;
-  --status-completed-text: #65d58d;
-  --status-paused-bg: #2a220f;
-  --status-paused-text: #e5bf62;
+  --status-not-started-bg: #25252b;
+  --status-not-started-text: #c8c5cf;
+  --status-not-started-border: #35353d;
+  --status-in-progress-bg: #182733;
+  --status-in-progress-text: #9dc7d9;
+  --status-in-progress-border: #274254;
+  --status-completed-bg: #17261e;
+  --status-completed-text: #9ad0ad;
+  --status-completed-border: #294a37;
+  --status-paused-bg: #292313;
+  --status-paused-text: #d4bd79;
+  --status-paused-border: #4b3d1e;
 
-  --priority-low-bg: #10251a;
-  --priority-low-text: #65d58d;
-  --priority-medium-bg: #2a220f;
-  --priority-medium-text: #e5bf62;
-  --priority-high-bg: #32141b;
-  --priority-high-text: #ef8798;
+  --priority-low-bg: #17261e;
+  --priority-low-text: #9ad0ad;
+  --priority-low-border: #294a37;
+  --priority-medium-bg: #292313;
+  --priority-medium-text: #d4bd79;
+  --priority-medium-border: #4b3d1e;
+  --priority-high-bg: #30191e;
+  --priority-high-text: #d88f9a;
+  --priority-high-border: #54313a;
   --priority-urgent-bg: #26242f;
   --priority-urgent-text: #c8c2f5;
+  --priority-urgent-border: #47415f;
 
   --tag-project-bg: #25252b;
   --tag-project-fg: #d8d3c7;
@@ -421,9 +429,9 @@
   --chip-low-bg: var(--priority-low-bg);
   --chip-low-text: var(--priority-low-text);
 
-  --button-primary-bg: #c9c3b7;
-  --button-primary-hover: #ded8cc;
-  --button-primary-text: #101012;
+  --button-primary-bg: #343238;
+  --button-primary-hover: #403d44;
+  --button-primary-text: #f0edf2;
   --button-secondary-bg: #24242a;
   --button-secondary-hover: #2d2d35;
   --button-secondary-text: var(--text);
@@ -859,6 +867,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .align-gradient {
   background: var(--brand-gradient);
+}
+
+[data-theme="obsidian"] .align-gradient {
+  border: 1px solid var(--border-strong);
+  background: #343238;
+  color: #f0edf2;
 }
 
 .brand-logo-shell {
