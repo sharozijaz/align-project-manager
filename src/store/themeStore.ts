@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type ThemeMode = "dark" | "light" | "medieval";
+export type ThemeMode = "dark" | "obsidian" | "light" | "medieval";
 
 export const themeOptions = [
   { value: "dark", label: "Refined Night", description: "Calm dark workspace" },
+  { value: "obsidian", label: "Obsidian", description: "Notion-style black workspace" },
   { value: "light", label: "Warm Linen", description: "Soft light workspace" },
   { value: "medieval", label: "Medieval Codex", description: "Candlelit focus mode" },
 ] as const satisfies Array<{ value: ThemeMode; label: string; description: string }>;

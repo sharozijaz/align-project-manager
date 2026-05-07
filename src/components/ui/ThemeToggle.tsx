@@ -1,8 +1,9 @@
-import { Flame, Moon, Sun } from "lucide-react";
+import { CircleDot, Flame, Moon, Sun } from "lucide-react";
 import { themeOptions, useThemeStore, type ThemeMode } from "../../store/themeStore";
 
 const themeIcons: Record<ThemeMode, typeof Moon> = {
   dark: Moon,
+  obsidian: CircleDot,
   light: Sun,
   medieval: Flame,
 };
