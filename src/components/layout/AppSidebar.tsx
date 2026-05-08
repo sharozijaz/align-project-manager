@@ -174,12 +174,12 @@ function SidebarContent({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
-      <div className="border-b border-[var(--border)] p-3">
-        <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : "justify-between"}`}>
+      <div className={`border-b border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
+        <div className={`flex items-center gap-2 ${collapsed ? "flex-col justify-center" : "justify-between"}`}>
           <NavLink
             to="/"
             onClick={onNavigate}
-            className={`brand-logo-shell flex h-12 items-center rounded-[var(--radius-sm)] ${collapsed ? "w-12 justify-center px-0" : "px-3"}`}
+            className={`brand-logo-shell flex items-center rounded-[var(--radius-sm)] ${collapsed ? "h-11 w-11 justify-center px-0" : "h-12 px-3"}`}
             aria-label="Align home"
           >
             <img src={collapsed ? "/align-icon.png" : "/align-logo.png"} alt="Align" className={`${collapsed ? "h-7 w-7" : "h-9 w-auto"} object-contain`} />
@@ -188,7 +188,7 @@ function SidebarContent({
             <button
               type="button"
               onClick={onToggleCollapse}
-              className={`hidden h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] lg:grid ${collapsed ? "absolute left-[62px] top-4 z-10" : ""}`}
+              className="hidden h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] lg:grid"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
@@ -203,9 +203,9 @@ function SidebarContent({
         {links.workspace.length ? <NavSection label="Tools" items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} /> : null}
       </nav>
 
-      <div className="space-y-3 border-t border-[var(--border)] p-3">
+      <div className={`space-y-3 border-t border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
         <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>
-          <NotificationBell align="left" open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
+          <NotificationBell align="left" placement="up" open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
           <button
             type="button"
             className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] ${collapsed ? "w-10 px-0" : "flex-1"}`}
@@ -222,7 +222,7 @@ function SidebarContent({
           <button
             type="button"
             onClick={() => setOpenMenu(isProfileMenuOpen ? null : "profile")}
-            className={`flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] py-2 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] ${collapsed ? "justify-center px-2" : "px-3"}`}
+            className={`flex cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] ${collapsed ? "h-11 w-11 justify-center p-0" : "w-full px-3 py-2"}`}
             aria-expanded={isProfileMenuOpen}
             aria-haspopup="menu"
             title={profileName}

@@ -14,10 +14,12 @@ export function NotificationBell({
   open: controlledOpen,
   onOpenChange,
   align = "right",
+  placement = "down",
 }: {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   align?: "left" | "right";
+  placement?: "up" | "down";
 }) {
   const { session, loading, isConfigured } = useSupabaseSession();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
@@ -91,13 +93,13 @@ export function NotificationBell({
 
       <AnimatePresence>
         {open ? (
-        <motion.div
-          className={`absolute top-full z-30 w-[min(20rem,calc(100vw-2rem))] pt-2 ${align === "left" ? "left-0" : "right-0"}`}
-          initial={{ opacity: 0, y: -6, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -4, scale: 0.98 }}
-          transition={{ duration: 0.16, ease: "easeOut" }}
-        >
+          <motion.div
+            className={`absolute z-30 w-[min(20rem,calc(100vw-2rem))] ${placement === "up" ? "bottom-full pb-2" : "top-full pt-2"} ${align === "left" ? "left-0" : "right-0"}`}
+            initial={{ opacity: 0, y: placement === "up" ? 6 : -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: placement === "up" ? 4 : -4, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
           <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
               <div>
@@ -142,7 +144,7 @@ export function NotificationBell({
               ))}
             </div>
           </div>
-        </motion.div>
+          </motion.div>
         ) : null}
       </AnimatePresence>
     </div>
