@@ -590,20 +590,10 @@ function shouldMirrorTaskToGoogleTasks(task) {
 
 function alignTaskToGoogleTask(task, project) {
   const projectName = project?.name || "Personal";
-  const notes = [
-    task.description || "",
-    "",
-    "Synced from Align.",
-    `Align task ID: ${task.id}`,
-    `Project: ${projectName}`,
-    `Priority: ${task.priority || "medium"}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
 
   return {
     title: `[${projectName}] ${task.title || "Untitled task"}`,
-    notes,
+    notes: task.description || "",
     status: "needsAction",
     due: `${validDateKeyOrNull(task.dueDate)}T00:00:00.000Z`,
   };
