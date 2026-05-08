@@ -2,6 +2,61 @@
 
 Use this file as the starting context for the next chat. The previous thread became very long and compacted multiple times, so the safest path is to treat this as the source of truth and avoid replaying old implementation loops.
 
+## Future App Shell Direction - May 8, 2026
+
+The user asked whether Align should move from the current top navbar to a side panel/sidebar now that the project has grown from a website into a full app.
+
+Implementation checkpoint:
+
+- The first app-shell pass is implemented.
+- Desktop/tablet now uses a persistent left sidebar.
+- Mobile uses a compact top bar with a slide-out navigation drawer.
+- The old top `Navbar` component was removed.
+- Keyboard shortcuts were added in `src/components/layout/AppShortcuts.tsx`.
+- Shortcut support includes `Ctrl+K`, `?`, `N`, `P`, and `G` navigation chords.
+- Quick create modals are available from shortcuts for new tasks and new projects.
+- Follow-up polish added a collapsible desktop sidebar.
+- Collapsed mode uses the compact Align icon logo and icon-only navigation.
+- Sidebar shortcut hints were removed from visible nav buttons; shortcuts remain available in the command palette/help overlay.
+- Sidebar text contrast was improved for readability.
+- The notification dropdown can align left inside the sidebar so it no longer clips offscreen.
+- Public project/client share status badges were inlined into the share pages to avoid a fragile shared lazy chunk on deployed share links.
+- Build verification passed after implementation with `npm run build` and `git diff --check`.
+
+Original decision note:
+
+- This is possible and technically safe.
+- It should not make the app heavy if implemented as layout/component work without large new dependencies.
+- A side navbar fits Align better now because the app has grown into a workspace/productivity tool with Projects, Tasks, Calendar, Reports, Settings, sharing, desktop, and Google Tasks bridge.
+- Keep the scope controlled; do not redesign the whole app at once.
+
+Recommended route when the user asks to implement:
+
+1. Add a reusable app shell/sidebar component.
+2. Move existing top nav items into the sidebar.
+3. Keep page content mostly unchanged during the first pass.
+4. Keep mobile responsive with a compact drawer, hamburger, or bottom navigation.
+5. Add keyboard shortcuts after the shell is stable.
+6. Test web and desktop carefully before building a new desktop installer.
+
+Suggested keyboard shortcuts:
+
+- `Ctrl+K`: command/search palette.
+- `N`: new task.
+- `P`: new project.
+- `G` then `H`: go to Home.
+- `G` then `T`: go to Tasks.
+- `G` then `P`: go to Projects.
+- `/`: search current page when a search field exists.
+- `?`: show shortcut help overlay.
+
+Important UX constraint:
+
+- This should feel like a real app shell, not a landing-page redesign.
+- Desktop/tablet should get the side panel.
+- Mobile should stay compact and usable.
+- Avoid adding heavy shortcut libraries unless there is a clear need.
+
 ## Desktop Shell Polish Checkpoint - May 6, 2026
 
 This checkpoint is the newest source of truth for desktop polish.

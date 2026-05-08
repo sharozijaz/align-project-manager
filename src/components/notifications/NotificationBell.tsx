@@ -13,9 +13,11 @@ import type { AppNotification } from "../../types/notification";
 export function NotificationBell({
   open: controlledOpen,
   onOpenChange,
+  align = "right",
 }: {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  align?: "left" | "right";
 }) {
   const { session, loading, isConfigured } = useSupabaseSession();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
@@ -90,7 +92,7 @@ export function NotificationBell({
       <AnimatePresence>
         {open ? (
         <motion.div
-          className="absolute right-0 top-full z-30 w-[min(20rem,calc(100vw-2rem))] pt-2"
+          className={`absolute top-full z-30 w-[min(20rem,calc(100vw-2rem))] pt-2 ${align === "left" ? "left-0" : "right-0"}`}
           initial={{ opacity: 0, y: -6, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -4, scale: 0.98 }}

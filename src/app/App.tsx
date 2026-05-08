@@ -3,7 +3,8 @@ import { useEffect } from "react";
 import { motion } from "motion/react";
 import { AuthGate } from "../components/auth/AuthGate";
 import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
-import { Navbar } from "../components/layout/Navbar";
+import { AppShortcuts } from "../components/layout/AppShortcuts";
+import { AppSidebar } from "../components/layout/AppSidebar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { GoogleTasksBridgeAutoSync } from "../components/sync/GoogleTasksBridgeAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
@@ -32,26 +33,27 @@ export function App() {
       <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
         <DesktopTitleBar />
         <div className="align-app-scroll min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
-          <div className="w-full overflow-x-hidden p-2 sm:p-4">
-            <div className="mx-auto max-w-[1760px] space-y-4">
-              <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-soft)] p-2 shadow-[var(--shadow-sm)] sm:p-3">
-                <Navbar />
+          <div className="flex min-h-screen w-full overflow-x-hidden">
+            <AppSidebar />
+            <div className="min-w-0 flex-1">
+              <div className="w-full overflow-x-hidden p-3 sm:p-4 lg:p-5">
+                <motion.main
+                  key={location.pathname}
+                  className="mx-auto min-w-0 max-w-[1760px]"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                >
+                  <Outlet />
+                </motion.main>
               </div>
             </div>
-            <motion.main
-              key={location.pathname}
-              className="mx-auto mt-4 min-w-0 max-w-[1760px]"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-            >
-              <Outlet />
-            </motion.main>
             <WorkspaceAutoSync />
             <GoogleCalendarAutoSync />
             <GoogleTasksBridgeAutoSync />
             <DesktopNotificationBridge />
             <DeletedTaskToast />
+            <AppShortcuts />
           </div>
         </div>
       </div>

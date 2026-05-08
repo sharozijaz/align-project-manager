@@ -1,12 +1,11 @@
-import { CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, UsersRound } from "lucide-react";
-import type { FormEvent, ReactNode } from "react";
+import { Archive, CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, PauseCircle, PlayCircle, UsersRound } from "lucide-react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTaskPriorityOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { ProjectStatusBadge } from "../components/share/ProjectStatusBadge";
 import { dateLabel, durationLabel } from "../utils/date";
 
 interface SharedProject {
@@ -318,4 +317,84 @@ function ShareStat({ label, value, icon }: { label: string; value: string | numb
       <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</div>
     </div>
   );
+}
+
+type ProjectStatus = "active" | "paused" | "completed" | "archived";
+
+interface ProjectStatusMeta {
+  label: string;
+  icon: typeof PlayCircle;
+  bg: string;
+  border: string;
+  text: string;
+}
+
+const projectStatusStyles: Record<ProjectStatus, ProjectStatusMeta> = {
+  active: {
+    label: "Active",
+    icon: PlayCircle,
+    bg: "var(--status-completed-bg)",
+    border: "var(--status-completed-border, var(--status-completed-text))",
+    text: "var(--status-completed-text)",
+  },
+  paused: {
+    label: "Paused",
+    icon: PauseCircle,
+    bg: "var(--status-paused-bg)",
+    border: "var(--status-paused-border, var(--status-paused-text))",
+    text: "var(--status-paused-text)",
+  },
+  completed: {
+    label: "Completed",
+    icon: CheckCircle2,
+    bg: "var(--status-completed-bg)",
+    border: "var(--status-completed-border, var(--status-completed-text))",
+    text: "var(--status-completed-text)",
+  },
+  archived: {
+    label: "Archived",
+    icon: Archive,
+    bg: "var(--status-not-started-bg)",
+    border: "var(--status-not-started-border, var(--border-strong))",
+    text: "var(--status-not-started-text)",
+  },
+};
+
+function ProjectStatusBadge({ status, large = false }: { status: string; large?: boolean }) {
+  const meta = getProjectStatusMeta(status);
+  const Icon = meta.icon;
+
+  return (
+    <span
+      className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded border font-bold ${large ? "px-3 py-2 text-sm" : "px-2.5 py-1 text-xs"}`}
+      style={
+        {
+          backgroundColor: meta.bg,
+          borderColor: meta.border,
+          color: meta.text,
+        } as CSSProperties
+      }
+    >
+      <Icon size={large ? 16 : 13} />
+      {meta.label}
+    </span>
+  );
+}
+
+function getProjectStatusMeta(status: string): ProjectStatusMeta {
+  return projectStatusStyles[status as ProjectStatus] ?? {
+    label: titleizeStatus(status),
+    icon: CheckCircle2,
+    bg: "var(--status-not-started-bg)",
+    border: "var(--status-not-started-border, var(--border-strong))",
+    text: "var(--status-not-started-text)",
+  };
+}
+
+function titleizeStatus(status: string) {
+  return status
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
