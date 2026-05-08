@@ -6,6 +6,7 @@ import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskStatusOption, is
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { ProjectStatusBadge, ProjectStatusPanel } from "../components/share/ProjectStatusBadge";
 import { dateLabel, durationLabel, startDateLabel } from "../utils/date";
 
 interface SharedProject {
@@ -175,30 +176,31 @@ export function PublicProjectShare() {
             <>
               <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
                 <div className="bg-[var(--bg-soft)] p-6 sm:p-8">
-                  <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+                  <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Client Project View</p>
                       <h1 className="mt-3 text-3xl font-bold text-[var(--text)] sm:text-4xl">{data.project.name}</h1>
                       <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
                         {data.project.description || "Project status and scheduled work."}
                       </p>
+                      <div className="mt-5 flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Priority</span>
+                        <OptionBadge option={getTaskPriorityOption(data.project.priority)} />
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 sm:justify-end">
-                      <OptionBadge option={getTaskPriorityOption(data.project.priority)} />
-                      <OptionBadge option={getTaskStatusOption(data.project.status)} />
-                    </div>
+                    <ProjectStatusPanel status={data.project.status} />
                   </div>
 
                   <div className="mt-6 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
                     <div className="h-full align-gradient" style={{ width: `${stats.progress}%` }} />
                   </div>
                 </div>
-                <div className="grid gap-px bg-[var(--border)] sm:grid-cols-4">
+                <div className="grid gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-5">
                   <ShareStat label="Progress" value={`${stats.progress}%`} icon={<CheckCircle2 size={16} />} />
                   <ShareStat label="Open Tasks" value={stats.open} icon={<Clock size={16} />} />
                   <ShareStat label="Completed" value={stats.completed} icon={<CheckCircle2 size={16} />} />
+                  <ShareStat label="Start Date" value={startDateLabel(data.project.startDate)} icon={<Clock size={16} />} />
                   <ShareStat label="Due Date" value={dateLabel(data.project.dueDate)} icon={<CalendarDays size={16} />} />
-                  <ShareStat label="Duration" value={durationLabel(data.project.startDate, data.project.dueDate)} icon={<Clock size={16} />} />
                 </div>
               </section>
 
@@ -206,7 +208,7 @@ export function PublicProjectShare() {
                 <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                   <h2 className="text-lg font-bold text-[var(--text)]">Client Summary</h2>
                   <div className="mt-4 space-y-3 text-sm text-[var(--text-muted)]">
-                    <SummaryRow label="Current status" value={getTaskStatusOption(data.project.status).label} />
+                    <SummaryRow label="Current status" value={<ProjectStatusBadge status={data.project.status} />} />
                     <SummaryRow label="Started" value={startDateLabel(data.project.startDate)} />
                     <SummaryRow label="Duration" value={durationLabel(data.project.startDate, data.project.dueDate)} />
                     <SummaryRow label="Progress" value={`${stats.progress}% complete`} />
@@ -219,9 +221,16 @@ export function PublicProjectShare() {
                   <div className="mt-4 space-y-2">
                     {upcomingTasks.map((task) => (
                       <div key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="font-semibold text-[var(--text)]">{task.title}</p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="break-words font-semibold text-[var(--text)]">{task.title}</p>
+                            {task.description ? <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{task.description}</p> : null}
+                          </div>
                           <span className="text-xs font-semibold text-[var(--text-soft)]">{dateLabel(task.dueDate)}</span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <OptionBadge option={getTaskPriorityOption(task.priority)} />
+                          <OptionBadge option={getTaskStatusOption(task.status)} />
                         </div>
                       </div>
                     ))}
@@ -302,7 +311,7 @@ export function PublicProjectShare() {
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-2 last:border-b-0 last:pb-0">
       <span>{label}</span>

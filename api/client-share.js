@@ -77,7 +77,7 @@ async function fetchProjectShare(env, token) {
   if (!project) return null;
 
   return {
-    project: rowToProject(project),
+    project: { ...rowToProject(project), shareToken: token },
     tasks: tasks.map(rowToTask),
   };
 }

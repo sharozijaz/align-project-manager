@@ -2,10 +2,11 @@ import { CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookT
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
+import { getTaskPriorityOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { ProjectStatusBadge } from "../components/share/ProjectStatusBadge";
 import { dateLabel, durationLabel } from "../utils/date";
 
 interface SharedProject {
@@ -17,6 +18,7 @@ interface SharedProject {
   startDate?: string;
   dueDate?: string;
   notes?: SharedProjectNote[];
+  shareToken?: string;
 }
 
 interface SharedProjectNote {
@@ -125,12 +127,17 @@ export function PublicClientShare() {
     const completed = allTasks.filter((task) => isTerminalTaskStatus(task.status)).length;
     const open = allTasks.length - completed;
     const progress = allTasks.length ? Math.round((completed / allTasks.length) * 100) : 0;
-    const upcoming = allTasks
-      .filter((task) => !isTerminalTaskStatus(task.status))
-      .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"))
+    const upcoming = projects
+      .flatMap(({ project, tasks }) => tasks.map((task) => ({ task, project })))
+      .filter(({ task }) => !isTerminalTaskStatus(task.status))
+      .sort((a, b) => (a.task.dueDate || "9999-12-31").localeCompare(b.task.dueDate || "9999-12-31"))
       .slice(0, 5);
+    const statusCounts = projects.reduce<Record<string, number>>((counts, item) => {
+      counts[item.project.status] = (counts[item.project.status] || 0) + 1;
+      return counts;
+    }, {});
 
-    return { completed, open, progress, total: allTasks.length, upcoming };
+    return { completed, open, progress, total: allTasks.length, upcoming, statusCounts };
   }, [projects]);
 
   return (
@@ -189,6 +196,16 @@ export function PublicClientShare() {
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
                     A read-only overview of selected projects, current progress, and active work.
                   </p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {["active", "paused", "completed", "archived"].map((status) =>
+                      stats.statusCounts[status] ? (
+                        <span key={status} className="inline-flex items-center gap-2">
+                          <ProjectStatusBadge status={status} />
+                          <span className="text-xs font-bold text-[var(--text-muted)]">{stats.statusCounts[status]}</span>
+                        </span>
+                      ) : null,
+                    )}
+                  </div>
                   <div className="mt-6 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
                     <div className="h-full align-gradient" style={{ width: `${stats.progress}%` }} />
                   </div>
@@ -208,6 +225,8 @@ export function PublicClientShare() {
                     const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
                     const open = tasks.length - completed;
 
+                    const projectToken = project.shareToken || tokens[projects.findIndex((item) => item.project.id === project.id)];
+
                     return (
                       <article key={project.id} className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -217,7 +236,7 @@ export function PublicClientShare() {
                           </div>
                           <div className="flex flex-wrap gap-2 sm:justify-end">
                             <OptionBadge option={getTaskPriorityOption(project.priority)} />
-                            <OptionBadge option={getTaskStatusOption(project.status)} />
+                            <ProjectStatusBadge status={project.status} large />
                           </div>
                         </div>
                         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
@@ -250,9 +269,11 @@ export function PublicClientShare() {
                             </div>
                           </div>
                         ) : null}
-                        <Link to={`/share/${tokens[projects.findIndex((item) => item.project.id === project.id)]}`} className="mt-4 inline-flex text-sm font-semibold text-[var(--text-brand)] hover:underline">
-                          Open project details
-                        </Link>
+                        {projectToken ? (
+                          <Link to={`/share/${projectToken}`} className="mt-4 inline-flex text-sm font-semibold text-[var(--text-brand)] hover:underline">
+                            Open project details
+                          </Link>
+                        ) : null}
                       </article>
                     );
                   })}
@@ -261,10 +282,11 @@ export function PublicClientShare() {
                 <aside className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                   <h2 className="text-lg font-bold text-[var(--text)]">Next Work</h2>
                   <div className="mt-4 space-y-3">
-                    {stats.upcoming.map((task) => (
+                    {stats.upcoming.map(({ task, project }) => (
                       <div key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
+                            <p className="mb-1 text-xs font-bold uppercase tracking-[0.1em] text-[var(--text-soft)]">{project.name}</p>
                             <p className="break-words font-semibold text-[var(--text)]">{task.title}</p>
                             <p className="mt-1 text-xs text-[var(--text-muted)]">{dateLabel(task.dueDate)}</p>
                           </div>
