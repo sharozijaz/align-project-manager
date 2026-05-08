@@ -1,5 +1,5 @@
 import { Bell, CheckCheck, Inbox } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -26,6 +26,7 @@ export function NotificationBell({
   const [items, setItems] = useState<AppNotification[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const shellRef = useRef<HTMLDivElement | null>(null);
 
   const canLoad = isConfigured && Boolean(session) && !loading;
   const open = controlledOpen ?? uncontrolledOpen;
@@ -54,6 +55,18 @@ export function NotificationBell({
     return () => window.clearInterval(interval);
   }, [canLoad, load]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (shellRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [open, setOpen]);
+
   const unreadCount = items.filter((item) => !item.readAt).length;
 
   const handleMarkAllRead = async () => {
@@ -72,7 +85,7 @@ export function NotificationBell({
   };
 
   return (
-    <div className="relative">
+    <div ref={shellRef} className="relative">
       <button
         type="button"
         onClick={() => {

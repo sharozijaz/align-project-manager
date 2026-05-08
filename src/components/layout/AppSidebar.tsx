@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { NavLink } from "react-router-dom";
 import { InstallAppButton } from "../pwa/InstallAppButton";
@@ -171,6 +171,19 @@ function SidebarContent({
   onNavigate?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (profileMenuRef.current?.contains(event.target as Node)) return;
+      setOpenMenu(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [isProfileMenuOpen, setOpenMenu]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
@@ -218,7 +231,7 @@ function SidebarContent({
           </button>
         </div>
 
-        <div className="relative">
+        <div ref={profileMenuRef} className="relative">
           <button
             type="button"
             onClick={() => setOpenMenu(isProfileMenuOpen ? null : "profile")}
