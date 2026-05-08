@@ -705,7 +705,7 @@ export function Settings() {
             <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
               <div>
                 <p className="font-semibold text-[var(--text)]">Enable Google Tasks bridge</p>
-                <p className="text-sm text-[var(--text-muted)]">Manual sync only for now, so nothing moves until you press Sync now.</p>
+                <p className="text-sm text-[var(--text-muted)]">Runs automatically while Align is open. Sync Now still works when you want an immediate refresh.</p>
               </div>
               <Button
                 variant={googleTasksSettings.enabled ? "secondary" : "ghost"}

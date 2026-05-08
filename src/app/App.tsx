@@ -5,6 +5,7 @@ import { AuthGate } from "../components/auth/AuthGate";
 import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
 import { Navbar } from "../components/layout/Navbar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
+import { GoogleTasksBridgeAutoSync } from "../components/sync/GoogleTasksBridgeAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
 import { DesktopNotificationBridge } from "../components/notifications/DesktopNotificationBridge";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
@@ -48,6 +49,7 @@ export function App() {
             </motion.main>
             <WorkspaceAutoSync />
             <GoogleCalendarAutoSync />
+            <GoogleTasksBridgeAutoSync />
             <DesktopNotificationBridge />
             <DeletedTaskToast />
           </div>
