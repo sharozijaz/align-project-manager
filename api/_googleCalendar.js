@@ -4,9 +4,12 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const GOOGLE_CALENDAR_API_URL = "https://www.googleapis.com/calendar/v3";
+const GOOGLE_TASKS_API_URL = "https://tasks.googleapis.com/tasks/v1";
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 
 export const calendarScopes = ["https://www.googleapis.com/auth/calendar.events.owned"];
+export const googleTasksScopes = ["https://www.googleapis.com/auth/tasks"];
+export const googleWorkspaceScopes = [...calendarScopes, ...googleTasksScopes];
 
 export function getEnv() {
   const supabaseUrl = normalizeUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
@@ -148,7 +151,7 @@ export function buildGoogleAuthUrl(env, userId) {
   url.searchParams.set("client_id", env.googleClientId);
   url.searchParams.set("redirect_uri", env.googleRedirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", calendarScopes.join(" "));
+  url.searchParams.set("scope", googleWorkspaceScopes.join(" "));
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
   url.searchParams.set("state", createOAuthState(env, userId));
@@ -187,7 +190,7 @@ export async function upsertGoogleConnection(env, userId, tokens) {
     ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
     expires_at: expiresAt,
     calendar_id: env.googleCalendarId,
-    scopes: calendarScopes,
+    scopes: googleWorkspaceScopes,
     updated_at: new Date().toISOString(),
   };
 
@@ -300,6 +303,465 @@ export async function googleCalendarRequest(env, connection, path, options = {})
   }
 
   return data;
+}
+
+export async function googleTasksRequest(_env, connection, path, options = {}) {
+  const response = await fetch(`${GOOGLE_TASKS_API_URL}${path}`, {
+    ...options,
+    headers: {
+      authorization: `Bearer ${connection.access_token}`,
+      "content-type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  if (response.status === 204) return null;
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new HttpError(response.status, data?.error?.message || data?.error || "Google Tasks request failed.");
+  }
+
+  return data;
+}
+
+export async function getGoogleTaskBridgeSettings(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_task_bridge_settings`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "enabled,today_list_id,inbox_list_id,last_synced_at,last_error,updated_at");
+
+  try {
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    return normalizeGoogleTaskBridgeSettings(rows[0]);
+  } catch (error) {
+    if (isMissingGoogleTasksBridgeTable(error)) return normalizeGoogleTaskBridgeSettings(null);
+    throw error;
+  }
+}
+
+export async function upsertGoogleTaskBridgeSettings(env, userId, settings) {
+  const row = {
+    user_id: userId,
+    enabled: Boolean(settings.enabled),
+    today_list_id: settings.todayListId || null,
+    inbox_list_id: settings.inboxListId || null,
+    last_error: settings.lastError || null,
+    ...(settings.lastSyncedAt ? { last_synced_at: settings.lastSyncedAt } : {}),
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_task_bridge_settings`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(row),
+    });
+    const rows = await response.json();
+    return normalizeGoogleTaskBridgeSettings(rows[0]);
+  } catch (error) {
+    if (isMissingGoogleTasksBridgeTable(error)) {
+      throw new HttpError(500, "Run supabase/google-tasks-bridge.sql before using Google Tasks sync.");
+    }
+
+    throw error;
+  }
+}
+
+export async function getGoogleTaskLists(env, connection) {
+  const lists = [];
+  let pageToken = "";
+
+  do {
+    const params = new URLSearchParams({ maxResults: "100" });
+    if (pageToken) params.set("pageToken", pageToken);
+    const data = await googleTasksRequest(env, connection, `/users/@me/lists?${params.toString()}`);
+    lists.push(...(data.items || []));
+    pageToken = data.nextPageToken || "";
+  } while (pageToken);
+
+  return lists.map((list) => ({ id: list.id, title: list.title || "Untitled list" }));
+}
+
+export async function syncGoogleTasksBridgeForUser(env, userId, workspace, incomingSettings = {}) {
+  const connection = await requireGoogleConnection(env, userId);
+  const scopes = connection.scopes || [];
+  if (googleTasksScopes.some((scope) => !scopes.includes(scope))) {
+    throw new HttpError(409, "Reconnect Google so Align can use the Tasks scope.");
+  }
+
+  const savedSettings = await getGoogleTaskBridgeSettings(env, userId);
+  const mergedSettings = {
+    ...savedSettings,
+    ...incomingSettings,
+    enabled: incomingSettings.enabled ?? savedSettings.enabled,
+  };
+
+  if (!mergedSettings.enabled) {
+    throw new HttpError(409, "Enable the Google Tasks bridge first.");
+  }
+
+  const lists = await getGoogleTaskLists(env, connection);
+  const todayList = await ensureGoogleTaskList(env, connection, lists, mergedSettings.todayListId, "Align Today");
+  const inboxList = await ensureGoogleTaskList(env, connection, lists, mergedSettings.inboxListId, "Align Inbox");
+  const settings = await upsertGoogleTaskBridgeSettings(env, userId, {
+    ...mergedSettings,
+    todayListId: todayList.id,
+    inboxListId: inboxList.id,
+  });
+
+  const mirrorResult = await syncAlignTodayTasks(env, connection, userId, todayList.id, workspace);
+  const importResult = await importGoogleTasksInbox(env, connection, userId, inboxList.id, workspace);
+  const lastSyncedAt = new Date().toISOString();
+  await upsertGoogleTaskBridgeSettings(env, userId, {
+    ...settings,
+    enabled: true,
+    todayListId: todayList.id,
+    inboxListId: inboxList.id,
+    lastSyncedAt,
+    lastError: "",
+  });
+
+  return {
+    settings: {
+      ...settings,
+      enabled: true,
+      todayListId: todayList.id,
+      inboxListId: inboxList.id,
+      lastSyncedAt,
+      lastError: "",
+    },
+    lists: await getGoogleTaskLists(env, connection),
+    ...mirrorResult,
+    ...importResult,
+  };
+}
+
+async function ensureGoogleTaskList(env, connection, lists, listId, defaultTitle) {
+  const existingById = listId ? lists.find((list) => list.id === listId) : null;
+  if (existingById) return existingById;
+
+  const existingByName = lists.find((list) => list.title.toLowerCase() === defaultTitle.toLowerCase());
+  if (existingByName) return existingByName;
+
+  const created = await googleTasksRequest(env, connection, "/users/@me/lists", {
+    method: "POST",
+    body: JSON.stringify({ title: defaultTitle }),
+  });
+
+  return { id: created.id, title: created.title || defaultTitle };
+}
+
+async function syncAlignTodayTasks(env, connection, userId, todayListId, workspace) {
+  const projectsById = new Map((workspace.projects || []).map((project) => [project.id, project]));
+  const tasks = Array.isArray(workspace.tasks) ? workspace.tasks : [];
+  const syncableTasks = tasks.filter((task) => shouldMirrorTaskToGoogleTasks(task));
+  const activeTaskIds = new Set(syncableTasks.map((task) => task.id));
+  const links = await findGoogleTaskLinks(env, userId, "today");
+  let created = 0;
+  let updated = 0;
+  let removed = 0;
+  let skipped = 0;
+
+  for (const task of syncableTasks) {
+    const link = links.get(task.id);
+    const payload = alignTaskToGoogleTask(task, projectsById.get(task.projectId));
+
+    if (link?.google_task_id) {
+      try {
+        await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todayListId)}/tasks/${encodeURIComponent(link.google_task_id)}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        await upsertGoogleTaskLink(env, userId, task.id, link.google_task_id, todayListId, "today");
+        updated += 1;
+      } catch (error) {
+        if (error.status !== 404) throw error;
+        const createdTask = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todayListId)}/tasks`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        await upsertGoogleTaskLink(env, userId, task.id, createdTask.id, todayListId, "today", createdTask.updated);
+        created += 1;
+      }
+    } else {
+      const createdTask = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todayListId)}/tasks`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      await upsertGoogleTaskLink(env, userId, task.id, createdTask.id, todayListId, "today", createdTask.updated);
+      created += 1;
+    }
+  }
+
+  for (const [taskId, link] of links) {
+    if (activeTaskIds.has(taskId)) continue;
+
+    try {
+      await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(link.google_list_id)}/tasks/${encodeURIComponent(link.google_task_id)}`, {
+        method: "DELETE",
+      });
+      removed += 1;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      skipped += 1;
+    }
+
+    await deleteGoogleTaskLink(env, userId, taskId, "today");
+  }
+
+  return { created, updated, removed, skipped };
+}
+
+async function importGoogleTasksInbox(env, connection, userId, inboxListId, workspace) {
+  const params = new URLSearchParams({
+    showCompleted: "false",
+    showDeleted: "false",
+    showHidden: "false",
+    maxResults: "100",
+  });
+  const data = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(inboxListId)}/tasks?${params.toString()}`);
+  const googleTasks = data.items || [];
+  const existingLinks = await findGoogleTaskImportLinks(env, userId);
+  const existingTaskTitles = new Set((workspace.tasks || []).map((task) => task.title.trim().toLowerCase()));
+  const importedTasks = [];
+  const importConflicts = [];
+
+  for (const googleTask of googleTasks) {
+    if (!googleTask.id || existingLinks.has(`${inboxListId}:${googleTask.id}`)) continue;
+    if (String(googleTask.notes || "").includes("Imported into Align")) continue;
+
+    const parsed = parseGoogleInboxTitle(googleTask.title || "Untitled task", workspace.projects || []);
+    const now = new Date().toISOString();
+    const titleKey = parsed.title.trim().toLowerCase();
+    if (existingTaskTitles.has(titleKey)) {
+      await completeImportedGoogleTask(env, connection, inboxListId, googleTask, "Skipped duplicate imported title.");
+      continue;
+    }
+
+    const task = {
+      id: crypto.randomUUID(),
+      title: parsed.title,
+      description: googleTask.notes || undefined,
+      projectId: parsed.projectId || undefined,
+      category: parsed.projectId ? "project" : "personal",
+      priority: "medium",
+      status: "not_started",
+      dueDate: googleTask.due ? googleTask.due.slice(0, 10) : undefined,
+      reminder: "none",
+      recurrence: "none",
+      sortOrder: -Date.now() - importedTasks.length,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await upsertImportedTask(env, userId, task);
+    await upsertGoogleTaskLink(env, userId, task.id, googleTask.id, inboxListId, "inbox", googleTask.updated, now);
+    await completeImportedGoogleTask(env, connection, inboxListId, googleTask, `Imported into Align as ${task.id}.`);
+    importedTasks.push(task);
+    if (parsed.conflict) importConflicts.push(parsed.conflict);
+  }
+
+  return { imported: importedTasks.length, importedTasks, importConflicts };
+}
+
+function shouldMirrorTaskToGoogleTasks(task) {
+  if (!task?.id || !task.dueDate || task.deletedAt || isTerminalTaskStatus(task.status)) return false;
+
+  const dueDate = validDateKeyOrNull(task.dueDate);
+  if (!dueDate) return false;
+
+  const today = toDateKey(new Date());
+  const horizon = shiftDateKey(today, 3);
+  return dueDate <= horizon;
+}
+
+function alignTaskToGoogleTask(task, project) {
+  const projectName = project?.name || "Personal";
+  const notes = [
+    task.description || "",
+    "",
+    "Synced from Align.",
+    `Align task ID: ${task.id}`,
+    `Project: ${projectName}`,
+    `Priority: ${task.priority || "medium"}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    title: `[${projectName}] ${task.title || "Untitled task"}`,
+    notes,
+    status: "needsAction",
+    due: `${validDateKeyOrNull(task.dueDate)}T00:00:00.000Z`,
+  };
+}
+
+function parseGoogleInboxTitle(rawTitle, projects) {
+  const title = String(rawTitle || "Untitled task").trim();
+  const bracketMatch = title.match(/^\[([^\]]+)\]\s*(.+)$/u);
+  const atMatch = title.match(/^(.*?)\s+@(.+)$/u);
+  const hashMatch = title.match(/^(.*?)\s+#([^\s].*)$/u);
+  const projectHint = bracketMatch?.[1] || atMatch?.[2] || hashMatch?.[2] || "";
+  const taskTitle = (bracketMatch?.[2] || atMatch?.[1] || hashMatch?.[1] || title).trim() || title;
+
+  if (!projectHint.trim()) {
+    return { title: taskTitle };
+  }
+
+  const normalizedHint = normalizeMatchText(projectHint);
+  const exact = projects.find((project) => normalizeMatchText(project.name) === normalizedHint);
+  if (exact) return { title: taskTitle, projectId: exact.id };
+
+  const matches = projects.filter((project) => normalizeMatchText(project.name).includes(normalizedHint) || normalizedHint.includes(normalizeMatchText(project.name)));
+  if (matches.length === 1) return { title: taskTitle, projectId: matches[0].id };
+
+  return {
+    title: taskTitle,
+    conflict: {
+      title: taskTitle,
+      hint: projectHint,
+      matches: matches.map((project) => project.name),
+      reason: matches.length ? "Multiple project matches." : "No project match.",
+    },
+  };
+}
+
+function normalizeMatchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, " ")
+    .trim();
+}
+
+async function completeImportedGoogleTask(env, connection, listId, googleTask, note) {
+  await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(googleTask.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "completed",
+      notes: [googleTask.notes || "", "", note].filter(Boolean).join("\n"),
+    }),
+  });
+}
+
+async function upsertImportedTask(env, userId, task) {
+  const row = {
+    id: task.id,
+    user_id: userId,
+    title: task.title,
+    description: task.description ?? null,
+    project_id: task.projectId ?? null,
+    category: task.category,
+    priority: task.priority,
+    status: task.status,
+    start_date: null,
+    start_time: null,
+    due_date: task.dueDate ?? null,
+    due_time: null,
+    reminder: task.reminder,
+    recurrence: task.recurrence,
+    recurring_parent_id: null,
+    sort_order: task.sortOrder ?? null,
+    deleted_at: null,
+    created_at: task.createdAt,
+    updated_at: task.updatedAt,
+  };
+
+  const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/tasks`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      prefer: "resolution=ignore-duplicates,return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  await response.text();
+}
+
+async function findGoogleTaskLinks(env, userId, syncType) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_task_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("sync_type", `eq.${syncType}`);
+  url.searchParams.set("select", "align_task_id,google_task_id,google_list_id,last_synced_at,google_updated_at");
+
+  try {
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    return new Map(rows.map((row) => [row.align_task_id, row]));
+  } catch (error) {
+    if (isMissingGoogleTasksBridgeTable(error)) return new Map();
+    throw error;
+  }
+}
+
+async function findGoogleTaskImportLinks(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_task_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("sync_type", "eq.inbox");
+  url.searchParams.set("select", "google_task_id,google_list_id");
+
+  try {
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    return new Set(rows.map((row) => `${row.google_list_id}:${row.google_task_id}`));
+  } catch (error) {
+    if (isMissingGoogleTasksBridgeTable(error)) return new Set();
+    throw error;
+  }
+}
+
+async function upsertGoogleTaskLink(env, userId, taskId, googleTaskId, googleListId, syncType, googleUpdatedAt, importedAt) {
+  const row = {
+    user_id: userId,
+    align_task_id: taskId,
+    google_task_id: googleTaskId,
+    google_list_id: googleListId,
+    sync_type: syncType,
+    google_updated_at: googleUpdatedAt || null,
+    imported_at: importedAt || null,
+    last_synced_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_task_links`);
+  url.searchParams.set("on_conflict", "user_id,align_task_id,sync_type");
+  const response = await serviceFetch(env, url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  await response.text();
+}
+
+async function deleteGoogleTaskLink(env, userId, taskId, syncType) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_task_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("align_task_id", `eq.${taskId}`);
+  url.searchParams.set("sync_type", `eq.${syncType}`);
+  await serviceFetch(env, url, { method: "DELETE" });
+}
+
+function normalizeGoogleTaskBridgeSettings(row) {
+  return {
+    enabled: Boolean(row?.enabled),
+    todayListId: row?.today_list_id || "",
+    inboxListId: row?.inbox_list_id || "",
+    lastSyncedAt: row?.last_synced_at || undefined,
+    lastError: row?.last_error || undefined,
+    updatedAt: row?.updated_at || undefined,
+  };
+}
+
+function isMissingGoogleTasksBridgeTable(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("google_task_bridge_settings") || message.includes("google_task_links") || message.includes("pgrst205");
 }
 
 export function taskToGoogleEvent(task) {

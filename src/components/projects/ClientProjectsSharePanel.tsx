@@ -11,6 +11,7 @@ import { isSupabaseConfigured } from "../../integrations/supabase/client";
 import type { Project } from "../../types/project";
 import type { ClientShareLink } from "../../types/projectShare";
 import { dateLabel } from "../../utils/date";
+import { clientShareUrl as buildClientShareUrl, openShareUrl } from "../../utils/shareUrls";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
@@ -279,7 +280,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                   <Button
                     variant="secondary"
                     icon={<ExternalLink size={16} />}
-                    onClick={() => window.open(clientShareUrl(activeLink), "_blank", "noreferrer")}
+                    onClick={() => void openShareUrl(clientShareUrl(activeLink))}
                   >
                     Open
                   </Button>
@@ -368,7 +369,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 <Button
                   variant="secondary"
                   icon={<ExternalLink size={16} />}
-                  onClick={() => window.open(clientShareUrl(shareModalLink), "_blank", "noreferrer")}
+                  onClick={() => void openShareUrl(clientShareUrl(shareModalLink))}
                 >
                   Open
                 </Button>
@@ -508,7 +509,7 @@ function SavedClientLink({
         <Button variant="ghost" icon={copied ? <Check size={16} /> : <Copy size={16} />} onClick={onCopy} title="Copy link">
           Copy
         </Button>
-        <Button variant="ghost" icon={<ExternalLink size={16} />} onClick={() => window.open(clientShareUrl(link), "_blank", "noreferrer")} title="Open link">
+        <Button variant="ghost" icon={<ExternalLink size={16} />} onClick={() => void openShareUrl(clientShareUrl(link))} title="Open link">
           Open
         </Button>
         <Button variant="ghost" icon={<KeyRound size={16} />} onClick={onManage} title="Share options">
@@ -523,5 +524,5 @@ function SavedClientLink({
 }
 
 function clientShareUrl(link: ClientShareLink) {
-  return `${window.location.origin}/share/client/${link.token}`;
+  return buildClientShareUrl(link.token);
 }

@@ -11,7 +11,10 @@ import type {
   GoogleCalendarSyncResult,
 } from "./types";
 
-const GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events.owned"];
+const GOOGLE_CALENDAR_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events.owned",
+  "https://www.googleapis.com/auth/tasks",
+];
 
 export function getGoogleCalendarConfig(): GoogleCalendarConfig {
   return {

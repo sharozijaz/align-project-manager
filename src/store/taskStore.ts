@@ -20,6 +20,7 @@ interface TaskState {
   reorderTasks: (orderedIds: string[]) => void;
   dismissDeleteNotice: () => void;
   replaceTasks: (tasks: Task[]) => void;
+  importTasks: (tasks: Task[]) => void;
 }
 
 const stamp = () => new Date().toISOString();
@@ -122,6 +123,16 @@ export const useTaskStore = create<TaskState>()(
         set({
           tasks: normalizeTaskOrder(tasks),
           lastDeletedTaskId: undefined,
+        }),
+      importTasks: (tasks) =>
+        set((state) => {
+          const existingIds = new Set(state.tasks.map((task) => task.id));
+          const importedTasks = tasks.filter((task) => !existingIds.has(task.id));
+
+          return {
+            tasks: normalizeTaskOrder([...importedTasks, ...state.tasks]),
+            lastDeletedTaskId: undefined,
+          };
         }),
     }),
     { name: "priority-tasks-v1" },

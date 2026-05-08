@@ -4,6 +4,7 @@ import { createProjectShare, getProjectShare, revokeProjectShare, updateProjectS
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
 import type { Project } from "../../types/project";
 import type { ProjectShare } from "../../types/projectShare";
+import { openShareUrl, projectShareUrl } from "../../utils/shareUrls";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
@@ -18,7 +19,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
-  const shareUrl = useMemo(() => (share ? `${window.location.origin}/share/${share.token}` : ""), [share]);
+  const shareUrl = useMemo(() => (share ? projectShareUrl(share.token) : ""), [share]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -141,11 +142,9 @@ export function ProjectSharePanel({ project }: { project: Project }) {
                 <Button variant="secondary" icon={copied ? <Check size={16} /> : <Copy size={16} />} onClick={handleCopy}>
                   {copied ? "Copied" : "Copy Link"}
                 </Button>
-                <a href={shareUrl} target="_blank" rel="noreferrer">
-                  <Button type="button" variant="secondary" icon={<ExternalLink size={16} />}>
-                    Open
-                  </Button>
-                </a>
+                <Button type="button" variant="secondary" icon={<ExternalLink size={16} />} onClick={() => void openShareUrl(shareUrl)}>
+                  Open
+                </Button>
               </div>
             </div>
 

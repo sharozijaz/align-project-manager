@@ -1,4 +1,4 @@
-import { BellRing, CalendarDays, Cloud, Download, Mail, Palette, Trash2, Upload, UserRound } from "lucide-react";
+import { BellRing, CalendarDays, Cloud, Download, ListTodo, Mail, Palette, RefreshCw, Smartphone, Trash2, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -35,6 +35,13 @@ import {
 } from "../integrations/googleCalendar/googleCalendarClient";
 import type { GoogleCalendarConnection } from "../integrations/googleCalendar/types";
 import { previewGoogleCalendarSync, syncLocalTasksWithGoogleCalendar } from "../integrations/googleCalendar/sync";
+import {
+  getGoogleTasksBridgeReadiness,
+  getGoogleTasksBridgeStatus,
+  saveGoogleTasksBridgeSettings,
+  syncGoogleTasksBridge,
+} from "../integrations/googleTasks/googleTasksClient";
+import type { GoogleTasksBridgeSettings, GoogleTasksBridgeStatus } from "../integrations/googleTasks/types";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { dateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
@@ -57,6 +64,16 @@ export function Settings() {
   const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection | null>(null);
   const [checkingGoogleConnection, setCheckingGoogleConnection] = useState(false);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
+  const [googleTasksMessage, setGoogleTasksMessage] = useState("");
+  const [googleTasksStatus, setGoogleTasksStatus] = useState<GoogleTasksBridgeStatus | null>(null);
+  const [googleTasksSettings, setGoogleTasksSettings] = useState<GoogleTasksBridgeSettings>({
+    enabled: false,
+    todayListId: "",
+    inboxListId: "",
+  });
+  const [checkingGoogleTasks, setCheckingGoogleTasks] = useState(false);
+  const [savingGoogleTasks, setSavingGoogleTasks] = useState(false);
+  const [syncingGoogleTasks, setSyncingGoogleTasks] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
@@ -70,7 +87,7 @@ export function Settings() {
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
   const { projects, replaceProjects } = useProjectStore();
-  const { tasks, replaceTasks } = useTaskStore();
+  const { tasks, replaceTasks, importTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
   const { resources, notes, replaceResources, replaceNotes } = useStudioStore();
   const syncState = useSyncStore();
@@ -79,6 +96,7 @@ export function Settings() {
   const setTheme = useThemeStore((state) => state.setTheme);
   const activeTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
   const googleReadiness = getGoogleCalendarReadiness();
+  const googleTasksReadiness = getGoogleTasksBridgeReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
 
   useEffect(() => {
@@ -87,9 +105,11 @@ export function Settings() {
 
     if (calendarStatus === "connected") {
       setCalendarMessage("Google Calendar connected.");
+      setGoogleTasksMessage("Google account connected. You can enable the mobile Tasks bridge below.");
       window.history.replaceState({}, "", "/settings");
     } else if (calendarStatus) {
       setCalendarMessage("Google Calendar connection did not complete.");
+      setGoogleTasksMessage("Google account connection did not complete.");
       window.history.replaceState({}, "", "/settings");
     }
   }, []);
@@ -115,6 +135,33 @@ export function Settings() {
       cancelled = true;
     };
   }, [googleReadiness.ready, session]);
+
+  useEffect(() => {
+    if (!session || !googleTasksReadiness.ready) return;
+
+    let cancelled = false;
+    setCheckingGoogleTasks(true);
+
+    void getGoogleTasksBridgeStatus()
+      .then((status) => {
+        if (cancelled) return;
+        setGoogleTasksStatus(status);
+        setGoogleTasksSettings(status.settings);
+        if (status.needsReconnect) {
+          setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setGoogleTasksMessage(errorMessage(error, "Could not check Google Tasks bridge."));
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingGoogleTasks(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleTasksReadiness.ready, session]);
 
   useEffect(() => {
     if (!session || !isSupabaseConfigured) return;
@@ -357,6 +404,81 @@ export function Settings() {
     }
   };
 
+  const refreshGoogleTasksBridgeStatus = async () => {
+    setCheckingGoogleTasks(true);
+    setGoogleTasksMessage("");
+
+    try {
+      const status = await getGoogleTasksBridgeStatus();
+      setGoogleTasksStatus(status);
+      setGoogleTasksSettings(status.settings);
+      if (status.needsReconnect) {
+        setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
+      }
+    } catch (error) {
+      setGoogleTasksMessage(errorMessage(error, "Could not check Google Tasks bridge."));
+    } finally {
+      setCheckingGoogleTasks(false);
+    }
+  };
+
+  const handleGoogleTasksSettingsSave = async (settings = googleTasksSettings) => {
+    setSavingGoogleTasks(true);
+    setGoogleTasksMessage("");
+
+    try {
+      const savedSettings = await saveGoogleTasksBridgeSettings(settings);
+      setGoogleTasksSettings(savedSettings);
+      setGoogleTasksStatus((current) => (current ? { ...current, settings: savedSettings } : current));
+      setGoogleTasksMessage(savedSettings.enabled ? "Google Tasks bridge enabled." : "Google Tasks bridge paused.");
+    } catch (error) {
+      setGoogleTasksMessage(errorMessage(error, "Could not save Google Tasks bridge settings."));
+    } finally {
+      setSavingGoogleTasks(false);
+    }
+  };
+
+  const handleGoogleTasksEnabledChange = async (enabled: boolean) => {
+    const nextSettings = { ...googleTasksSettings, enabled };
+    setGoogleTasksSettings(nextSettings);
+    await handleGoogleTasksSettingsSave(nextSettings);
+  };
+
+  const handleGoogleTasksSync = async () => {
+    setSyncingGoogleTasks(true);
+    setGoogleTasksMessage("");
+
+    try {
+      const result = await syncGoogleTasksBridge({
+        tasks,
+        projects,
+        settings: googleTasksSettings,
+      });
+
+      setGoogleTasksSettings(result.settings);
+      setGoogleTasksStatus((current) =>
+        current
+          ? {
+              ...current,
+              lists: result.lists,
+              settings: result.settings,
+            }
+          : current,
+      );
+      if (result.importedTasks.length) {
+        importTasks(result.importedTasks);
+      }
+      const conflictCopy = result.importConflicts.length ? ` ${result.importConflicts.length} inbox items need manual project review.` : "";
+      setGoogleTasksMessage(
+        `Google Tasks synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.imported} imported.${conflictCopy}`,
+      );
+    } catch (error) {
+      setGoogleTasksMessage(errorMessage(error, "Could not sync Google Tasks bridge."));
+    } finally {
+      setSyncingGoogleTasks(false);
+    }
+  };
+
   const updateEmailReminderPreference = async (enabled: boolean) => {
     setEmailRemindersEnabled(enabled);
     setPreferenceMessage("");
@@ -553,6 +675,112 @@ export function Settings() {
             )}
           </div>
           {calendarMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{calendarMessage}</p> : null}
+        </Card>
+        <Card className="p-4 sm:p-5">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Smartphone size={18} /> Google Tasks Mobile Bridge</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            Keep Align as the source of truth while your phone widget shows the near-term work.
+          </p>
+          <div className="mt-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[var(--text-muted)]">Google account</span>
+              <Badge tone={googleTasksStatus?.connected ? "emerald" : "slate"}>
+                {checkingGoogleTasks ? "checking" : googleTasksStatus?.connected ? "connected" : "not connected"}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[var(--text-muted)]">Tasks scope</span>
+              <Badge tone={googleTasksStatus?.needsReconnect ? "amber" : googleTasksStatus?.connected ? "emerald" : "slate"}>
+                {googleTasksStatus?.needsReconnect ? "reconnect needed" : googleTasksStatus?.connected ? "ready" : "not connected"}
+              </Badge>
+            </div>
+            <p className="text-[var(--text-soft)]">
+              Scope: <span className="text-[var(--text-muted)]">{googleTasksReadiness.scope}</span>
+            </p>
+            <p className="text-[var(--text-soft)]">
+              Align Today mirrors due today, overdue, and next 3 days. Align Inbox imports quick phone captures.
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div>
+                <p className="font-semibold text-[var(--text)]">Enable Google Tasks bridge</p>
+                <p className="text-sm text-[var(--text-muted)]">Manual sync only for now, so nothing moves until you press Sync now.</p>
+              </div>
+              <Button
+                variant={googleTasksSettings.enabled ? "secondary" : "ghost"}
+                onClick={() => void handleGoogleTasksEnabledChange(!googleTasksSettings.enabled)}
+                disabled={!session || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || savingGoogleTasks}
+              >
+                {googleTasksSettings.enabled ? "Enabled" : "Paused"}
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold text-[var(--text)]">
+                <span className="flex items-center gap-2"><ListTodo size={16} /> Align Today list</span>
+                <select
+                  className="min-h-11 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)]"
+                  value={googleTasksSettings.todayListId}
+                  onChange={(event) => setGoogleTasksSettings((current) => ({ ...current, todayListId: event.target.value }))}
+                  disabled={!googleTasksStatus?.connected || googleTasksStatus.needsReconnect}
+                >
+                  <option value="">Auto-create Align Today</option>
+                  {(googleTasksStatus?.lists ?? []).map((list) => (
+                    <option key={list.id} value={list.id}>{list.title}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm font-semibold text-[var(--text)]">
+                <span className="flex items-center gap-2"><ListTodo size={16} /> Align Inbox list</span>
+                <select
+                  className="min-h-11 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)]"
+                  value={googleTasksSettings.inboxListId}
+                  onChange={(event) => setGoogleTasksSettings((current) => ({ ...current, inboxListId: event.target.value }))}
+                  disabled={!googleTasksStatus?.connected || googleTasksStatus.needsReconnect}
+                >
+                  <option value="">Auto-create Align Inbox</option>
+                  {(googleTasksStatus?.lists ?? []).map((list) => (
+                    <option key={list.id} value={list.id}>{list.title}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {googleTasksSettings.lastSyncedAt ? (
+              <p className="text-xs text-[var(--text-soft)]">Last synced {new Date(googleTasksSettings.lastSyncedAt).toLocaleString()}</p>
+            ) : null}
+            {googleTasksSettings.lastError ? (
+              <p className="text-sm text-[var(--danger)]">{googleTasksSettings.lastError}</p>
+            ) : null}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {!googleTasksStatus?.connected || googleTasksStatus.needsReconnect ? (
+              <Button variant="secondary" onClick={() => void handleGoogleCalendarConnect()}>
+                {googleTasksStatus?.needsReconnect ? "Reconnect Google" : "Connect Google"}
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              icon={<RefreshCw size={16} />}
+              onClick={() => void refreshGoogleTasksBridgeStatus()}
+              disabled={!session || checkingGoogleTasks}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void handleGoogleTasksSettingsSave()}
+              disabled={!session || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || savingGoogleTasks}
+            >
+              {savingGoogleTasks ? "Saving..." : "Save Bridge"}
+            </Button>
+            <Button
+              onClick={() => void handleGoogleTasksSync()}
+              disabled={!session || !googleTasksSettings.enabled || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || syncingGoogleTasks}
+            >
+              {syncingGoogleTasks ? "Syncing..." : "Sync Now"}
+            </Button>
+          </div>
+          {googleTasksMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{googleTasksMessage}</p> : null}
         </Card>
         <Card className="p-4 sm:p-5">
           <h2 className="font-bold text-[var(--text)]">Data</h2>
