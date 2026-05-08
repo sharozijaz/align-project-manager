@@ -407,7 +407,10 @@ export async function syncGoogleTasksBridgeForUser(env, userId, workspace, incom
 
   const lists = await getGoogleTaskLists(env, connection);
   const todayList = await ensureGoogleTaskList(env, connection, lists, mergedSettings.todayListId, "Align Today");
-  const inboxList = await ensureGoogleTaskList(env, connection, lists, mergedSettings.inboxListId, "Align Inbox");
+  let inboxList = await ensureGoogleTaskList(env, connection, lists, mergedSettings.inboxListId, "Align Inbox");
+  if (inboxList.id === todayList.id) {
+    inboxList = await createGoogleTaskList(env, connection, lists, "Align Inbox");
+  }
   const settings = await upsertGoogleTaskBridgeSettings(env, userId, {
     ...mergedSettings,
     todayListId: todayList.id,
@@ -448,12 +451,18 @@ async function ensureGoogleTaskList(env, connection, lists, listId, defaultTitle
   const existingByName = lists.find((list) => list.title.toLowerCase() === defaultTitle.toLowerCase());
   if (existingByName) return existingByName;
 
+  return createGoogleTaskList(env, connection, lists, defaultTitle);
+}
+
+async function createGoogleTaskList(env, connection, lists, title) {
   const created = await googleTasksRequest(env, connection, "/users/@me/lists", {
     method: "POST",
-    body: JSON.stringify({ title: defaultTitle }),
+    body: JSON.stringify({ title }),
   });
+  const list = { id: created.id, title: created.title || title };
+  lists.push(list);
 
-  return { id: created.id, title: created.title || defaultTitle };
+  return list;
 }
 
 async function syncAlignTodayTasks(env, connection, userId, todayListId, workspace) {
@@ -527,21 +536,15 @@ async function importGoogleTasksInbox(env, connection, userId, inboxListId, work
   const data = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(inboxListId)}/tasks?${params.toString()}`);
   const googleTasks = data.items || [];
   const existingLinks = await findGoogleTaskImportLinks(env, userId);
-  const existingTaskTitles = new Set((workspace.tasks || []).map((task) => task.title.trim().toLowerCase()));
   const importedTasks = [];
   const importConflicts = [];
 
   for (const googleTask of googleTasks) {
     if (!googleTask.id || existingLinks.has(`${inboxListId}:${googleTask.id}`)) continue;
-    if (String(googleTask.notes || "").includes("Imported into Align")) continue;
+    if (isAlignOwnedGoogleTask(googleTask)) continue;
 
     const parsed = parseGoogleInboxTitle(googleTask.title || "Untitled task", workspace.projects || []);
     const now = new Date().toISOString();
-    const titleKey = parsed.title.trim().toLowerCase();
-    if (existingTaskTitles.has(titleKey)) {
-      await completeImportedGoogleTask(env, connection, inboxListId, googleTask, "Skipped duplicate imported title.");
-      continue;
-    }
 
     const task = {
       id: crypto.randomUUID(),
@@ -567,6 +570,11 @@ async function importGoogleTasksInbox(env, connection, userId, inboxListId, work
   }
 
   return { imported: importedTasks.length, importedTasks, importConflicts };
+}
+
+function isAlignOwnedGoogleTask(googleTask) {
+  const notes = String(googleTask.notes || "");
+  return notes.includes("Synced from Align.") || notes.includes("Align task ID:") || notes.includes("Imported into Align");
 }
 
 function shouldMirrorTaskToGoogleTasks(task) {
