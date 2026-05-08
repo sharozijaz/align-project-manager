@@ -32,11 +32,11 @@ export function App() {
     <AuthGate>
       <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
         <DesktopTitleBar />
-        <div className="align-app-scroll min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
-          <div className="flex min-h-screen w-full overflow-x-hidden">
+        <div className="align-app-scroll h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
+          <div className="flex h-full w-full flex-col overflow-hidden lg:flex-row">
             <AppSidebar />
-            <div className="min-w-0 flex-1">
-              <div className="w-full overflow-x-hidden p-3 sm:p-4 lg:p-5">
+            <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+              <div className="min-h-full w-full p-3 sm:p-4 lg:p-5">
                 <motion.main
                   key={location.pathname}
                   className="mx-auto min-w-0 max-w-[1760px]"

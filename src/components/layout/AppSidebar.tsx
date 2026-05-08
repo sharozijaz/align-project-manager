@@ -96,7 +96,7 @@ export function AppSidebar() {
         <NotificationBell open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
       </header>
 
-      <aside className={`sticky top-0 hidden h-screen shrink-0 border-r border-[var(--border)] bg-[var(--bg-soft)] p-3 transition-[width] duration-200 lg:block ${collapsed ? "w-[88px]" : "w-[272px]"}`}>
+      <aside className={`hidden h-full min-h-0 shrink-0 border-r border-[var(--border)] bg-[var(--bg-soft)] p-3 transition-[width] duration-200 lg:block ${collapsed ? "w-[88px]" : "w-[272px]"}`}>
         <SidebarContent
           links={links}
           profileName={profileName}
