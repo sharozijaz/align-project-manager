@@ -1,6 +1,6 @@
 [package]
 name = "align"
-version = "0.2.1"
+version = "0.2.2"
 description = "Align project management desktop app"
 authors = ["Sharoz Ijaz"]
 license = ""

@@ -10,6 +10,7 @@ import { GoogleTasksBridgeAutoSync } from "../components/sync/GoogleTasksBridgeA
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
 import { DesktopNotificationBridge } from "../components/notifications/DesktopNotificationBridge";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
+import { ReminderEmailBridge } from "../components/notifications/ReminderEmailBridge";
 import { useThemeStore } from "../store/themeStore";
 import { isTauriRuntime } from "../integrations/desktop/runtime";
 import { cleanupTrash } from "../utils/trashCleanup";
@@ -52,6 +53,7 @@ export function App() {
             <GoogleCalendarAutoSync />
             <GoogleTasksBridgeAutoSync />
             <DesktopNotificationBridge />
+            <ReminderEmailBridge />
             <DeletedTaskToast />
             <AppShortcuts />
           </div>
