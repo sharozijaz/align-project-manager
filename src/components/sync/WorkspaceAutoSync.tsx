@@ -12,6 +12,7 @@ const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; ev
   workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
 
 const WORKSPACE_SESSION_KEY = "align-workspace-session-user-v1";
+const WORKSPACE_BACKUP_KEY = "align-workspace-pre-clear-backup-v1";
 
 export function WorkspaceAutoSync() {
   const { session, isConfigured } = useSupabaseSession();
@@ -37,11 +38,27 @@ export function WorkspaceAutoSync() {
     [events, notes, projects, resources, tasks],
   );
 
+  const backupWorkspaceBeforeClear = (reason: string) => {
+    window.localStorage.setItem(
+      WORKSPACE_BACKUP_KEY,
+      JSON.stringify({
+        reason,
+        backedUpAt: new Date().toISOString(),
+        tasks,
+        projects,
+        events,
+        resources,
+        notes,
+      }),
+    );
+  };
+
   useEffect(() => {
     if (!isConfigured || !sessionId) {
       readyToPushRef.current = false;
       pulledSessionRef.current = undefined;
       if (isConfigured && !clearedSignedOutRef.current) {
+        backupWorkspaceBeforeClear("signed-out");
         applyingCloudRef.current = true;
         replaceTasks([]);
         replaceProjects([]);
@@ -65,7 +82,12 @@ export function WorkspaceAutoSync() {
     clearedSignedOutRef.current = false;
 
     const previousSessionId = window.localStorage.getItem(WORKSPACE_SESSION_KEY);
-    if (previousSessionId !== sessionId) {
+    const localWorkspaceAtPullStart = { tasks, projects, events, resources, notes };
+    const hadLocalDataAtPullStart = hasWorkspaceData(localWorkspaceAtPullStart);
+    const isKnownAccountSwitch = Boolean(previousSessionId && previousSessionId !== sessionId);
+
+    if (isKnownAccountSwitch) {
+      backupWorkspaceBeforeClear("account-switch");
       applyingCloudRef.current = true;
       replaceTasks([]);
       replaceProjects([]);
@@ -100,17 +122,23 @@ export function WorkspaceAutoSync() {
           return;
         }
 
-        applyingCloudRef.current = true;
-        replaceTasks([]);
-        replaceProjects([]);
-        replaceEvents([]);
-        replaceResources([]);
-        replaceNotes([]);
-        window.setTimeout(() => {
-          applyingCloudRef.current = false;
-          readyToPushRef.current = true;
-        }, 0);
-        setSynced("Cloud workspace is empty. Fresh workspace ready.");
+        if (isKnownAccountSwitch || !hadLocalDataAtPullStart) {
+          applyingCloudRef.current = true;
+          replaceTasks([]);
+          replaceProjects([]);
+          replaceEvents([]);
+          replaceResources([]);
+          replaceNotes([]);
+          window.setTimeout(() => {
+            applyingCloudRef.current = false;
+            readyToPushRef.current = !isKnownAccountSwitch;
+          }, 0);
+          setSynced("Cloud workspace is empty. Fresh workspace ready.");
+          return;
+        }
+
+        readyToPushRef.current = true;
+        setSynced("Cloud workspace is empty. Keeping local workspace.");
       })
       .catch((error) => {
         if (cancelled) return;
