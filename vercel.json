@@ -7,6 +7,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/google-todos/status",
+      "destination": "/api/google-todos?action=status"
+    },
+    {
+      "source": "/api/google-todos/settings",
+      "destination": "/api/google-todos?action=settings"
+    },
+    {
+      "source": "/api/google-todos/sync",
+      "destination": "/api/google-todos?action=sync"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/:path*"
     },
