@@ -33,8 +33,21 @@ const requireClient = () => {
   return supabase;
 };
 
+async function requireUserId(client: ReturnType<typeof requireClient>) {
+  const {
+    data: { user },
+    error: userError,
+  } = await client.auth.getUser();
+
+  if (userError) throw new Error(errorMessage(userError, "Could not read Supabase user."));
+  if (!user) throw new Error("Sign in before syncing your workspace.");
+
+  return user.id;
+}
+
 export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
   const client = requireClient();
+  const userId = await requireUserId(client);
   const [
     { data: projects, error: projectsError },
     { data: tasks, error: tasksError },
@@ -43,11 +56,11 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     { data: notes, error: notesError },
   ] =
     await Promise.all([
-      client.from("projects").select("*").order("created_at", { ascending: false }),
-      client.from("tasks").select("*").order("created_at", { ascending: false }),
-      client.from("calendar_events").select("*").order("start_date", { ascending: true }),
-      client.from("hub_resources").select("*").order("created_at", { ascending: false }),
-      client.from("hub_notes").select("*").order("created_at", { ascending: false }),
+      client.from("projects").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      client.from("tasks").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      client.from("calendar_events").select("*").eq("user_id", userId).order("start_date", { ascending: true }),
+      client.from("hub_resources").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      client.from("hub_notes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     ]);
 
   const error =
@@ -69,15 +82,7 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
 
 export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace) {
   const client = requireClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await client.auth.getUser();
-
-  if (userError) throw new Error(errorMessage(userError, "Could not read Supabase user."));
-  if (!user) throw new Error("Sign in before syncing your workspace.");
-
-  const userId = user.id;
+  const userId = await requireUserId(client);
   const projectIds = new Set(workspace.projects.map((project) => project.id));
   const projectRows = workspace.projects.map((project) => projectToRow(project, userId));
   const taskRows = workspace.tasks.map((task) =>
@@ -91,11 +96,11 @@ export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace) {
   );
 
   await upsertProjects(projectRows);
-  await replaceTasks(taskRows);
-  await deleteStaleProjects(projectRows);
-  await replaceCalendarEvents(workspace.events.map((event) => calendarEventToRow(event, userId)));
-  await replaceHubResources(workspace.resources.map((resource) => hubResourceToRow(resource, userId)));
-  await replaceHubNotes(workspace.notes.map((note) => hubNoteToRow(note, userId)));
+  await replaceTasks(taskRows, userId);
+  await deleteStaleProjects(projectRows, userId);
+  await replaceCalendarEvents(workspace.events.map((event) => calendarEventToRow(event, userId)), userId);
+  await replaceHubResources(workspace.resources.map((resource) => hubResourceToRow(resource, userId)), userId);
+  await replaceHubNotes(workspace.notes.map((note) => hubNoteToRow(note, userId)), userId);
 }
 
 async function upsertProjects(rows: ReturnType<typeof projectToRow>[]) {
@@ -124,9 +129,9 @@ async function upsertProjects(rows: ReturnType<typeof projectToRow>[]) {
   }
 }
 
-async function deleteStaleProjects(rows: ReturnType<typeof projectToRow>[]) {
+async function deleteStaleProjects(rows: ReturnType<typeof projectToRow>[], userId: string) {
   const client = requireClient();
-  const { data: existing, error: existingError } = await client.from("projects").select("id");
+  const { data: existing, error: existingError } = await client.from("projects").select("id").eq("user_id", userId);
 
   if (existingError) throw new Error(errorMessage(existingError, "Could not read existing projects."));
 
@@ -134,14 +139,14 @@ async function deleteStaleProjects(rows: ReturnType<typeof projectToRow>[]) {
   const staleIds = (existing ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
 
   if (staleIds.length) {
-    const { error: deleteError } = await client.from("projects").delete().in("id", staleIds);
+    const { error: deleteError } = await client.from("projects").delete().eq("user_id", userId).in("id", staleIds);
     if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale projects."));
   }
 }
 
-async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
+async function replaceTasks(rows: ReturnType<typeof taskToRow>[], userId: string) {
   const client = requireClient();
-  const { data: existing, error: existingError } = await client.from("tasks").select("id");
+  const { data: existing, error: existingError } = await client.from("tasks").select("id").eq("user_id", userId);
 
   if (existingError) throw new Error(errorMessage(existingError, "Could not read existing tasks."));
 
@@ -149,7 +154,7 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[]) {
   const staleIds = (existing ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
 
   if (staleIds.length) {
-    const { error: deleteError } = await client.from("tasks").delete().in("id", staleIds);
+    const { error: deleteError } = await client.from("tasks").delete().eq("user_id", userId).in("id", staleIds);
     if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale tasks."));
   }
 
@@ -215,9 +220,9 @@ function stripColumns<Row extends Record<string, unknown>>(rows: Row[], columns:
   });
 }
 
-async function replaceCalendarEvents(rows: ReturnType<typeof calendarEventToRow>[]) {
+async function replaceCalendarEvents(rows: ReturnType<typeof calendarEventToRow>[], userId: string) {
   const client = requireClient();
-  const { data: existing, error: existingError } = await client.from("calendar_events").select("id");
+  const { data: existing, error: existingError } = await client.from("calendar_events").select("id").eq("user_id", userId);
 
   if (existingError) throw new Error(errorMessage(existingError, "Could not read existing calendar events."));
 
@@ -225,7 +230,7 @@ async function replaceCalendarEvents(rows: ReturnType<typeof calendarEventToRow>
   const staleIds = (existing ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
 
   if (staleIds.length) {
-    const { error: deleteError } = await client.from("calendar_events").delete().in("id", staleIds);
+    const { error: deleteError } = await client.from("calendar_events").delete().eq("user_id", userId).in("id", staleIds);
     if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale calendar events."));
   }
 
@@ -235,9 +240,9 @@ async function replaceCalendarEvents(rows: ReturnType<typeof calendarEventToRow>
   }
 }
 
-async function replaceHubResources(rows: ReturnType<typeof hubResourceToRow>[]) {
+async function replaceHubResources(rows: ReturnType<typeof hubResourceToRow>[], userId: string) {
   const client = requireClient();
-  const { data: existing, error: existingError } = await client.from("hub_resources").select("id");
+  const { data: existing, error: existingError } = await client.from("hub_resources").select("id").eq("user_id", userId);
 
   if (isMissingRelation(existingError)) return;
   if (existingError) throw new Error(errorMessage(existingError, "Could not read existing resources."));
@@ -246,7 +251,7 @@ async function replaceHubResources(rows: ReturnType<typeof hubResourceToRow>[]) 
   const staleIds = (existing ?? []).map((row) => row.id).filter((itemId) => !nextIds.has(itemId));
 
   if (staleIds.length) {
-    const { error: deleteError } = await client.from("hub_resources").delete().in("id", staleIds);
+    const { error: deleteError } = await client.from("hub_resources").delete().eq("user_id", userId).in("id", staleIds);
     if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale resources."));
   }
 
@@ -257,9 +262,9 @@ async function replaceHubResources(rows: ReturnType<typeof hubResourceToRow>[]) 
   }
 }
 
-async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[]) {
+async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[], userId: string) {
   const client = requireClient();
-  const { data: existing, error: existingError } = await client.from("hub_notes").select("id");
+  const { data: existing, error: existingError } = await client.from("hub_notes").select("id").eq("user_id", userId);
 
   if (isMissingRelation(existingError)) return;
   if (existingError) throw new Error(errorMessage(existingError, "Could not read existing hub notes."));
@@ -268,7 +273,7 @@ async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[]) {
   const staleIds = (existing ?? []).map((row) => row.id).filter((itemId) => !nextIds.has(itemId));
 
   if (staleIds.length) {
-    const { error: deleteError } = await client.from("hub_notes").delete().in("id", staleIds);
+    const { error: deleteError } = await client.from("hub_notes").delete().eq("user_id", userId).in("id", staleIds);
     if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale hub notes."));
   }
 

@@ -11,6 +11,8 @@ import { errorMessage } from "../../utils/errors";
 const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[] }) =>
   workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
 
+const WORKSPACE_SESSION_KEY = "align-workspace-session-user-v1";
+
 export function WorkspaceAutoSync() {
   const { session, isConfigured } = useSupabaseSession();
   const tasks = useTaskStore((state) => state.tasks);
@@ -29,6 +31,7 @@ export function WorkspaceAutoSync() {
   const pulledSessionRef = useRef<string | undefined>(undefined);
   const readyToPushRef = useRef(false);
   const applyingCloudRef = useRef(false);
+  const clearedSignedOutRef = useRef(false);
   const workspaceSnapshot = useMemo(
     () => JSON.stringify({ tasks, projects, events, resources, notes }),
     [events, notes, projects, resources, tasks],
@@ -38,6 +41,19 @@ export function WorkspaceAutoSync() {
     if (!isConfigured || !sessionId) {
       readyToPushRef.current = false;
       pulledSessionRef.current = undefined;
+      if (isConfigured && !clearedSignedOutRef.current) {
+        applyingCloudRef.current = true;
+        replaceTasks([]);
+        replaceProjects([]);
+        replaceEvents([]);
+        replaceResources([]);
+        replaceNotes([]);
+        window.localStorage.removeItem(WORKSPACE_SESSION_KEY);
+        window.setTimeout(() => {
+          applyingCloudRef.current = false;
+        }, 0);
+        clearedSignedOutRef.current = true;
+      }
       return;
     }
 
@@ -46,6 +62,22 @@ export function WorkspaceAutoSync() {
     let cancelled = false;
     pulledSessionRef.current = sessionId;
     readyToPushRef.current = false;
+    clearedSignedOutRef.current = false;
+
+    const previousSessionId = window.localStorage.getItem(WORKSPACE_SESSION_KEY);
+    if (previousSessionId !== sessionId) {
+      applyingCloudRef.current = true;
+      replaceTasks([]);
+      replaceProjects([]);
+      replaceEvents([]);
+      replaceResources([]);
+      replaceNotes([]);
+      window.localStorage.setItem(WORKSPACE_SESSION_KEY, sessionId);
+      window.setTimeout(() => {
+        applyingCloudRef.current = false;
+      }, 0);
+    }
+
     setSyncState("pulling", "Downloading cloud workspace...");
 
     void pullWorkspaceFromSupabase()
