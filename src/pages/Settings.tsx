@@ -1,4 +1,4 @@
-import { BellRing, CalendarDays, Cloud, Download, ListTodo, Mail, Palette, RefreshCw, Smartphone, Trash2, Upload, UserRound } from "lucide-react";
+import { BellRing, CalendarDays, Cloud, Download, ImageIcon, ListTodo, Mail, Palette, RefreshCw, Smartphone, Trash2, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -13,6 +13,7 @@ import { useSyncStore } from "../store/syncStore";
 import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
 import { themeOptions, useThemeStore } from "../store/themeStore";
+import { getHeroOption, heroOptions, useHeroStore } from "../store/heroStore";
 import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
 import {
@@ -36,12 +37,12 @@ import {
 import type { GoogleCalendarConnection } from "../integrations/googleCalendar/types";
 import { previewGoogleCalendarSync, syncLocalTasksWithGoogleCalendar } from "../integrations/googleCalendar/sync";
 import {
-  getGoogleTasksBridgeReadiness,
-  getGoogleTasksBridgeStatus,
-  saveGoogleTasksBridgeSettings,
-  syncGoogleTasksBridge,
+  getGoogleTodoSyncReadiness,
+  getGoogleTodoSyncStatus,
+  saveGoogleTodoSyncSettings,
+  syncGoogleTodos,
 } from "../integrations/googleTasks/googleTasksClient";
-import type { GoogleTasksBridgeSettings, GoogleTasksBridgeStatus } from "../integrations/googleTasks/types";
+import type { GoogleTodoSyncSettings, GoogleTodoSyncStatus } from "../integrations/googleTasks/types";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { dateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
@@ -65,11 +66,10 @@ export function Settings() {
   const [checkingGoogleConnection, setCheckingGoogleConnection] = useState(false);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [googleTasksMessage, setGoogleTasksMessage] = useState("");
-  const [googleTasksStatus, setGoogleTasksStatus] = useState<GoogleTasksBridgeStatus | null>(null);
-  const [googleTasksSettings, setGoogleTasksSettings] = useState<GoogleTasksBridgeSettings>({
+  const [googleTasksStatus, setGoogleTasksStatus] = useState<GoogleTodoSyncStatus | null>(null);
+  const [googleTasksSettings, setGoogleTasksSettings] = useState<GoogleTodoSyncSettings>({
     enabled: false,
-    todayListId: "",
-    inboxListId: "",
+    todoListId: "",
   });
   const [checkingGoogleTasks, setCheckingGoogleTasks] = useState(false);
   const [savingGoogleTasks, setSavingGoogleTasks] = useState(false);
@@ -87,7 +87,7 @@ export function Settings() {
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
   const { projects, replaceProjects } = useProjectStore();
-  const { tasks, replaceTasks, importTasks } = useTaskStore();
+  const { tasks, replaceTasks, upsertTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
   const { resources, notes, replaceResources, replaceNotes } = useStudioStore();
   const syncState = useSyncStore();
@@ -95,8 +95,11 @@ export function Settings() {
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
   const activeTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
+  const heroImage = useHeroStore((state) => state.heroImage);
+  const setHeroImage = useHeroStore((state) => state.setHeroImage);
+  const activeHero = getHeroOption(heroImage);
   const googleReadiness = getGoogleCalendarReadiness();
-  const googleTasksReadiness = getGoogleTasksBridgeReadiness();
+  const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
 
   useEffect(() => {
@@ -105,7 +108,7 @@ export function Settings() {
 
     if (calendarStatus === "connected") {
       setCalendarMessage("Google Calendar connected.");
-      setGoogleTasksMessage("Google account connected. You can enable the mobile Tasks bridge below.");
+      setGoogleTasksMessage("Google account connected. You can enable Todo sync below.");
       window.history.replaceState({}, "", "/settings");
     } else if (calendarStatus) {
       setCalendarMessage("Google Calendar connection did not complete.");
@@ -142,7 +145,7 @@ export function Settings() {
     let cancelled = false;
     setCheckingGoogleTasks(true);
 
-    void getGoogleTasksBridgeStatus()
+    void getGoogleTodoSyncStatus()
       .then((status) => {
         if (cancelled) return;
         setGoogleTasksStatus(status);
@@ -152,7 +155,7 @@ export function Settings() {
         }
       })
       .catch((error) => {
-        if (!cancelled) setGoogleTasksMessage(errorMessage(error, "Could not check Google Tasks bridge."));
+        if (!cancelled) setGoogleTasksMessage(errorMessage(error, "Could not check Google Todo sync."));
       })
       .finally(() => {
         if (!cancelled) setCheckingGoogleTasks(false);
@@ -404,19 +407,19 @@ export function Settings() {
     }
   };
 
-  const refreshGoogleTasksBridgeStatus = async () => {
+  const refreshGoogleTodoSyncStatus = async () => {
     setCheckingGoogleTasks(true);
     setGoogleTasksMessage("");
 
     try {
-      const status = await getGoogleTasksBridgeStatus();
+      const status = await getGoogleTodoSyncStatus();
       setGoogleTasksStatus(status);
       setGoogleTasksSettings(status.settings);
       if (status.needsReconnect) {
         setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
       }
     } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not check Google Tasks bridge."));
+      setGoogleTasksMessage(errorMessage(error, "Could not check Google Todo sync."));
     } finally {
       setCheckingGoogleTasks(false);
     }
@@ -427,12 +430,12 @@ export function Settings() {
     setGoogleTasksMessage("");
 
     try {
-      const savedSettings = await saveGoogleTasksBridgeSettings(settings);
+      const savedSettings = await saveGoogleTodoSyncSettings(settings);
       setGoogleTasksSettings(savedSettings);
       setGoogleTasksStatus((current) => (current ? { ...current, settings: savedSettings } : current));
-      setGoogleTasksMessage(savedSettings.enabled ? "Google Tasks bridge enabled." : "Google Tasks bridge paused.");
+      setGoogleTasksMessage(savedSettings.enabled ? "Google Todo sync enabled." : "Google Todo sync paused.");
     } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not save Google Tasks bridge settings."));
+      setGoogleTasksMessage(errorMessage(error, "Could not save Google Todo sync settings."));
     } finally {
       setSavingGoogleTasks(false);
     }
@@ -449,9 +452,8 @@ export function Settings() {
     setGoogleTasksMessage("");
 
     try {
-      const result = await syncGoogleTasksBridge({
+      const result = await syncGoogleTodos({
         tasks,
-        projects,
         settings: googleTasksSettings,
       });
 
@@ -465,15 +467,14 @@ export function Settings() {
             }
           : current,
       );
-      if (result.importedTasks.length) {
-        importTasks(result.importedTasks);
+      if (result.changedTasks.length) {
+        upsertTasks(result.changedTasks);
       }
-      const conflictCopy = result.importConflicts.length ? ` ${result.importConflicts.length} inbox items need manual project review.` : "";
       setGoogleTasksMessage(
-        `Google Tasks synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.imported} imported.${conflictCopy}`,
+        `Google Todos synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.imported} imported.`,
       );
     } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not sync Google Tasks bridge."));
+      setGoogleTasksMessage(errorMessage(error, "Could not sync Google Todos."));
     } finally {
       setSyncingGoogleTasks(false);
     }
@@ -585,6 +586,54 @@ export function Settings() {
             <span className="text-sm text-[var(--text-soft)]">Saved on this device.</span>
           </div>
         </Card>
+        <Card className="p-4 sm:p-5 lg:col-span-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
+                <ImageIcon size={18} /> Dashboard Image
+              </h2>
+              <p className="mt-3 text-sm text-[var(--text-muted)]">
+                {activeHero.label} is active on the home dashboard.
+              </p>
+            </div>
+            <Badge tone="slate">Saved on this device</Badge>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {heroOptions.map((option) => {
+              const isActive = option.value === heroImage;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setHeroImage(option.value)}
+                  className={`group rounded-[var(--radius-md)] border p-2 text-left transition active:scale-[0.99] ${
+                    isActive
+                      ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                      : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  <span className="relative block aspect-[3/1] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
+                    <img
+                      src={option.src}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                    />
+                    <span className="absolute inset-0 bg-gradient-to-r from-[#050817]/35 via-transparent to-[#050817]/35" />
+                    {isActive ? (
+                      <span className="absolute right-2 top-2 rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] font-bold text-[var(--text)] shadow-[var(--shadow-soft)]">
+                        Selected
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-2 block text-sm font-bold">{option.label}</span>
+                  <span className="mt-1 block text-xs text-[var(--text-soft)]">{option.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CalendarDays size={18} /> Google Calendar</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
@@ -677,9 +726,9 @@ export function Settings() {
           {calendarMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{calendarMessage}</p> : null}
         </Card>
         <Card className="p-4 sm:p-5">
-          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Smartphone size={18} /> Google Tasks Mobile Bridge</h2>
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Smartphone size={18} /> Google Todo Sync</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Keep Align as the source of truth while your phone widget shows the near-term work.
+            Sync your Align Todos with one Google Tasks list for phone widgets and quick capture.
           </p>
           <div className="mt-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
             <div className="flex items-center justify-between gap-3">
@@ -698,13 +747,13 @@ export function Settings() {
               Scope: <span className="text-[var(--text-muted)]">{googleTasksReadiness.scope}</span>
             </p>
             <p className="text-[var(--text-soft)]">
-              Align Today mirrors due today, overdue, and next 3 days. Align Inbox imports quick phone captures.
+              Project tasks stay in Align. Google Tasks only creates and updates personal Todos.
             </p>
           </div>
           <div className="mt-4 grid gap-3">
             <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
               <div>
-                <p className="font-semibold text-[var(--text)]">Enable Google Tasks bridge</p>
+                <p className="font-semibold text-[var(--text)]">Enable Todo sync</p>
                 <p className="text-sm text-[var(--text-muted)]">Runs automatically while Align is open. Sync Now still works when you want an immediate refresh.</p>
               </div>
               <Button
@@ -715,30 +764,16 @@ export function Settings() {
                 {googleTasksSettings.enabled ? "Enabled" : "Paused"}
               </Button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3">
               <label className="grid gap-2 text-sm font-semibold text-[var(--text)]">
-                <span className="flex items-center gap-2"><ListTodo size={16} /> Align Today list</span>
+                <span className="flex items-center gap-2"><ListTodo size={16} /> Google Todo list</span>
                 <select
                   className="min-h-11 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)]"
-                  value={googleTasksSettings.todayListId}
-                  onChange={(event) => setGoogleTasksSettings((current) => ({ ...current, todayListId: event.target.value }))}
+                  value={googleTasksSettings.todoListId}
+                  onChange={(event) => setGoogleTasksSettings((current) => ({ ...current, todoListId: event.target.value }))}
                   disabled={!googleTasksStatus?.connected || googleTasksStatus.needsReconnect}
                 >
-                  <option value="">Auto-create Align Today</option>
-                  {(googleTasksStatus?.lists ?? []).map((list) => (
-                    <option key={list.id} value={list.id}>{list.title}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-semibold text-[var(--text)]">
-                <span className="flex items-center gap-2"><ListTodo size={16} /> Align Inbox list</span>
-                <select
-                  className="min-h-11 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)]"
-                  value={googleTasksSettings.inboxListId}
-                  onChange={(event) => setGoogleTasksSettings((current) => ({ ...current, inboxListId: event.target.value }))}
-                  disabled={!googleTasksStatus?.connected || googleTasksStatus.needsReconnect}
-                >
-                  <option value="">Auto-create Align Inbox</option>
+                  <option value="">Auto-create Align Todos</option>
                   {(googleTasksStatus?.lists ?? []).map((list) => (
                     <option key={list.id} value={list.id}>{list.title}</option>
                   ))}
@@ -761,7 +796,7 @@ export function Settings() {
             <Button
               variant="secondary"
               icon={<RefreshCw size={16} />}
-              onClick={() => void refreshGoogleTasksBridgeStatus()}
+              onClick={() => void refreshGoogleTodoSyncStatus()}
               disabled={!session || checkingGoogleTasks}
             >
               Refresh
@@ -771,7 +806,7 @@ export function Settings() {
               onClick={() => void handleGoogleTasksSettingsSave()}
               disabled={!session || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || savingGoogleTasks}
             >
-              {savingGoogleTasks ? "Saving..." : "Save Bridge"}
+              {savingGoogleTasks ? "Saving..." : "Save Sync"}
             </Button>
             <Button
               onClick={() => void handleGoogleTasksSync()}

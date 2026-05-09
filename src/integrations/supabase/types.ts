@@ -301,6 +301,7 @@ export interface Database {
           body: string;
           tags: string | null;
           favorite: boolean;
+          project_ids: string[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -311,6 +312,7 @@ export interface Database {
           body: string;
           tags?: string | null;
           favorite?: boolean;
+          project_ids?: string[] | null;
           created_at: string;
           updated_at: string;
         };

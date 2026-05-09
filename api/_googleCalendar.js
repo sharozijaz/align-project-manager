@@ -387,6 +387,99 @@ export async function getGoogleTaskLists(env, connection) {
   return lists.map((list) => ({ id: list.id, title: list.title || "Untitled list" }));
 }
 
+export async function getGoogleTodoSyncSettings(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_todo_sync_settings`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "enabled,todo_list_id,last_synced_at,last_error,updated_at");
+
+  try {
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    return normalizeGoogleTodoSyncSettings(rows[0]);
+  } catch (error) {
+    if (isMissingGoogleTodoSyncTable(error)) return normalizeGoogleTodoSyncSettings(null);
+    throw error;
+  }
+}
+
+export async function upsertGoogleTodoSyncSettings(env, userId, settings) {
+  const row = {
+    user_id: userId,
+    enabled: Boolean(settings.enabled),
+    todo_list_id: settings.todoListId || null,
+    last_error: settings.lastError || null,
+    ...(settings.lastSyncedAt ? { last_synced_at: settings.lastSyncedAt } : {}),
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/google_todo_sync_settings`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(row),
+    });
+    const rows = await response.json();
+    return normalizeGoogleTodoSyncSettings(rows[0]);
+  } catch (error) {
+    if (isMissingGoogleTodoSyncTable(error)) {
+      throw new HttpError(500, "Run supabase/google-todos-sync.sql before using Google Todo sync.");
+    }
+
+    throw error;
+  }
+}
+
+export async function syncGoogleTodosForUser(env, userId, workspace, incomingSettings = {}) {
+  const connection = await requireGoogleConnection(env, userId);
+  const scopes = connection.scopes || [];
+  if (googleTasksScopes.some((scope) => !scopes.includes(scope))) {
+    throw new HttpError(409, "Reconnect Google so Align can use the Tasks scope.");
+  }
+
+  const savedSettings = await getGoogleTodoSyncSettings(env, userId);
+  const mergedSettings = {
+    ...savedSettings,
+    ...incomingSettings,
+    enabled: incomingSettings.enabled ?? savedSettings.enabled,
+  };
+
+  if (!mergedSettings.enabled) {
+    throw new HttpError(409, "Enable Google Todo sync first.");
+  }
+
+  const lists = await getGoogleTaskLists(env, connection);
+  const todoList = await ensureGoogleTaskList(env, connection, lists, mergedSettings.todoListId, "Align Todos");
+  const settings = await upsertGoogleTodoSyncSettings(env, userId, {
+    ...mergedSettings,
+    todoListId: todoList.id,
+  });
+
+  const result = await syncTodoTasks(env, connection, userId, todoList.id, workspace);
+  const lastSyncedAt = new Date().toISOString();
+  await upsertGoogleTodoSyncSettings(env, userId, {
+    ...settings,
+    enabled: true,
+    todoListId: todoList.id,
+    lastSyncedAt,
+    lastError: "",
+  });
+
+  return {
+    ...result,
+    settings: {
+      ...settings,
+      enabled: true,
+      todoListId: todoList.id,
+      lastSyncedAt,
+      lastError: "",
+    },
+    lists: await getGoogleTaskLists(env, connection),
+  };
+}
+
 export async function syncGoogleTasksBridgeForUser(env, userId, workspace, incomingSettings = {}) {
   const connection = await requireGoogleConnection(env, userId);
   const scopes = connection.scopes || [];
@@ -463,6 +556,211 @@ async function createGoogleTaskList(env, connection, lists, title) {
   lists.push(list);
 
   return list;
+}
+
+async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
+  const alignTodos = (Array.isArray(workspace.tasks) ? workspace.tasks : []).filter((task) => task?.category === "personal" && !task.projectId);
+  const alignTodoById = new Map(alignTodos.map((task) => [task.id, task]));
+  const links = await findGoogleTodoLinks(env, userId);
+  const linksByGoogleId = new Map([...links.values()].map((link) => [link.google_task_id, link]));
+  const googleTasks = await getGoogleTasksInList(env, connection, todoListId);
+  const googleTaskById = new Map(googleTasks.map((task) => [task.id, task]));
+  const changedTasks = [];
+  let created = 0;
+  let updated = 0;
+  let removed = 0;
+  let skipped = 0;
+  let imported = 0;
+
+  for (const googleTask of googleTasks) {
+    if (!googleTask?.id) continue;
+    const link = linksByGoogleId.get(googleTask.id);
+
+    if (!link && !googleTask.deleted) {
+      const task = googleTaskToAlignTodo(googleTask);
+      await upsertSyncedTask(env, userId, task);
+      await upsertGoogleTodoLink(env, userId, task.id, googleTask.id, todoListId, googleTask.updated);
+      changedTasks.push(task);
+      imported += 1;
+      continue;
+    }
+
+    if (!link) continue;
+    const alignTask = alignTodoById.get(link.align_task_id);
+
+    if (googleTask.deleted) {
+      if (alignTask && !alignTask.deletedAt) {
+        const deletedTask = { ...alignTask, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        await upsertSyncedTask(env, userId, deletedTask);
+        changedTasks.push(deletedTask);
+        removed += 1;
+      }
+      await deleteGoogleTodoLink(env, userId, link.align_task_id);
+      continue;
+    }
+
+    if (!alignTask) continue;
+    const googleChanged = Date.parse(googleTask.updated || "") > Date.parse(link.google_updated_at || link.last_synced_at || "");
+    const alignChanged = Date.parse(alignTask.updatedAt || "") > Date.parse(link.last_synced_at || "");
+
+    if (googleChanged && (!alignChanged || Date.parse(googleTask.updated || "") > Date.parse(alignTask.updatedAt || ""))) {
+      const nextTask = mergeGoogleTaskIntoAlignTodo(alignTask, googleTask);
+      await upsertSyncedTask(env, userId, nextTask);
+      await upsertGoogleTodoLink(env, userId, nextTask.id, googleTask.id, todoListId, googleTask.updated);
+      changedTasks.push(nextTask);
+      updated += 1;
+    }
+  }
+
+  const refreshedLinks = await findGoogleTodoLinks(env, userId);
+
+  for (const task of alignTodos) {
+    const link = refreshedLinks.get(task.id);
+    const googleTask = link?.google_task_id ? googleTaskById.get(link.google_task_id) : null;
+
+    if (task.deletedAt) {
+      if (link?.google_task_id) {
+        try {
+          await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(link.google_list_id)}/tasks/${encodeURIComponent(link.google_task_id)}`, {
+            method: "DELETE",
+          });
+          removed += 1;
+        } catch (error) {
+          if (error.status !== 404) throw error;
+          skipped += 1;
+        }
+        await deleteGoogleTodoLink(env, userId, task.id);
+      }
+      continue;
+    }
+
+    if (link?.google_task_id && link.google_list_id === todoListId && !googleTask) {
+      const deletedTask = { ...task, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      await upsertSyncedTask(env, userId, deletedTask);
+      await deleteGoogleTodoLink(env, userId, task.id);
+      changedTasks.push(deletedTask);
+      removed += 1;
+      continue;
+    }
+
+    const payload = alignTodoToGoogleTask(task);
+
+    if (link?.google_task_id && googleTask && !googleTask.deleted) {
+      const googleChanged = Date.parse(googleTask.updated || "") > Date.parse(link.google_updated_at || link.last_synced_at || "");
+      const alignChanged = Date.parse(task.updatedAt || "") > Date.parse(link.last_synced_at || "");
+      if (googleChanged && (!alignChanged || Date.parse(googleTask.updated || "") > Date.parse(task.updatedAt || ""))) continue;
+
+      const patched = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks/${encodeURIComponent(link.google_task_id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      await upsertGoogleTodoLink(env, userId, task.id, link.google_task_id, todoListId, patched.updated);
+      updated += 1;
+      continue;
+    }
+
+    const createdTask = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    await upsertGoogleTodoLink(env, userId, task.id, createdTask.id, todoListId, createdTask.updated);
+    created += 1;
+  }
+
+  return { created, updated, removed, skipped, imported, changedTasks };
+}
+
+async function getGoogleTasksInList(env, connection, listId) {
+  const tasks = [];
+  let pageToken = "";
+
+  do {
+    const params = new URLSearchParams({
+      showCompleted: "true",
+      showDeleted: "true",
+      showHidden: "true",
+      maxResults: "100",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    const data = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(listId)}/tasks?${params.toString()}`);
+    tasks.push(...(data.items || []));
+    pageToken = data.nextPageToken || "";
+  } while (pageToken);
+
+  return tasks;
+}
+
+function alignTodoToGoogleTask(task) {
+  const dueDate = validDateKeyOrNull(task.dueDate);
+
+  return {
+    title: task.title || "Untitled todo",
+    notes: task.description || "",
+    status: isTerminalTaskStatus(task.status) ? "completed" : "needsAction",
+    ...(dueDate ? { due: `${dueDate}T00:00:00.000Z` } : { due: null }),
+  };
+}
+
+function googleTaskToAlignTodo(googleTask, existingTask) {
+  const now = new Date().toISOString();
+
+  return {
+    id: existingTask?.id || crypto.randomUUID(),
+    title: String(googleTask.title || "Untitled todo").trim() || "Untitled todo",
+    description: googleTask.notes || undefined,
+    projectId: undefined,
+    category: "personal",
+    priority: existingTask?.priority || "medium",
+    status: googleTask.status === "completed" ? "done" : existingTask?.status || "not_started",
+    startDate: existingTask?.startDate,
+    startTime: existingTask?.startTime,
+    dueDate: googleTask.due ? googleTask.due.slice(0, 10) : undefined,
+    dueTime: existingTask?.dueTime,
+    reminder: existingTask?.reminder || "none",
+    recurrence: existingTask?.recurrence || "none",
+    sortOrder: existingTask?.sortOrder ?? -Date.now(),
+    deletedAt: googleTask.deleted ? now : undefined,
+    createdAt: existingTask?.createdAt || googleTask.updated || now,
+    updatedAt: googleTask.updated || now,
+  };
+}
+
+function mergeGoogleTaskIntoAlignTodo(alignTask, googleTask) {
+  return googleTaskToAlignTodo(googleTask, alignTask);
+}
+
+async function upsertSyncedTask(env, userId, task) {
+  const row = {
+    id: task.id,
+    user_id: userId,
+    title: task.title,
+    description: task.description ?? null,
+    project_id: null,
+    category: "personal",
+    priority: normalizeTaskPriority(task.priority),
+    status: normalizeTaskStatus(task.status),
+    start_date: task.startDate ?? null,
+    start_time: task.startTime ?? null,
+    due_date: task.dueDate ?? null,
+    due_time: task.dueTime ?? null,
+    reminder: normalizeTaskReminder(task.reminder),
+    recurrence: task.recurrence || "none",
+    recurring_parent_id: task.recurringParentId ?? null,
+    sort_order: task.sortOrder ?? null,
+    deleted_at: task.deletedAt ?? null,
+    created_at: task.createdAt,
+    updated_at: task.updatedAt,
+  };
+
+  const response = await serviceFetch(env, `${env.supabaseUrl}/rest/v1/tasks`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  await response.text();
 }
 
 async function syncAlignTodayTasks(env, connection, userId, todayListId, workspace) {
@@ -746,6 +1044,52 @@ async function deleteGoogleTaskLink(env, userId, taskId, syncType) {
   await serviceFetch(env, url, { method: "DELETE" });
 }
 
+async function findGoogleTodoLinks(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_todo_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "align_task_id,google_task_id,google_list_id,last_synced_at,google_updated_at");
+
+  try {
+    const response = await serviceFetch(env, url);
+    const rows = await response.json();
+    return new Map(rows.map((row) => [row.align_task_id, row]));
+  } catch (error) {
+    if (isMissingGoogleTodoSyncTable(error)) return new Map();
+    throw error;
+  }
+}
+
+async function upsertGoogleTodoLink(env, userId, taskId, googleTaskId, googleListId, googleUpdatedAt) {
+  const row = {
+    user_id: userId,
+    align_task_id: taskId,
+    google_task_id: googleTaskId,
+    google_list_id: googleListId,
+    google_updated_at: googleUpdatedAt || null,
+    last_synced_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_todo_links`);
+  url.searchParams.set("on_conflict", "user_id,align_task_id");
+  const response = await serviceFetch(env, url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  await response.text();
+}
+
+async function deleteGoogleTodoLink(env, userId, taskId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/google_todo_links`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("align_task_id", `eq.${taskId}`);
+  await serviceFetch(env, url, { method: "DELETE" });
+}
+
 function normalizeGoogleTaskBridgeSettings(row) {
   return {
     enabled: Boolean(row?.enabled),
@@ -757,9 +1101,24 @@ function normalizeGoogleTaskBridgeSettings(row) {
   };
 }
 
+function normalizeGoogleTodoSyncSettings(row) {
+  return {
+    enabled: Boolean(row?.enabled),
+    todoListId: row?.todo_list_id || "",
+    lastSyncedAt: row?.last_synced_at || undefined,
+    lastError: row?.last_error || undefined,
+    updatedAt: row?.updated_at || undefined,
+  };
+}
+
 function isMissingGoogleTasksBridgeTable(error) {
   const message = String(error?.message || "").toLowerCase();
   return message.includes("google_task_bridge_settings") || message.includes("google_task_links") || message.includes("pgrst205");
+}
+
+function isMissingGoogleTodoSyncTable(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("google_todo_sync_settings") || message.includes("google_todo_links") || message.includes("pgrst205");
 }
 
 export function taskToGoogleEvent(task) {
@@ -1423,23 +1782,21 @@ function normalizeTaskPriority(priority) {
 
 function normalizeTaskStatus(status) {
   if (status === "completed") return "done";
-  if (status === "backlog") return "not-started";
+  if (status === "backlog" || status === "not-started") return "not_started";
+  if (status === "in-progress") return "in_progress";
+  if (status === "approval-pending" || status === "under-review") return "review";
+  if (status === "blocked" || status === "postponed" || status === "cancelled") return "waiting";
   return [
-    "in-progress",
-    "not-started",
-    "approval-pending",
-    "under-review",
+    "in_progress",
+    "not_started",
     "approved",
     "done",
     "delivered",
-    "postponed",
-    "cancelled",
     "waiting",
-    "blocked",
     "review",
   ].includes(status)
     ? status
-    : "not-started";
+    : "not_started";
 }
 
 function normalizeTaskReminder(reminder) {

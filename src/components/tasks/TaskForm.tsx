@@ -41,6 +41,7 @@ export function TaskForm({
   onCancel,
   compact = false,
   lockedProject,
+  todoOnly = false,
 }: {
   projects: Project[];
   initialTask?: Task;
@@ -48,6 +49,7 @@ export function TaskForm({
   onCancel?: () => void;
   compact?: boolean;
   lockedProject?: Project;
+  todoOnly?: boolean;
 }) {
   const [form, setForm] = useState<TaskInput>({
     ...blank,
@@ -77,7 +79,14 @@ export function TaskForm({
 
   const update = (key: keyof TaskInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
-  const titleField = <Input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Add a task, goal, or personal chore" required />;
+  const titleField = (
+    <Input
+      value={form.title}
+      onChange={(event) => update("title", event.target.value)}
+      placeholder={todoOnly ? "Add a todo" : "Add a todo, task, goal, or chore"}
+      required
+    />
+  );
 
   const descriptionField = <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Short description" />;
 
@@ -89,7 +98,7 @@ export function TaskForm({
     </div>
   ) : (
     <Select value={form.projectId ?? ""} onChange={(event) => update("projectId", event.target.value)} aria-label="Project or category">
-      <option value="">Personal Task</option>
+      <option value="">Todo</option>
       {projects.map((project) => (
         <option key={project.id} value={project.id}>
           {project.name}
@@ -168,7 +177,7 @@ export function TaskForm({
         </Button>
       ) : null}
       <Button type="submit" icon={!initialTask ? <Plus size={16} /> : undefined} className={compact ? "min-h-11 shrink-0 px-5" : ""}>
-        {initialTask ? "Save" : compact ? "Add Task" : "Add"}
+        {initialTask ? "Save" : compact ? (todoOnly || !form.projectId ? "Add Todo" : "Add Task") : "Add"}
       </Button>
     </div>
   );
@@ -182,8 +191,8 @@ export function TaskForm({
         onSubmit({
           ...form,
           title: form.title.trim(),
-          projectId: lockedProject?.id ?? (form.projectId || undefined),
-          category: lockedProject ? "project" : form.category,
+          projectId: todoOnly ? undefined : lockedProject?.id ?? (form.projectId || undefined),
+          category: todoOnly ? "personal" : lockedProject || form.projectId ? "project" : form.category,
           startDate: form.startDate || undefined,
           startTime: form.startDate && form.startTime ? form.startTime : undefined,
           dueDate: form.dueDate || undefined,
@@ -194,9 +203,15 @@ export function TaskForm({
     >
       {compact ? (
         <div className="space-y-3">
-          <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]">
+          <div
+            className={`grid gap-3 ${
+              todoOnly
+                ? "xl:grid-cols-[minmax(260px,1fr)_minmax(140px,170px)_minmax(160px,190px)_auto]"
+                : "xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]"
+            }`}
+          >
             {titleField}
-            {projectField}
+            {todoOnly ? null : projectField}
             {priorityField}
             {statusField}
             <div className="hidden xl:block">{actionButtons}</div>
@@ -238,7 +253,7 @@ export function TaskForm({
         <>
           {titleField}
           {descriptionField}
-          {projectField}
+          {todoOnly ? null : projectField}
           <div className="grid gap-3 sm:grid-cols-2">
             {priorityField}
             {statusField}

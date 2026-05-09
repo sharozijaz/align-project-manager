@@ -3,13 +3,12 @@ import {
   CalendarDays,
   CheckCircle2,
   CircleHelp,
+  Folder,
   Home,
   Keyboard,
   LibraryBig,
   ListTodo,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   Settings,
   Shield,
   Trash2,
@@ -26,6 +25,8 @@ import { SyncIndicator } from "../sync/SyncIndicator";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 import type { FeatureKey } from "../../features/access/featureRegistry";
+import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
+import { isLightThemeMode, useThemeStore } from "../../store/themeStore";
 
 interface NavItem {
   to: string;
@@ -38,33 +39,45 @@ interface NavItem {
 
 const primaryLinks: NavItem[] = [
   { to: "/", label: "Home", hint: "G H", icon: Home, feature: "project_management" },
-  { to: "/projects", label: "Projects", hint: "G P", icon: ListTodo, feature: "project_management" },
+  { to: "/projects", label: "Projects", hint: "G P", icon: Folder, feature: "project_management" },
   { to: "/tasks", label: "Tasks", hint: "G T", icon: CheckCircle2, feature: "project_management" },
+  { to: "/todos", label: "Todos", hint: "G D", icon: ListTodo, feature: "project_management" },
   { to: "/calendar", label: "Calendar", hint: "G C", icon: CalendarDays, feature: "project_management" },
   { to: "/reports", label: "Reports", hint: "G R", icon: BarChart3, feature: "project_management" },
 ];
 
 const workspaceLinks: NavItem[] = [
   { to: "/hub", label: "Personal Hub", hint: "G U", icon: LibraryBig, feature: "personal_hub" },
+];
+
+const profileLinks: NavItem[] = [
   { to: "/settings", label: "Settings", hint: "", icon: Settings },
   { to: "/help", label: "Help", hint: "?", icon: CircleHelp },
   { to: "/trash", label: "Trash", hint: "", icon: Trash2, feature: "project_management" },
   { to: "/admin", label: "Admin", hint: "", icon: Shield, feature: "admin", ownerOnly: true },
 ];
 
-export const appNavigationItems = [...primaryLinks, ...workspaceLinks];
+export const appNavigationItems = [...primaryLinks, ...workspaceLinks, ...profileLinks];
 
 export function AppSidebar() {
   const { access, hasFeature } = useFeatureAccess();
+  const { session } = useSupabaseSession();
+  const theme = useThemeStore((state) => state.theme);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [railHovered, setRailHovered] = useState(false);
+  const [railPinned, setRailPinned] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
+  const desktopSidebarRef = useRef<HTMLElement | null>(null);
   const profileName = access?.profile.displayName || access?.profile.email?.split("@")[0] || "Profile";
   const profileEmail = access?.profile.email;
+  const profileAvatarUrl = getProfileAvatarUrl(session?.user.user_metadata);
+  const desktopExpanded = railHovered || railPinned || openMenu !== null;
+  const logoSrc = isLightThemeMode(theme) ? "/align-logo-light.png" : "/align-logo.png";
 
   const links = {
     primary: primaryLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
     workspace: workspaceLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
+    profile: profileLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
   };
 
   useEffect(() => {
@@ -79,6 +92,20 @@ export function AppSidebar() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (!desktopExpanded) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (desktopSidebarRef.current?.contains(event.target as Node)) return;
+      setRailPinned(false);
+      setRailHovered(false);
+      setOpenMenu(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [desktopExpanded]);
+
   return (
     <>
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 py-2 backdrop-blur lg:hidden">
@@ -91,21 +118,32 @@ export function AppSidebar() {
           <Menu size={18} />
         </button>
         <NavLink to="/" className="brand-logo-shell flex h-11 w-36 items-center rounded-[var(--radius-sm)] px-2" aria-label="Align home">
-          <img src="/align-logo.png" alt="Align" className="h-8 w-auto object-contain" />
+          <img src={logoSrc} alt="Align" className="h-8 w-auto object-contain" />
         </NavLink>
         <NotificationBell open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
       </header>
 
-      <aside className={`hidden h-full min-h-0 shrink-0 border-r border-[var(--border)] bg-[var(--bg-soft)] p-3 transition-[width] duration-200 lg:block ${collapsed ? "w-[88px]" : "w-[272px]"}`}>
-        <SidebarContent
-          links={links}
-          profileName={profileName}
-          profileEmail={profileEmail}
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-          collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed((value) => !value)}
-        />
+      <aside
+        ref={desktopSidebarRef}
+        className="relative z-30 hidden h-full min-h-0 w-[88px] shrink-0 bg-transparent lg:block"
+        onMouseEnter={() => setRailHovered(true)}
+        onMouseLeave={() => {
+          if (!railPinned && !openMenu) setRailHovered(false);
+        }}
+        onPointerDown={() => setRailPinned(true)}
+      >
+        <div className={`absolute left-3 top-3 h-[calc(100%-1.5rem)] transition-[width] duration-200 ease-out ${desktopExpanded ? "w-[248px]" : "w-[64px]"}`}>
+          <SidebarContent
+            links={links}
+            profileName={profileName}
+            profileEmail={profileEmail}
+            profileAvatarUrl={profileAvatarUrl}
+            openMenu={openMenu}
+            setOpenMenu={setOpenMenu}
+            collapsed={!desktopExpanded}
+            logoSrc={logoSrc}
+          />
+        </div>
       </aside>
 
       <AnimatePresence>
@@ -138,9 +176,11 @@ export function AppSidebar() {
                 links={links}
                 profileName={profileName}
                 profileEmail={profileEmail}
+                profileAvatarUrl={profileAvatarUrl}
                 openMenu={openMenu}
                 setOpenMenu={setOpenMenu}
                 collapsed={false}
+                logoSrc={logoSrc}
                 onNavigate={() => setMobileOpen(false)}
               />
             </motion.aside>
@@ -155,19 +195,21 @@ function SidebarContent({
   links,
   profileName,
   profileEmail,
+  profileAvatarUrl,
   openMenu,
   setOpenMenu,
   collapsed,
-  onToggleCollapse,
+  logoSrc,
   onNavigate,
 }: {
-  links: { primary: NavItem[]; workspace: NavItem[] };
+  links: { primary: NavItem[]; workspace: NavItem[]; profile: NavItem[] };
   profileName: string;
   profileEmail?: string;
+  profileAvatarUrl?: string;
   openMenu: "notifications" | "profile" | null;
   setOpenMenu: (value: "notifications" | "profile" | null) => void;
   collapsed: boolean;
-  onToggleCollapse?: () => void;
+  logoSrc: string;
   onNavigate?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
@@ -188,26 +230,15 @@ function SidebarContent({
   return (
     <div className="relative flex h-full min-h-0 flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
       <div className={`border-b border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
-        <div className={`flex items-center gap-2 ${collapsed ? "flex-col justify-center" : "justify-between"}`}>
+        <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : "justify-start"}`}>
           <NavLink
             to="/"
             onClick={onNavigate}
             className={`brand-logo-shell flex items-center rounded-[var(--radius-sm)] ${collapsed ? "h-11 w-11 justify-center px-0" : "h-12 px-3"}`}
             aria-label="Align home"
           >
-            <img src={collapsed ? "/align-icon.png" : "/align-logo.png"} alt="Align" className={`${collapsed ? "h-7 w-7" : "h-9 w-auto"} object-contain`} />
+            <img src={collapsed ? "/align-icon.png" : logoSrc} alt="Align" className={`${collapsed ? "h-7 w-7" : "h-9 w-auto"} object-contain`} />
           </NavLink>
-          {onToggleCollapse ? (
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="hidden h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] lg:grid"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-            </button>
-          ) : null}
         </div>
       </div>
 
@@ -240,8 +271,12 @@ function SidebarContent({
             aria-haspopup="menu"
             title={profileName}
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
-              <UserRound size={16} />
+            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
+              {profileAvatarUrl ? (
+                <img src={profileAvatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+              ) : (
+                <UserRound size={16} />
+              )}
             </span>
             <span className={`min-w-0 ${collapsed ? "hidden" : ""}`}>
               <span className="block truncate text-sm font-bold text-[var(--text)]">{profileName}</span>
@@ -261,6 +296,27 @@ function SidebarContent({
                   <div className="grid gap-2">
                     <SyncIndicator className="w-full justify-center rounded-md" />
                     <ThemeToggle showLabel className="w-full rounded-md" />
+                    <div className="my-1 h-px bg-[var(--border)]" />
+                    {links.profile.map(({ to, label, icon: Icon }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        onClick={() => {
+                          setOpenMenu(null);
+                          onNavigate?.();
+                        }}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                            isActive
+                              ? "bg-[var(--button-secondary-hover)] text-[var(--text)]"
+                              : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
+                          }`
+                        }
+                      >
+                        <Icon size={15} />
+                        {label}
+                      </NavLink>
+                    ))}
                     <InstallAppButton className="w-full" />
                   </div>
                 </div>
@@ -305,4 +361,11 @@ function NavSection({ label, items, collapsed, onNavigate }: { label: string; it
 function canShowLink(link: NavItem, hasFeature: (feature: FeatureKey) => boolean, role?: string) {
   if (link.ownerOnly && role !== "owner") return false;
   return link.feature ? hasFeature(link.feature) : true;
+}
+
+function getProfileAvatarUrl(metadata?: Record<string, unknown>) {
+  if (!metadata) return undefined;
+
+  const value = metadata.avatar_url ?? metadata.picture;
+  return typeof value === "string" && value.trim() ? value : undefined;
 }

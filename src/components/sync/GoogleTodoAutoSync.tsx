@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  getGoogleTasksBridgeReadiness,
-  getGoogleTasksBridgeStatus,
-  syncGoogleTasksBridge,
+  getGoogleTodoSyncReadiness,
+  getGoogleTodoSyncStatus,
+  syncGoogleTodos,
 } from "../../integrations/googleTasks/googleTasksClient";
-import type { GoogleTasksBridgeSettings } from "../../integrations/googleTasks/types";
+import type { GoogleTodoSyncSettings } from "../../integrations/googleTasks/types";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
-import { useProjectStore } from "../../store/projectStore";
 import { useTaskStore } from "../../store/taskStore";
 
 const CHANGE_DEBOUNCE_MS = 30_000;
@@ -15,42 +14,34 @@ const MIN_SYNC_GAP_MS = 90_000;
 const STARTUP_DELAY_MS = 12_000;
 const STATUS_REFRESH_MS = 60_000;
 
-export function GoogleTasksBridgeAutoSync() {
+export function GoogleTodoAutoSync() {
   const { session } = useSupabaseSession();
   const tasks = useTaskStore((state) => state.tasks);
-  const importTasks = useTaskStore((state) => state.importTasks);
-  const projects = useProjectStore((state) => state.projects);
-  const [settings, setSettings] = useState<GoogleTasksBridgeSettings | null>(null);
+  const upsertTasks = useTaskStore((state) => state.upsertTasks);
+  const [settings, setSettings] = useState<GoogleTodoSyncSettings | null>(null);
   const [ready, setReady] = useState(false);
   const tasksRef = useRef(tasks);
-  const projectsRef = useRef(projects);
-  const settingsRef = useRef<GoogleTasksBridgeSettings | null>(settings);
+  const settingsRef = useRef<GoogleTodoSyncSettings | null>(settings);
   const syncingRef = useRef(false);
   const lastSyncedAtRef = useRef(0);
   const didPrimeRef = useRef(false);
   const snapshot = useMemo(
     () =>
       JSON.stringify({
-        tasks: tasks.map((task) => ({
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          projectId: task.projectId,
-          dueDate: task.dueDate,
-          dueTime: task.dueTime,
-          status: task.status,
-          priority: task.priority,
-          deletedAt: task.deletedAt,
-          updatedAt: task.updatedAt,
-        })),
-        projects: projects.map((project) => ({
-          id: project.id,
-          name: project.name,
-          status: project.status,
-          updatedAt: project.updatedAt,
-        })),
+        tasks: tasks
+          .filter((task) => task.category === "personal" && !task.projectId)
+          .map((task) => ({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            dueDate: task.dueDate,
+            status: task.status,
+            priority: task.priority,
+            deletedAt: task.deletedAt,
+            updatedAt: task.updatedAt,
+          })),
       }),
-    [projects, tasks],
+    [tasks],
   );
 
   useEffect(() => {
@@ -58,15 +49,11 @@ export function GoogleTasksBridgeAutoSync() {
   }, [tasks]);
 
   useEffect(() => {
-    projectsRef.current = projects;
-  }, [projects]);
-
-  useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
 
   useEffect(() => {
-    if (!session || !getGoogleTasksBridgeReadiness().ready) {
+    if (!session || !getGoogleTodoSyncReadiness().ready) {
       setReady(false);
       setSettings(null);
       didPrimeRef.current = false;
@@ -76,7 +63,7 @@ export function GoogleTasksBridgeAutoSync() {
     let cancelled = false;
 
     const refreshStatus = () =>
-      getGoogleTasksBridgeStatus()
+      getGoogleTodoSyncStatus()
         .then((status) => {
           if (cancelled) return;
           setSettings(status.settings);
@@ -145,14 +132,13 @@ export function GoogleTasksBridgeAutoSync() {
 
     syncingRef.current = true;
     try {
-      const result = await syncGoogleTasksBridge({
+      const result = await syncGoogleTodos({
         tasks: tasksRef.current,
-        projects: projectsRef.current,
         settings: currentSettings,
       });
       lastSyncedAtRef.current = Date.now();
       setSettings(result.settings);
-      if (result.importedTasks.length) importTasks(result.importedTasks);
+      if (result.changedTasks.length) upsertTasks(result.changedTasks);
     } catch {
       setReady(false);
       didPrimeRef.current = false;

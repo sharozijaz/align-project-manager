@@ -199,3 +199,13 @@ export async function setUserFeature(profileId: string, featureKey: FeatureKey, 
 
   if (error) throw error;
 }
+
+export async function deleteAdminUser(profileId: string) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { error: accessError } = await supabase.from("feature_access").delete().eq("profile_id", profileId);
+  if (accessError) throw accessError;
+
+  const { error: profileError } = await supabase.from("app_profiles").delete().eq("id", profileId);
+  if (profileError) throw profileError;
+}

@@ -1,11 +1,14 @@
-import { CircleDot, Flame, Moon, Sun } from "lucide-react";
+import { CircleDot, Flame, Mountain, Moon, Rocket, Sparkles, Sun } from "lucide-react";
 import { themeOptions, useThemeStore, type ThemeMode } from "../../store/themeStore";
 
 const themeIcons: Record<ThemeMode, typeof Moon> = {
   dark: Moon,
   obsidian: CircleDot,
-  light: Sun,
   medieval: Flame,
+  space: Rocket,
+  warmblue: Sun,
+  mountain: Mountain,
+  "pixel-village": Sparkles,
 };
 
 export function ThemeToggle({ showLabel = false, className = "" }: { showLabel?: boolean; className?: string }) {

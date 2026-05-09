@@ -1,8 +1,8 @@
-import { CheckCircle2, RefreshCcw, Shield, UserPlus } from "lucide-react";
+import { CheckCircle2, RefreshCcw, Shield, Trash2, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { featureRegistry, type AppRole, type FeatureKey } from "../features/access/featureRegistry";
 import { useFeatureAccess } from "../features/access/FeatureAccessProvider";
-import { listAdminUsers, saveAdminUser, setUserFeature, type AdminUser } from "../integrations/supabase/access";
+import { deleteAdminUser, listAdminUsers, saveAdminUser, setUserFeature, type AdminUser } from "../integrations/supabase/access";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
@@ -16,7 +16,8 @@ const roleOptions: Array<{ value: AppRole; label: string; description: string }>
   { value: "client", label: "Client", description: "Reserved for future account-based client access." },
 ];
 
-const selectableFeatures = featureRegistry.filter((feature) => feature.key !== "admin");
+const availableFeatures = featureRegistry.filter((feature) => !feature.planned);
+const selectableFeatures = availableFeatures.filter((feature) => feature.key !== "admin");
 
 export function Admin() {
   const { access, refreshAccess } = useFeatureAccess();
@@ -148,6 +149,25 @@ export function Admin() {
     }
   };
 
+  const deleteUser = async (user: AdminUser) => {
+    if (!user.id) return;
+    if (user.email === ownerEmail) {
+      setMessage("You cannot delete your current account from inside Align.");
+      return;
+    }
+    if (!window.confirm(`Permanently remove "${user.displayName || user.email}" from Align access?`)) return;
+
+    setMessage("");
+    try {
+      await deleteAdminUser(user.id);
+      await loadUsers();
+      await refreshAccess();
+      setMessage("User access permanently removed from Align.");
+    } catch (error) {
+      setMessage(errorMessage(error, "Could not delete this user."));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -168,7 +188,7 @@ export function Admin() {
           <div>
             <h2 className="font-display text-xl font-bold text-[var(--text)]">Invite or update access</h2>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Members get Project Management by default. You can add future modules whenever they ask for access.
+              Members get Project Management by default. Add Personal Hub only for people who should see private notes and resources.
             </p>
           </div>
         </div>
@@ -210,7 +230,7 @@ export function Admin() {
                   <Icon size={16} />
                   {feature.label}
                 </span>
-                <span className="mt-1 block text-xs text-[var(--text-soft)]">{feature.planned ? "Planned module" : "Available now"}</span>
+                <span className="mt-1 block text-xs text-[var(--text-soft)]">Available now</span>
               </button>
             );
           })}
@@ -228,14 +248,23 @@ export function Admin() {
           <div className="p-5 text-sm text-[var(--text-muted)]">Loading users...</div>
         ) : users.length ? (
           <div className="divide-y divide-[var(--border)]">
-            {users.map((user) => (
+            {users.map((user) => {
+              const isCurrentUser = user.email === ownerEmail;
+              return (
               <div key={user.email} className="grid gap-4 p-4 lg:grid-cols-[minmax(16rem,1fr)_13rem_minmax(24rem,2fr)_auto] lg:items-start">
                 <div>
-                  <p className="font-bold text-[var(--text)]">{user.displayName}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold text-[var(--text)]">{user.displayName}</p>
+                    {isCurrentUser ? (
+                      <span className="rounded-full bg-[var(--brand-soft)] px-2 py-1 text-xs font-bold text-[var(--brand-primary)]">
+                        Current account
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-sm text-[var(--text-muted)]">{user.email}</p>
                   <p className="mt-2 text-xs text-[var(--text-soft)]">{user.active ? "Active account" : "Disabled account"}</p>
                 </div>
-                <Select value={user.role} onChange={(event) => void updateUserRole(user, event.target.value as AppRole)}>
+                <Select value={user.role} onChange={(event) => void updateUserRole(user, event.target.value as AppRole)} disabled={isCurrentUser}>
                   {roleOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -243,10 +272,10 @@ export function Admin() {
                   ))}
                 </Select>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {featureRegistry.map((feature) => {
+                  {availableFeatures.map((feature) => {
                     const Icon = feature.icon;
                     const enabled = user.role === "owner" || user.features.includes(feature.key);
-                    const locked = user.role === "owner" || feature.key === "project_management";
+                    const locked = isCurrentUser || user.role === "owner" || feature.key === "project_management";
 
                     return (
                       <button
@@ -268,11 +297,25 @@ export function Admin() {
                     );
                   })}
                 </div>
-                <Button variant={user.active ? "danger" : "secondary"} onClick={() => void toggleActive(user)}>
-                  {user.active ? "Disable" : "Enable"}
-                </Button>
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                  {isCurrentUser ? (
+                    <Button variant="secondary" disabled>
+                      Protected
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant={user.active ? "danger" : "secondary"} onClick={() => void toggleActive(user)}>
+                        {user.active ? "Disable" : "Enable"}
+                      </Button>
+                      <Button variant="danger" icon={<Trash2 size={16} />} onClick={() => void deleteUser(user)}>
+                        Delete
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         ) : (
           <div className="p-5 text-sm text-[var(--text-muted)]">

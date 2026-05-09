@@ -150,6 +150,7 @@ export const hubNoteToRow = (note: HubNote, userId: string): HubNoteRow => ({
   body: note.body,
   tags: note.tags ?? null,
   favorite: note.favorite ?? false,
+  project_ids: note.projectIds ?? [],
   created_at: note.createdAt,
   updated_at: note.updatedAt,
 });
@@ -160,6 +161,7 @@ export const rowToHubNote = (row: HubNoteRow): HubNote => ({
   body: row.body,
   tags: row.tags ?? undefined,
   favorite: row.favorite,
+  projectIds: row.project_ids ?? [],
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });

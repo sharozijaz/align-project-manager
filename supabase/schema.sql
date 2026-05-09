@@ -24,7 +24,7 @@ create table if not exists public.tasks (
   project_id text references public.projects(id) on delete set null,
   category text not null check (category in ('personal', 'work', 'project', 'meeting', 'chore')),
   priority text not null check (priority in ('high', 'low', 'medium', 'urgent')),
-  status text not null check (status in ('in-progress', 'not-started', 'approval-pending', 'under-review', 'approved', 'done', 'delivered', 'postponed', 'cancelled', 'waiting', 'blocked', 'review')),
+  status text not null check (status in ('not_started', 'in_progress', 'delivered', 'waiting', 'review', 'approved', 'done')),
   start_date date,
   start_time time,
   due_date date,
@@ -92,9 +92,13 @@ create table if not exists public.hub_notes (
   body text not null,
   tags text,
   favorite boolean not null default false,
+  project_ids text[] not null default '{}',
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
+
+alter table public.hub_notes
+add column if not exists project_ids text[] not null default '{}';
 
 create table if not exists public.project_shares (
   id uuid primary key default gen_random_uuid(),
@@ -121,6 +125,28 @@ create table if not exists public.client_share_links (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.google_todo_sync_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  enabled boolean not null default false,
+  todo_list_id text,
+  last_synced_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.google_todo_links (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  align_task_id text not null references public.tasks(id) on delete cascade,
+  google_task_id text not null,
+  google_list_id text not null,
+  google_updated_at timestamptz,
+  last_synced_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, google_task_id, google_list_id)
+);
+
 alter table public.projects enable row level security;
 alter table public.tasks enable row level security;
 alter table public.calendar_events enable row level security;
@@ -130,6 +156,8 @@ alter table public.client_share_links enable row level security;
 alter table public.user_preferences enable row level security;
 alter table public.hub_resources enable row level security;
 alter table public.hub_notes enable row level security;
+alter table public.google_todo_sync_settings enable row level security;
+alter table public.google_todo_links enable row level security;
 
 create policy "Users can manage their own projects"
 on public.projects
@@ -185,6 +213,18 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create policy "Users can manage their own Google Todo settings"
+on public.google_todo_sync_settings
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "Users can manage their own Google Todo links"
+on public.google_todo_links
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
 create index if not exists projects_user_id_idx on public.projects(user_id);
 create index if not exists tasks_user_id_idx on public.tasks(user_id);
 create index if not exists tasks_due_date_idx on public.tasks(due_date);
@@ -210,6 +250,8 @@ create index if not exists hub_resources_user_id_idx on public.hub_resources(use
 create index if not exists hub_resources_type_idx on public.hub_resources(type);
 create index if not exists hub_resources_collection_idx on public.hub_resources(collection);
 create index if not exists hub_notes_user_id_idx on public.hub_notes(user_id);
+create unique index if not exists google_todo_links_align_task_idx on public.google_todo_links(user_id, align_task_id);
+create index if not exists google_todo_links_user_id_idx on public.google_todo_links(user_id);
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.projects to authenticated;
@@ -221,6 +263,8 @@ grant select, insert, update, delete on public.client_share_links to authenticat
 grant select, insert, update, delete on public.user_preferences to authenticated;
 grant select, insert, update, delete on public.hub_resources to authenticated;
 grant select, insert, update, delete on public.hub_notes to authenticated;
+grant select, insert, update, delete on public.google_todo_sync_settings to authenticated;
+grant select, insert, update, delete on public.google_todo_links to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
 grant select, insert, update, delete on public.tasks to service_role;
 grant select, insert, update, delete on public.calendar_events to service_role;
@@ -230,3 +274,5 @@ grant select, insert, update, delete on public.client_share_links to service_rol
 grant select, insert, update, delete on public.user_preferences to service_role;
 grant select, insert, update, delete on public.hub_resources to service_role;
 grant select, insert, update, delete on public.hub_notes to service_role;
+grant select, insert, update, delete on public.google_todo_sync_settings to service_role;
+grant select, insert, update, delete on public.google_todo_links to service_role;

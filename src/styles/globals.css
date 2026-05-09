@@ -592,6 +592,582 @@
   --empty-bg: #211810;
 }
 
+[data-theme="space"] {
+  color-scheme: dark;
+
+  --canvas: #060c18;
+  --nav-bg: #0a1220;
+  --nav-border: #142040;
+  --card-bg: #0a1220;
+  --card-border: #1a2e50;
+  --task-bg: #060c18;
+  --task-border: #1a2e50;
+  --task-hover: #0e1828;
+  --stat-bg: #0a1220;
+  --stat-border: #1a2e50;
+  --progress-track: #1a2e50;
+  --progress-fill: #2e7fd4;
+  --scrollbar-track: #050a14;
+  --scrollbar-thumb: #1e3c68;
+  --scrollbar-thumb-hover: #2e7fd4;
+
+  --brand-50: #0a2040;
+  --brand-100: #102a4c;
+  --brand-200: #1a3d68;
+  --brand-300: #7ab8f0;
+  --brand-500: #2e7fd4;
+  --brand-600: #1e60a8;
+  --brand-700: #174c88;
+  --brand-900: #08182e;
+
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-300);
+  --brand-secondary: #2e9ed8;
+  --brand-accent: #7ab8f0;
+  --brand-gradient: linear-gradient(135deg, #2e9ed8 0%, #2e7fd4 54%, #1e60a8 100%);
+  --brand-soft: #0a2040;
+
+  --surface-app: var(--canvas);
+  --surface-nav: var(--nav-bg);
+  --surface-card: var(--card-bg);
+  --surface-raised: #0e1828;
+  --surface-input: #0b1424;
+  --surface-hover: #142236;
+
+  --bg: var(--canvas);
+  --bg-soft: var(--nav-bg);
+  --bg-muted: #08111f;
+  --surface: var(--surface-card);
+  --border: #1a2e50;
+  --border-strong: #2a4470;
+
+  --text: #d8e8f8;
+  --text-muted: #88a6c4;
+  --text-soft: #536d88;
+  --text-inverse: #060c18;
+  --text-brand: #7ab8f0;
+
+  --input-bg: var(--surface-input);
+  --input-border: var(--border-strong);
+  --input-placeholder: #536d88;
+  --dropdown-bg: #0a1220;
+  --dropdown-hover: #142236;
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.42);
+  --shadow-md: 0 14px 34px rgba(0, 0, 0, 0.46);
+  --shadow-lg: 0 28px 78px rgba(0, 0, 0, 0.62);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 34%, transparent);
+
+  --status-not-started-bg: #0e1828;
+  --status-not-started-text: #9cb4cc;
+  --status-in-progress-bg: #0a2040;
+  --status-in-progress-text: #7ab8f0;
+  --status-completed-bg: #061a10;
+  --status-completed-text: #50d090;
+  --status-paused-bg: #201008;
+  --status-paused-text: #f0a840;
+
+  --priority-low-bg: #061a10;
+  --priority-low-text: #50d090;
+  --priority-medium-bg: #201008;
+  --priority-medium-text: #f0a840;
+  --priority-high-bg: #200810;
+  --priority-high-text: #e87080;
+  --priority-urgent-bg: #0c1030;
+  --priority-urgent-text: #90a0e8;
+
+  --tag-project-bg: #0a2040;
+  --tag-project-fg: #7ab8f0;
+  --tag-meeting-bg: #0c1030;
+  --tag-meeting-fg: #90a0e8;
+  --tag-chore-bg: #061a10;
+  --tag-chore-fg: #50d090;
+  --tag-personal-bg: #201008;
+  --tag-personal-fg: #f0a840;
+
+  --success: #28a870;
+  --success-bg: #061a10;
+  --success-text: #50d090;
+  --warning: #d4881e;
+  --warning-bg: #201008;
+  --warning-text: #f0a840;
+  --danger: #c83848;
+  --danger-bg: #200810;
+  --danger-text: #e87080;
+  --info: #2e9ed8;
+  --info-bg: #061830;
+  --info-text: #70c8f0;
+  --waiting: #5060c8;
+  --waiting-bg: #0c1030;
+  --waiting-text: #90a0e8;
+
+  --chip-not-started-bg: var(--status-not-started-bg);
+  --chip-not-started-text: var(--status-not-started-text);
+  --chip-in-progress-bg: var(--status-in-progress-bg);
+  --chip-in-progress-text: var(--status-in-progress-text);
+  --chip-done-bg: var(--status-completed-bg);
+  --chip-done-text: var(--status-completed-text);
+  --chip-waiting-bg: var(--waiting-bg);
+  --chip-waiting-text: var(--waiting-text);
+  --chip-high-bg: var(--priority-high-bg);
+  --chip-high-text: var(--priority-high-text);
+  --chip-medium-bg: var(--priority-medium-bg);
+  --chip-medium-text: var(--priority-medium-text);
+  --chip-low-bg: var(--priority-low-bg);
+  --chip-low-text: var(--priority-low-text);
+
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover: var(--brand-primary-hover);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #0e1828;
+  --button-secondary-hover: #142236;
+  --button-secondary-text: var(--text);
+  --button-danger-bg: #260d16;
+  --button-danger-hover: #35111d;
+  --button-danger-text: #f3a0aa;
+
+  --logo-bg: transparent;
+  --calendar-cell-bg: #08111f;
+  --calendar-cell-hover: #142236;
+  --calendar-cell-muted: #0e1828;
+  --calendar-selected-bg: #0a2040;
+  --calendar-selected-text: #d8e8f8;
+  --calendar-today-bg: #201008;
+  --empty-bg: #08111f;
+}
+
+[data-theme="warmblue"] {
+  color-scheme: light;
+
+  --canvas: #faf7f2;
+  --nav-bg: #ffffff;
+  --nav-border: #e8e2d8;
+  --card-bg: #ffffff;
+  --card-border: #e0d8c8;
+  --task-bg: #faf7f2;
+  --task-border: #e0d8c8;
+  --task-hover: #f0ebe0;
+  --stat-bg: #ffffff;
+  --stat-border: #e0d8c8;
+  --progress-track: #e0d8c8;
+  --progress-fill: #2040a0;
+  --scrollbar-track: #eee7dc;
+  --scrollbar-thumb: #c8bea8;
+  --scrollbar-thumb-hover: #2040a0;
+
+  --brand-50: #e8edf8;
+  --brand-100: #dce5f6;
+  --brand-200: #b9c8ef;
+  --brand-300: #7f98d8;
+  --brand-500: #2040a0;
+  --brand-600: #182e80;
+  --brand-700: #142560;
+  --brand-900: #1a2238;
+
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-secondary: #1870b0;
+  --brand-accent: #2040a0;
+  --brand-gradient: linear-gradient(135deg, #2848ac 0%, #2040a0 55%, #182e80 100%);
+  --brand-soft: #e8edf8;
+
+  --surface-app: var(--canvas);
+  --surface-nav: var(--nav-bg);
+  --surface-card: var(--card-bg);
+  --surface-raised: #ffffff;
+  --surface-input: #f7f3ec;
+  --surface-hover: #f5f0e8;
+
+  --bg: var(--canvas);
+  --bg-soft: #f5f0e8;
+  --bg-muted: #f7f3ec;
+  --surface: var(--surface-card);
+  --border: #e0d8c8;
+  --border-strong: #c8bea8;
+
+  --text: #1a2238;
+  --text-muted: #5a6880;
+  --text-soft: #9aa8b8;
+  --text-inverse: #ffffff;
+  --text-brand: #2040a0;
+
+  --input-bg: var(--surface-input);
+  --input-border: var(--border-strong);
+  --input-placeholder: var(--text-soft);
+  --dropdown-bg: #ffffff;
+  --dropdown-hover: #f5f0e8;
+
+  --shadow-sm: 0 1px 3px rgba(26, 34, 56, 0.06), 0 1px 2px rgba(26, 34, 56, 0.04);
+  --shadow-md: 0 10px 24px rgba(26, 34, 56, 0.08);
+  --shadow-lg: 0 22px 60px rgba(26, 34, 56, 0.14);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 24%, transparent);
+
+  --status-not-started-bg: #f0ebe0;
+  --status-not-started-text: #5a6880;
+  --status-in-progress-bg: #e8edf8;
+  --status-in-progress-text: #2040a0;
+  --status-completed-bg: #edf8f2;
+  --status-completed-text: #106038;
+  --status-paused-bg: #fdf5e0;
+  --status-paused-text: #886008;
+
+  --priority-low-bg: #edf8f2;
+  --priority-low-text: #106038;
+  --priority-medium-bg: #fdf5e0;
+  --priority-medium-text: #886008;
+  --priority-high-bg: #fef0f2;
+  --priority-high-text: #882030;
+  --priority-urgent-bg: #f0eefb;
+  --priority-urgent-text: #4840a0;
+
+  --tag-project-bg: #e8edf8;
+  --tag-project-fg: #2040a0;
+  --tag-meeting-bg: #f0eefb;
+  --tag-meeting-fg: #4840a0;
+  --tag-chore-bg: #edf8f2;
+  --tag-chore-fg: #106038;
+  --tag-personal-bg: #fdf5e0;
+  --tag-personal-fg: #886008;
+
+  --success: #1a8050;
+  --success-bg: #edf8f2;
+  --success-text: #106038;
+  --warning: #b07010;
+  --warning-bg: #fdf5e0;
+  --warning-text: #886008;
+  --danger: #b03040;
+  --danger-bg: #fef0f2;
+  --danger-text: #882030;
+  --info: #1870b0;
+  --info-bg: #ebf3fc;
+  --info-text: #105888;
+  --waiting: #6858c8;
+  --waiting-bg: #f0eefb;
+  --waiting-text: #4840a0;
+
+  --chip-not-started-bg: var(--status-not-started-bg);
+  --chip-not-started-text: var(--status-not-started-text);
+  --chip-in-progress-bg: var(--status-in-progress-bg);
+  --chip-in-progress-text: var(--status-in-progress-text);
+  --chip-done-bg: var(--status-completed-bg);
+  --chip-done-text: var(--status-completed-text);
+  --chip-waiting-bg: var(--waiting-bg);
+  --chip-waiting-text: var(--waiting-text);
+  --chip-high-bg: var(--priority-high-bg);
+  --chip-high-text: var(--priority-high-text);
+  --chip-medium-bg: var(--priority-medium-bg);
+  --chip-medium-text: var(--priority-medium-text);
+  --chip-low-bg: var(--priority-low-bg);
+  --chip-low-text: var(--priority-low-text);
+
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover: var(--brand-primary-hover);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #f0ebe0;
+  --button-secondary-hover: #e8e2d8;
+  --button-secondary-text: var(--text);
+  --button-danger-bg: #fef0f2;
+  --button-danger-hover: #f8dfe4;
+  --button-danger-text: var(--danger-text);
+
+  --logo-bg: transparent;
+  --calendar-cell-bg: #ffffff;
+  --calendar-cell-hover: #f5f0e8;
+  --calendar-cell-muted: #eee7dc;
+  --calendar-selected-bg: #e8edf8;
+  --calendar-selected-text: #1a2238;
+  --calendar-today-bg: #fdf5e0;
+  --empty-bg: #f7f3ec;
+}
+
+[data-theme="mountain"] {
+  color-scheme: light;
+
+  --canvas: #ede4d4;
+  --nav-bg: #2a3848;
+  --nav-border: #3a4a5c;
+  --card-bg: #f5efe4;
+  --card-border: #d0c4b0;
+  --task-bg: #ede4d4;
+  --task-border: #d0c4b0;
+  --task-hover: #e4d8c4;
+  --stat-bg: #f5efe4;
+  --stat-border: #d0c4b0;
+  --progress-track: #d0c4b0;
+  --progress-fill: #3a5c80;
+  --scrollbar-track: #e4d8c4;
+  --scrollbar-thumb: #9aa0a0;
+  --scrollbar-thumb-hover: #3a5c80;
+
+  --brand-50: #d8e4ee;
+  --brand-100: #cad9e6;
+  --brand-200: #a8bdd0;
+  --brand-300: #7394b4;
+  --brand-500: #3a5c80;
+  --brand-600: #2a4460;
+  --brand-700: #1e3348;
+  --brand-900: #1e2c3a;
+
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-secondary: #3a6888;
+  --brand-accent: #3a5c80;
+  --brand-gradient: linear-gradient(135deg, #5d7792 0%, #3a5c80 55%, #2a4460 100%);
+  --brand-soft: #d8e4ee;
+
+  --surface-app: var(--canvas);
+  --surface-nav: var(--nav-bg);
+  --surface-card: var(--card-bg);
+  --surface-raised: #f5efe4;
+  --surface-input: #ede4d4;
+  --surface-hover: #e4d8c4;
+
+  --bg: var(--canvas);
+  --bg-soft: #e4d8c4;
+  --bg-muted: #e9dfcf;
+  --surface: var(--surface-card);
+  --border: #d0c4b0;
+  --border-strong: #b0a490;
+
+  --text: #1e2c3a;
+  --text-muted: #607080;
+  --text-soft: #90a0ae;
+  --text-inverse: #f5efe4;
+  --text-brand: #2a4460;
+
+  --input-bg: var(--surface-input);
+  --input-border: var(--border-strong);
+  --input-placeholder: var(--text-soft);
+  --dropdown-bg: #f5efe4;
+  --dropdown-hover: #e4d8c4;
+
+  --shadow-sm: 0 1px 3px rgba(30, 44, 58, 0.08);
+  --shadow-md: 0 10px 24px rgba(30, 44, 58, 0.12);
+  --shadow-lg: 0 22px 60px rgba(30, 44, 58, 0.18);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 24%, transparent);
+
+  --status-not-started-bg: #e4d8c4;
+  --status-not-started-text: #607080;
+  --status-in-progress-bg: #d8e4ee;
+  --status-in-progress-text: #2a4460;
+  --status-completed-bg: #e4f2ea;
+  --status-completed-text: #285840;
+  --status-paused-bg: #f8eddc;
+  --status-paused-text: #6a4018;
+
+  --priority-low-bg: #e4f2ea;
+  --priority-low-text: #285840;
+  --priority-medium-bg: #f8eddc;
+  --priority-medium-text: #6a4018;
+  --priority-high-bg: #f8e8ec;
+  --priority-high-text: #682830;
+  --priority-urgent-bg: #eceaf5;
+  --priority-urgent-text: #3c3a68;
+
+  --tag-project-bg: #d8e4ee;
+  --tag-project-fg: #2a4460;
+  --tag-meeting-bg: #eceaf5;
+  --tag-meeting-fg: #3c3a68;
+  --tag-chore-bg: #e4f2ea;
+  --tag-chore-fg: #285840;
+  --tag-personal-bg: #f8eddc;
+  --tag-personal-fg: #6a4018;
+
+  --success: #3a7858;
+  --success-bg: #e4f2ea;
+  --success-text: #285840;
+  --warning: #906030;
+  --warning-bg: #f8eddc;
+  --warning-text: #6a4018;
+  --danger: #904050;
+  --danger-bg: #f8e8ec;
+  --danger-text: #682830;
+  --info: #3a6888;
+  --info-bg: #e4eef5;
+  --info-text: #284860;
+  --waiting: #5a5890;
+  --waiting-bg: #eceaf5;
+  --waiting-text: #3c3a68;
+
+  --chip-not-started-bg: var(--status-not-started-bg);
+  --chip-not-started-text: var(--status-not-started-text);
+  --chip-in-progress-bg: var(--status-in-progress-bg);
+  --chip-in-progress-text: var(--status-in-progress-text);
+  --chip-done-bg: var(--status-completed-bg);
+  --chip-done-text: var(--status-completed-text);
+  --chip-waiting-bg: var(--waiting-bg);
+  --chip-waiting-text: var(--waiting-text);
+  --chip-high-bg: var(--priority-high-bg);
+  --chip-high-text: var(--priority-high-text);
+  --chip-medium-bg: var(--priority-medium-bg);
+  --chip-medium-text: var(--priority-medium-text);
+  --chip-low-bg: var(--priority-low-bg);
+  --chip-low-text: var(--priority-low-text);
+
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover: var(--brand-primary-hover);
+  --button-primary-text: #f5efe4;
+  --button-secondary-bg: #e4d8c4;
+  --button-secondary-hover: #d9ccb9;
+  --button-secondary-text: var(--text);
+  --button-danger-bg: #f8e8ec;
+  --button-danger-hover: #efd7dc;
+  --button-danger-text: var(--danger-text);
+
+  --logo-bg: transparent;
+  --calendar-cell-bg: #f5efe4;
+  --calendar-cell-hover: #e4d8c4;
+  --calendar-cell-muted: #e9dfcf;
+  --calendar-selected-bg: #d8e4ee;
+  --calendar-selected-text: #1e2c3a;
+  --calendar-today-bg: #f8eddc;
+  --empty-bg: #e9dfcf;
+}
+
+[data-theme="pixel-village"] {
+  color-scheme: light;
+
+  --canvas: #e8ecfa;
+  --nav-bg: #6878c8;
+  --nav-border: #5060b0;
+  --card-bg: #ffffff;
+  --card-border: #d0d8f0;
+  --task-bg: #e8ecfa;
+  --task-border: #d0d8f0;
+  --task-hover: #dde3f6;
+  --stat-bg: #ffffff;
+  --stat-border: #d0d8f0;
+  --progress-track: #d0d8f0;
+  --progress-fill: #3878d4;
+  --scrollbar-track: #dde3f6;
+  --scrollbar-thumb: #aebbe6;
+  --scrollbar-thumb-hover: #3878d4;
+
+  --brand-50: #d8e8f8;
+  --brand-100: #c5ddf7;
+  --brand-200: #9fc2ef;
+  --brand-300: #6aa0e2;
+  --brand-500: #3878d4;
+  --brand-600: #2860b0;
+  --brand-700: #1c4888;
+  --brand-900: #1c2448;
+
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-secondary: #5898d4;
+  --brand-accent: #a060c8;
+  --brand-gradient: linear-gradient(135deg, #5898d4 0%, #3878d4 52%, #6878c8 100%);
+  --brand-soft: #d8e8f8;
+
+  --surface-app: var(--canvas);
+  --surface-nav: var(--nav-bg);
+  --surface-card: var(--card-bg);
+  --surface-raised: #ffffff;
+  --surface-input: #f4f6fe;
+  --surface-hover: #f4f6fe;
+
+  --bg: var(--canvas);
+  --bg-soft: #f4f6fe;
+  --bg-muted: #dde3f6;
+  --surface: var(--surface-card);
+  --border: #d0d8f0;
+  --border-strong: #b0bce0;
+
+  --text: #1c2448;
+  --text-muted: #5860a0;
+  --text-soft: #9098c8;
+  --text-inverse: #ffffff;
+  --text-brand: #1c4888;
+
+  --input-bg: var(--surface-input);
+  --input-border: var(--border-strong);
+  --input-placeholder: var(--text-soft);
+  --dropdown-bg: #ffffff;
+  --dropdown-hover: #f4f6fe;
+
+  --shadow-sm: 0 1px 3px rgba(28, 36, 72, 0.08);
+  --shadow-md: 0 10px 24px rgba(28, 36, 72, 0.1);
+  --shadow-lg: 0 22px 60px rgba(28, 36, 72, 0.16);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 24%, transparent);
+
+  --status-not-started-bg: #e8f0f8;
+  --status-not-started-text: #5860a0;
+  --status-in-progress-bg: #d8e8f8;
+  --status-in-progress-text: #1c4888;
+  --status-completed-bg: #d8f0e4;
+  --status-completed-text: #1a6030;
+  --status-paused-bg: #f8e8f4;
+  --status-paused-text: #782870;
+
+  --priority-low-bg: #d8f0e4;
+  --priority-low-text: #1a6030;
+  --priority-medium-bg: #fdf0e0;
+  --priority-medium-text: #804808;
+  --priority-high-bg: #fde8e8;
+  --priority-high-text: #882020;
+  --priority-urgent-bg: #ede8f8;
+  --priority-urgent-text: #5828a0;
+
+  --tag-project-bg: #d8e8f8;
+  --tag-project-fg: #1c4888;
+  --tag-meeting-bg: #ede8f8;
+  --tag-meeting-fg: #5828a0;
+  --tag-chore-bg: #d8f0e4;
+  --tag-chore-fg: #1a6030;
+  --tag-personal-bg: #fdf0e0;
+  --tag-personal-fg: #804808;
+
+  --success: #3aa058;
+  --success-bg: #d8f0e4;
+  --success-text: #1a6030;
+  --warning: #c87830;
+  --warning-bg: #fdf0e0;
+  --warning-text: #804808;
+  --danger: #c04848;
+  --danger-bg: #fde8e8;
+  --danger-text: #882020;
+  --info: #5898d4;
+  --info-bg: #e0eef8;
+  --info-text: #204870;
+  --waiting: #a060c8;
+  --waiting-bg: #ede8f8;
+  --waiting-text: #5828a0;
+
+  --chip-not-started-bg: var(--status-not-started-bg);
+  --chip-not-started-text: var(--status-not-started-text);
+  --chip-in-progress-bg: var(--status-in-progress-bg);
+  --chip-in-progress-text: var(--status-in-progress-text);
+  --chip-done-bg: var(--status-completed-bg);
+  --chip-done-text: var(--status-completed-text);
+  --chip-waiting-bg: var(--waiting-bg);
+  --chip-waiting-text: var(--waiting-text);
+  --chip-high-bg: var(--priority-high-bg);
+  --chip-high-text: var(--priority-high-text);
+  --chip-medium-bg: var(--priority-medium-bg);
+  --chip-medium-text: var(--priority-medium-text);
+  --chip-low-bg: var(--priority-low-bg);
+  --chip-low-text: var(--priority-low-text);
+
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover: var(--brand-primary-hover);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #e8f0f8;
+  --button-secondary-hover: #dbe5f5;
+  --button-secondary-text: var(--text);
+  --button-danger-bg: #fde8e8;
+  --button-danger-hover: #f8d8d8;
+  --button-danger-text: var(--danger-text);
+
+  --logo-bg: transparent;
+  --calendar-cell-bg: #ffffff;
+  --calendar-cell-hover: #f4f6fe;
+  --calendar-cell-muted: #e8ecfa;
+  --calendar-selected-bg: #d8e8f8;
+  --calendar-selected-text: #1c2448;
+  --calendar-today-bg: #fdf0e0;
+  --empty-bg: #f4f6fe;
+}
+
 * {
   box-sizing: border-box;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
@@ -812,6 +1388,15 @@ textarea {
   font: inherit;
 }
 
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23a09bb8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 1rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  padding-right: 2.875rem;
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -848,7 +1433,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 [data-theme="obsidian"] input[type="date"],
 [data-theme="obsidian"] input[type="time"],
 [data-theme="medieval"] input[type="date"],
-[data-theme="medieval"] input[type="time"] {
+[data-theme="medieval"] input[type="time"],
+[data-theme="space"] input[type="date"],
+[data-theme="space"] input[type="time"] {
   color-scheme: dark;
 }
 
@@ -857,7 +1444,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 [data-theme="obsidian"] input[type="date"]::-webkit-calendar-picker-indicator,
 [data-theme="obsidian"] input[type="time"]::-webkit-calendar-picker-indicator,
 [data-theme="medieval"] input[type="date"]::-webkit-calendar-picker-indicator,
-[data-theme="medieval"] input[type="time"]::-webkit-calendar-picker-indicator {
+[data-theme="medieval"] input[type="time"]::-webkit-calendar-picker-indicator,
+[data-theme="space"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="space"] input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 

@@ -19,6 +19,7 @@ export function Tasks() {
   const visibleTasks = useMemo(() => {
     return tasks
       .filter((task) => !task.deletedAt)
+      .filter((task) => task.category !== "personal" || Boolean(task.projectId))
       .filter((task) => {
         if (filter === "today") return isToday(task.dueDate);
         if (filter === "upcoming") return isUpcoming(task.dueDate);
@@ -37,8 +38,8 @@ export function Tasks() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Tasks" description="Search, filter, and sort every task across your workspace." />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <PageHeader title="Tasks" description="Search, filter, and sort project work across your workspace." />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
         <TaskFilters filter={filter} search={search} sort={sort} onFilterChange={setFilter} onSearchChange={setSearch} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />
       </div>

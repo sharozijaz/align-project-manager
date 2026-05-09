@@ -1,15 +1,15 @@
 import { appUrl, getAuthRedirectUrl, supabase } from "../supabase/client";
 import { isTauriRuntime } from "../desktop/runtime";
 import type {
-  GoogleTasksBridgeSettings,
-  GoogleTasksBridgeStatus,
-  GoogleTasksBridgeSyncPayload,
-  GoogleTasksBridgeSyncResult,
+  GoogleTodoSyncSettings,
+  GoogleTodoSyncStatus,
+  GoogleTodoSyncPayload,
+  GoogleTodoSyncResult,
 } from "./types";
 
 const GOOGLE_TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
 
-export function getGoogleTasksBridgeReadiness() {
+export function getGoogleTodoSyncReadiness() {
   const missing = [!getAuthRedirectUrl() ? "VITE_GOOGLE_REDIRECT_URI or VITE_APP_URL" : ""].filter(Boolean);
 
   return {
@@ -19,17 +19,17 @@ export function getGoogleTasksBridgeReadiness() {
   };
 }
 
-export async function getGoogleTasksBridgeStatus(): Promise<GoogleTasksBridgeStatus> {
+export async function getGoogleTodoSyncStatus(): Promise<GoogleTodoSyncStatus> {
   const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-tasks/status"), {
+  const response = await fetch(apiEndpoint("/api/google-todos/status"), {
     headers: {
       authorization: `Bearer ${token}`,
     },
   });
-  const data = (await response.json()) as Partial<GoogleTasksBridgeStatus> & { error?: string };
+  const data = (await response.json()) as Partial<GoogleTodoSyncStatus> & { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not read Google Tasks bridge status.");
+    throw new Error(data.error || "Could not read Google Todo sync status.");
   }
 
   return {
@@ -43,9 +43,9 @@ export async function getGoogleTasksBridgeStatus(): Promise<GoogleTasksBridgeSta
   };
 }
 
-export async function saveGoogleTasksBridgeSettings(settings: GoogleTasksBridgeSettings): Promise<GoogleTasksBridgeSettings> {
+export async function saveGoogleTodoSyncSettings(settings: GoogleTodoSyncSettings): Promise<GoogleTodoSyncSettings> {
   const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-tasks/settings"), {
+  const response = await fetch(apiEndpoint("/api/google-todos/settings"), {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -53,18 +53,18 @@ export async function saveGoogleTasksBridgeSettings(settings: GoogleTasksBridgeS
     },
     body: JSON.stringify(settings),
   });
-  const data = (await response.json()) as { settings?: GoogleTasksBridgeSettings; error?: string };
+  const data = (await response.json()) as { settings?: GoogleTodoSyncSettings; error?: string };
 
   if (!response.ok || !data.settings) {
-    throw new Error(data.error || "Could not save Google Tasks bridge settings.");
+    throw new Error(data.error || "Could not save Google Todo sync settings.");
   }
 
   return normalizeSettings(data.settings);
 }
 
-export async function syncGoogleTasksBridge(payload: GoogleTasksBridgeSyncPayload): Promise<GoogleTasksBridgeSyncResult> {
+export async function syncGoogleTodos(payload: GoogleTodoSyncPayload): Promise<GoogleTodoSyncResult> {
   const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-tasks/sync"), {
+  const response = await fetch(apiEndpoint("/api/google-todos/sync"), {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -72,10 +72,10 @@ export async function syncGoogleTasksBridge(payload: GoogleTasksBridgeSyncPayloa
     },
     body: JSON.stringify(payload),
   });
-  const data = (await response.json()) as Partial<GoogleTasksBridgeSyncResult> & { error?: string };
+  const data = (await response.json()) as Partial<GoogleTodoSyncResult> & { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not sync Google Tasks bridge.");
+    throw new Error(data.error || "Could not sync Google Todos.");
   }
 
   return {
@@ -84,18 +84,16 @@ export async function syncGoogleTasksBridge(payload: GoogleTasksBridgeSyncPayloa
     removed: data.removed ?? 0,
     skipped: data.skipped ?? 0,
     imported: data.imported ?? 0,
-    importedTasks: data.importedTasks ?? [],
-    importConflicts: data.importConflicts ?? [],
+    changedTasks: data.changedTasks ?? [],
     settings: normalizeSettings(data.settings),
     lists: data.lists ?? [],
   };
 }
 
-function normalizeSettings(settings: Partial<GoogleTasksBridgeSettings> | undefined): GoogleTasksBridgeSettings {
+function normalizeSettings(settings: Partial<GoogleTodoSyncSettings> | undefined): GoogleTodoSyncSettings {
   return {
     enabled: Boolean(settings?.enabled),
-    todayListId: settings?.todayListId ?? "",
-    inboxListId: settings?.inboxListId ?? "",
+    todoListId: settings?.todoListId ?? "",
     lastSyncedAt: settings?.lastSyncedAt,
     lastError: settings?.lastError,
     updatedAt: settings?.updatedAt,

@@ -219,6 +219,36 @@ export async function updateClientShareLinkPassword(link: ClientShareLink, passw
   return rowToClientShareLink(data);
 }
 
+export async function updateClientShareLinkProjects({
+  link,
+  name,
+  projects,
+}: {
+  link: ClientShareLink;
+  name?: string;
+  projects: Project[];
+}) {
+  const client = requireClient();
+  if (!projects.length) throw new Error("Select at least one project for this client overview link.");
+
+  const shares = await Promise.all(projects.map((project) => createProjectShare(project)));
+  const { data, error } = await client
+    .from("client_share_links")
+    .update({
+      name: name?.trim() || null,
+      project_ids: projects.map((project) => project.id),
+      project_tokens: shares.map((share) => share.token),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", link.id)
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
+    .single();
+
+  if (error) throw new Error(errorMessage(error, "Could not update client overview projects."));
+
+  return rowToClientShareLink(data);
+}
+
 function createShareToken() {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);

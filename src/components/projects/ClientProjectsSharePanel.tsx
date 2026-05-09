@@ -5,6 +5,7 @@ import {
   createClientShareLink,
   listClientShareLinks,
   revokeClientShareLink,
+  updateClientShareLinkProjects,
   updateClientShareLinkPassword,
 } from "../../integrations/supabase/projectShares";
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
@@ -23,6 +24,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [links, setLinks] = useState<ClientShareLink[]>([]);
   const [activeLinkId, setActiveLinkId] = useState("");
+  const [editingLinkId, setEditingLinkId] = useState("");
   const [shareModalLinkId, setShareModalLinkId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
@@ -47,6 +49,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     });
   }, [linkSearch, links, projects]);
   const activeLink = links.find((link) => link.id === activeLinkId);
+  const editingLink = links.find((link) => link.id === editingLinkId);
   const shareModalLink = links.find((link) => link.id === shareModalLinkId) || null;
 
   useEffect(() => {
@@ -74,11 +77,26 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   }, []);
 
   const toggleProject = (projectId: string) => {
-    setActiveLinkId("");
     setMessage("");
     setSelectedIds((current) =>
       current.includes(projectId) ? current.filter((id) => id !== projectId) : [...current, projectId],
     );
+  };
+
+  const startEditingLink = (link: ClientShareLink) => {
+    setEditingLinkId(link.id);
+    setActiveLinkId(link.id);
+    setClientName(link.name ?? "");
+    setSelectedIds(link.projectIds);
+    setMessage(`Editing "${link.name || "Client overview"}". Update the selected projects, then save.`);
+    setSharingOpen(true);
+  };
+
+  const clearEditing = () => {
+    setEditingLinkId("");
+    setClientName("");
+    setSelectedIds([]);
+    setMessage("");
   };
 
   const createClientLink = async () => {
@@ -94,12 +112,38 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       const link = await createClientShareLink({ name: clientName, projects: selectedProjects });
       setLinks((current) => [link, ...current]);
       setActiveLinkId(link.id);
+      setEditingLinkId("");
       setShareModalLinkId(link.id);
       setClientName("");
       setSelectedIds([]);
       setMessage(`${link.name || "Client overview"} is saved and ready to share.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create client overview link.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const updateClientLink = async () => {
+    if (!editingLink) return;
+    if (!selectedProjects.length) {
+      setMessage("Keep at least one project in this client overview link.");
+      return;
+    }
+
+    setWorking(true);
+    setMessage("");
+
+    try {
+      const link = await updateClientShareLinkProjects({ link: editingLink, name: clientName, projects: selectedProjects });
+      setLinks((current) => current.map((item) => (item.id === link.id ? link : item)));
+      setActiveLinkId(link.id);
+      setEditingLinkId("");
+      setClientName("");
+      setSelectedIds([]);
+      setMessage(`${link.name || "Client overview"} updated without changing the URL.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not update client overview link.");
     } finally {
       setWorking(false);
     }
@@ -121,6 +165,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       await revokeClientShareLink(link.id);
       setLinks((current) => current.filter((item) => item.id !== link.id));
       if (activeLinkId === link.id) setActiveLinkId("");
+      if (editingLinkId === link.id) clearEditing();
       if (shareModalLinkId === link.id) setShareModalLinkId("");
       setMessage("Client overview link deleted.");
     } catch (error) {
@@ -213,9 +258,18 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
-              <Button icon={<Link2 size={16} />} onClick={() => void createClientLink()} disabled={working || !isSupabaseConfigured || !projects.length}>
-                {working ? "Creating..." : "Create Share Link"}
+              <Button
+                icon={<Link2 size={16} />}
+                onClick={() => void (editingLink ? updateClientLink() : createClientLink())}
+                disabled={working || !isSupabaseConfigured || !projects.length}
+              >
+                {working ? "Saving..." : editingLink ? "Update Share Link" : "Create Share Link"}
               </Button>
+              {editingLink ? (
+                <Button variant="secondary" onClick={clearEditing} disabled={working}>
+                  Cancel Edit
+                </Button>
+              ) : null}
               <Button
                 variant="secondary"
                 icon={copiedId && activeLink ? <Check size={16} /> : <Copy size={16} />}
@@ -336,6 +390,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 onSelect={() => setActiveLinkId(link.id)}
                 onCopy={() => void copyLink(link)}
                 onDelete={() => void deleteLink(link)}
+                onEdit={() => startEditingLink(link)}
                 onManage={() => {
                   setActiveLinkId(link.id);
                   setModalPassword("");
@@ -436,6 +491,7 @@ function SavedClientLink({
   onSelect,
   onCopy,
   onDelete,
+  onEdit,
   onManage,
 }: {
   link: ClientShareLink;
@@ -446,6 +502,7 @@ function SavedClientLink({
   onSelect: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   onManage: () => void;
 }) {
   const linkedProjects = link.projectIds
@@ -511,6 +568,9 @@ function SavedClientLink({
         </Button>
         <Button variant="ghost" icon={<ExternalLink size={16} />} onClick={() => void openShareUrl(clientShareUrl(link))} title="Open link">
           Open
+        </Button>
+        <Button variant="ghost" onClick={onEdit} title="Edit included projects">
+          Edit
         </Button>
         <Button variant="ghost" icon={<KeyRound size={16} />} onClick={onManage} title="Share options">
           Options

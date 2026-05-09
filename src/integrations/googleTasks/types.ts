@@ -1,4 +1,3 @@
-import type { Project } from "../../types/project";
 import type { Task } from "../../types/task";
 
 export interface GoogleTaskList {
@@ -6,46 +5,36 @@ export interface GoogleTaskList {
   title: string;
 }
 
-export interface GoogleTasksBridgeSettings {
+export interface GoogleTodoSyncSettings {
   enabled: boolean;
-  todayListId: string;
-  inboxListId: string;
+  todoListId: string;
   lastSyncedAt?: string;
   lastError?: string;
   updatedAt?: string;
 }
 
-export interface GoogleTasksBridgeStatus {
+export interface GoogleTodoSyncStatus {
   connected: boolean;
   needsReconnect: boolean;
   scopes: string[];
   lists: GoogleTaskList[];
-  settings: GoogleTasksBridgeSettings;
+  settings: GoogleTodoSyncSettings;
   accountEmail?: string;
   updatedAt?: string;
 }
 
-export interface GoogleTasksImportConflict {
-  title: string;
-  hint: string;
-  matches: string[];
-  reason: string;
-}
-
-export interface GoogleTasksBridgeSyncResult {
+export interface GoogleTodoSyncResult {
   created: number;
   updated: number;
   removed: number;
   skipped: number;
   imported: number;
-  importedTasks: Task[];
-  importConflicts: GoogleTasksImportConflict[];
-  settings: GoogleTasksBridgeSettings;
+  changedTasks: Task[];
+  settings: GoogleTodoSyncSettings;
   lists: GoogleTaskList[];
 }
 
-export interface GoogleTasksBridgeSyncPayload {
+export interface GoogleTodoSyncPayload {
   tasks: Task[];
-  projects: Project[];
-  settings: GoogleTasksBridgeSettings;
+  settings: GoogleTodoSyncSettings;
 }

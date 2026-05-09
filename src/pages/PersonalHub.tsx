@@ -1,18 +1,27 @@
 import {
+  CheckSquare,
+  Code2,
   Copy,
+  Download,
   Edit3,
   ExternalLink,
   FileText,
-  Grid2X2,
+  Heading1,
+  Heading2,
+  Link,
+  List,
+  Minus,
   Plus,
   Save,
   Search,
+  SlidersHorizontal,
   Star,
   StickyNote,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { format } from "date-fns";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -21,8 +30,17 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { EmptyState, StudioTextarea } from "../components/studio/StudioForm";
+import { useProjectStore } from "../store/projectStore";
 import { useStudioStore } from "../store/studioStore";
+import type { Project } from "../types/project";
 import type { HubNote, HubResource, HubResourceType, HubView } from "../types/studio";
+import {
+  downloadTextFile,
+  exportHubNotesJson,
+  exportHubNotesMarkdown,
+  mergeImportedHubNotes,
+  parseHubNotesImport,
+} from "../utils/hubNotesImportExport";
 
 const resourceTypes: Array<{ value: HubResourceType; label: string; tone: "blue" | "amber" | "emerald" | "purple" | "slate" }> = [
   { value: "inspiration", label: "Inspiration", tone: "purple" },
@@ -42,6 +60,12 @@ type ResourceFormState = {
 };
 
 type ResourceFilter = HubResourceType | "all" | "favorites";
+type NoteFormState = {
+  title: string;
+  body: string;
+  tags: string;
+  projectIds: string[];
+};
 
 const emptyResourceForm: ResourceFormState = {
   title: "",
@@ -50,6 +74,13 @@ const emptyResourceForm: ResourceFormState = {
   collection: "",
   tags: "",
   notes: "",
+};
+
+const emptyNoteForm: NoteFormState = {
+  title: "",
+  body: "",
+  tags: "",
+  projectIds: [],
 };
 
 function normalizeResourceUrl(url?: string) {
@@ -88,8 +119,33 @@ function getResourceInitials(title: string) {
   return initials || "A";
 }
 
+function slugifyFilename(value: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 70) || "untitled-note"
+  );
+}
+
+function ExportMenuButton({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--dropdown-hover)]"
+    >
+      {title}
+      <span className="mt-1 block truncate text-xs font-normal text-[var(--text-soft)]">{description}</span>
+    </button>
+  );
+}
+
 export function PersonalHub() {
-  const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote } = useStudioStore();
+  const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote, replaceNotes } = useStudioStore();
+  const projects = useProjectStore((state) => state.projects);
   const [view, setView] = useState<HubView>("resources");
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ResourceFilter>("all");
@@ -98,13 +154,29 @@ export function PersonalHub() {
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [editNoteForm, setEditNoteForm] = useState({ title: "", body: "", tags: "" });
+  const [editNoteForm, setEditNoteForm] = useState<NoteFormState>(emptyNoteForm);
   const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
-  const [noteForm, setNoteForm] = useState({ title: "", body: "", tags: "" });
+  const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm);
+  const [importMessage, setImportMessage] = useState("");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [notePreviewOpen, setNotePreviewOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     importSeedResources();
   }, [importSeedResources]);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+
+    const closeExportMenu = (event: PointerEvent) => {
+      if (exportMenuRef.current?.contains(event.target as Node)) return;
+      setExportMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeExportMenu);
+    return () => document.removeEventListener("pointerdown", closeExportMenu);
+  }, [exportMenuOpen]);
 
   const filteredResources = useMemo(
     () =>
@@ -121,8 +193,6 @@ export function PersonalHub() {
     [notes, query],
   );
 
-  const collections = useMemo(() => Array.from(new Set(resources.map((item) => item.collection).filter(Boolean))) as string[], [resources]);
-  const favoriteResourceCount = useMemo(() => resources.filter((item) => item.favorite).length, [resources]);
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
   const selectedResource = selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId) ?? null : null;
 
@@ -157,19 +227,23 @@ export function PersonalHub() {
     setView("resources");
   };
 
-  const submitNote = (event: FormEvent) => {
-    event.preventDefault();
+  const saveNewNote = () => {
     if (!noteForm.title.trim() || !noteForm.body.trim()) return;
-    const nextNote = { ...noteForm, title: noteForm.title.trim(), body: noteForm.body.trim() };
+    const nextNote = {
+      ...noteForm,
+      title: noteForm.title.trim(),
+      body: noteForm.body.trim(),
+      tags: noteForm.tags.trim() || undefined,
+    };
     addNote(nextNote);
-    setNoteForm({ title: "", body: "", tags: "" });
+    setNoteForm(emptyNoteForm);
     setShowForm(null);
     setView("notes");
   };
 
   const startEditingNote = (note: HubNote) => {
     setEditingNoteId(note.id);
-    setEditNoteForm({ title: note.title, body: note.body, tags: note.tags ?? "" });
+    setEditNoteForm({ title: note.title, body: note.body, tags: note.tags ?? "", projectIds: note.projectIds ?? [] });
   };
 
   const saveEditingNote = () => {
@@ -178,8 +252,45 @@ export function PersonalHub() {
       title: editNoteForm.title.trim(),
       body: editNoteForm.body.trim(),
       tags: editNoteForm.tags.trim() || undefined,
+      projectIds: editNoteForm.projectIds,
     });
     setEditingNoteId(null);
+  };
+
+  const exportNotes = (format: "json" | "markdown", scope: "current" | "all") => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const exportNotes = scope === "current" && selectedNote ? [selectedNote] : notes;
+    const filenameBase =
+      scope === "current" && selectedNote
+        ? `align-note-${slugifyFilename(selectedNote.title)}`
+        : "align-personal-hub-notes";
+
+    if (format === "json") {
+      downloadTextFile(`${filenameBase}-${stamp}.json`, exportHubNotesJson(exportNotes), "application/json");
+      setExportMenuOpen(false);
+      return;
+    }
+
+    downloadTextFile(`${filenameBase}-${stamp}.md`, exportHubNotesMarkdown(exportNotes), "text/markdown");
+    setExportMenuOpen(false);
+  };
+
+  const importNotes = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const imported = parseHubNotesImport(content, file.name);
+      const { notes: mergedNotes, summary } = mergeImportedHubNotes(notes, imported);
+      replaceNotes(mergedNotes);
+      setImportMessage(summary.message);
+      setView("notes");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not import notes.";
+      setImportMessage(message);
+    }
   };
 
   const startEditingResource = (resource: HubResource) => {
@@ -217,7 +328,47 @@ export function PersonalHub() {
         title="Personal Hub"
         description="A private resource and notes workspace for inspiration, tools, links, snippets, and working context."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <input ref={fileInputRef} className="hidden" type="file" accept=".json,.md,.markdown,application/json,text/markdown,text/plain" onChange={(event) => void importNotes(event)} />
+            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileInputRef.current?.click()}>
+              Import
+            </Button>
+            <div ref={exportMenuRef} className="relative">
+              <Button variant="secondary" icon={<Download size={16} />} onClick={() => setExportMenuOpen((open) => !open)} disabled={!notes.length}>
+                Export
+              </Button>
+              {exportMenuOpen ? (
+                <div className="absolute right-0 z-20 mt-2 w-72 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
+                  {selectedNote ? (
+                    <>
+                      <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Current note</p>
+                      <ExportMenuButton
+                        title="Download Markdown"
+                        description={selectedNote.title}
+                        onClick={() => exportNotes("markdown", "current")}
+                      />
+                      <ExportMenuButton
+                        title="Download JSON"
+                        description="Single-note backup"
+                        onClick={() => exportNotes("json", "current")}
+                      />
+                      <div className="my-2 border-t border-[var(--border)]" />
+                    </>
+                  ) : null}
+                  <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">All notes</p>
+                  <ExportMenuButton
+                    title="Backup JSON"
+                    description="Best for restoring every note later."
+                    onClick={() => exportNotes("json", "all")}
+                  />
+                  <ExportMenuButton
+                    title="Markdown Bundle"
+                    description="Readable archive containing every note."
+                    onClick={() => exportNotes("markdown", "all")}
+                  />
+                </div>
+              ) : null}
+            </div>
             <Button
               variant="secondary"
               icon={<StickyNote size={16} />}
@@ -228,100 +379,65 @@ export function PersonalHub() {
             >
               New Note
             </Button>
-            <Button icon={<Plus size={16} />} onClick={() => setShowForm("resource")}>
+            <Button icon={<Plus size={16} />} onClick={() => {
+              setShowForm("resource");
+              setView("resources");
+            }}>
               Add Resource
             </Button>
           </div>
         }
       />
 
-      <div className={`grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)] ${view === "resources" ? "2xl:grid-cols-[260px_minmax(0,1fr)_400px]" : ""}`}>
-        <aside className="space-y-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] align-gradient text-white">
-                <Grid2X2 size={18} />
-              </span>
-              <div>
-                <h2 className="font-display font-bold text-[var(--text)]">Align Resources</h2>
-                <p className="text-xs text-[var(--text-muted)]">Designer resource hub</p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              <SidebarButton
-                active={view === "resources" && type === "all"}
-                onClick={() => {
-                  setView("resources");
-                  setType("all");
-                }}
-                label="All Resources"
-                count={resources.length}
-              />
-              {resourceTypes.map((item) => (
-                <SidebarButton
-                  key={item.value}
-                  active={view === "resources" && type === item.value}
-                  onClick={() => {
-                    setView("resources");
-                    setType(item.value);
-                  }}
-                  label={item.label}
-                  count={resources.filter((resource) => resource.type === item.value).length}
-                />
-              ))}
-              <SidebarButton
-                active={view === "resources" && type === "favorites"}
-                onClick={() => {
-                  setView("resources");
-                  setType("favorites");
-                }}
-                label="Favorites"
-                count={favoriteResourceCount}
-              />
-              <SidebarButton active={view === "notes"} onClick={() => setView("notes")} label="Notes" count={notes.length} />
-            </div>
-          </Card>
-          <Card className="p-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Collections</h3>
-            <div className="mt-3 space-y-2 text-sm text-[var(--text-muted)]">
-              {collections.length ? collections.map((collection) => <p key={collection}>{collection}</p>) : <p>No collections yet.</p>}
-            </div>
-          </Card>
-        </aside>
+      {importMessage ? (
+        <Card className="flex flex-col gap-2 p-4 text-sm text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between">
+          <span>{importMessage}</span>
+          <Button variant="ghost" onClick={() => setImportMessage("")}>
+            Dismiss
+          </Button>
+        </Card>
+      ) : null}
+
+      <Card className="p-3">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={17} />
+            <Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes, resources, tags, collections..." />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button variant={view === "resources" ? "primary" : "secondary"} onClick={() => setView("resources")}>
+              Resources
+            </Button>
+            <Button variant={view === "notes" ? "primary" : "secondary"} onClick={() => setView("notes")}>
+              Notes
+            </Button>
+          </div>
+        </div>
+        {view === "resources" ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <FilterChip active={type === "all"} onClick={() => setType("all")}>
+              All
+            </FilterChip>
+            {resourceTypes.map((item) => (
+              <FilterChip key={item.value} active={type === item.value} onClick={() => setType(item.value)}>
+                {item.label}
+              </FilterChip>
+            ))}
+            <FilterChip active={type === "favorites"} onClick={() => setType("favorites")}>
+              Favorites
+            </FilterChip>
+          </div>
+        ) : null}
+      </Card>
+
+      <div className={`grid gap-5 ${view === "notes" ? "xl:grid-cols-[260px_minmax(0,1fr)]" : "2xl:grid-cols-[minmax(0,1fr)_400px]"}`}>
+        {view === "notes" ? (
+          <aside className="space-y-4">
+            <NoteListPanel notes={filteredNotes} projects={projects} selectedNote={selectedNote} onSelectNote={(note) => setSelectedNoteId(note.id)} />
+          </aside>
+        ) : null}
 
         <main className="min-w-0 space-y-4">
-          <Card className="p-3">
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-              <label className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={17} />
-                <Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources, notes, tags, collections..." />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <Button variant={view === "resources" ? "primary" : "secondary"} onClick={() => setView("resources")}>
-                  Resources
-                </Button>
-                <Button variant={view === "notes" ? "primary" : "secondary"} onClick={() => setView("notes")}>
-                  Notes
-                </Button>
-              </div>
-            </div>
-            {view === "resources" ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <FilterChip active={type === "all"} onClick={() => setType("all")}>
-                  All
-                </FilterChip>
-                {resourceTypes.map((item) => (
-                  <FilterChip key={item.value} active={type === item.value} onClick={() => setType(item.value)}>
-                    {item.label}
-                  </FilterChip>
-                ))}
-                <FilterChip active={type === "favorites"} onClick={() => setType("favorites")}>
-                  Favorites
-                </FilterChip>
-              </div>
-            ) : null}
-          </Card>
-
           {showForm === "resource" ? (
             <Card className="p-4">
               <form onSubmit={submitResource} className="grid gap-3">
@@ -351,27 +467,9 @@ export function PersonalHub() {
             </Card>
           ) : null}
 
-          {showForm === "note" ? (
-            <Card className="p-4">
-              <form onSubmit={submitNote} className="grid gap-3">
-                <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
-                  <Input value={noteForm.title} onChange={(event) => setNoteForm({ ...noteForm, title: event.target.value })} placeholder="Note title" />
-                  <Input value={noteForm.tags} onChange={(event) => setNoteForm({ ...noteForm, tags: event.target.value })} placeholder="Tags" />
-                </div>
-                <StudioTextarea className="min-h-48 font-mono" value={noteForm.body} onChange={(event) => setNoteForm({ ...noteForm, body: event.target.value })} placeholder={"Heading\n- Checklist item\nNotes, snippets, prompts, or decisions..."} />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="secondary" onClick={() => setShowForm(null)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Save Note</Button>
-                </div>
-              </form>
-            </Card>
-          ) : null}
-
           {view === "resources" ? (
             filteredResources.length ? (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-2">
                 {filteredResources.map((item) => {
                   const isSelected = selectedResourceId === item.id;
                   return (
@@ -396,6 +494,7 @@ export function PersonalHub() {
           ) : (
             <NotesWorkspace
               notes={filteredNotes}
+              projects={projects}
               selectedNote={selectedNote}
               editingNoteId={editingNoteId}
               editNoteForm={editNoteForm}
@@ -406,6 +505,16 @@ export function PersonalHub() {
               onEditFormChange={setEditNoteForm}
               onDelete={deleteNote}
               onToggleFavorite={(note) => updateNote(note.id, { favorite: !note.favorite })}
+              creatingNote={showForm === "note"}
+              noteForm={noteForm}
+              previewOpen={notePreviewOpen}
+              onTogglePreview={() => setNotePreviewOpen((open) => !open)}
+              onNoteFormChange={setNoteForm}
+              onCancelNewNote={() => {
+                setShowForm(null);
+                setNoteForm(emptyNoteForm);
+              }}
+              onSaveNewNote={saveNewNote}
             />
           )}
         </main>
@@ -477,77 +586,280 @@ export function PersonalHub() {
   );
 }
 
+function isProject(project: Project | undefined): project is Project {
+  return Boolean(project);
+}
+
+function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[]; selectedIds: string[]; onChange: (projectIds: string[]) => void }) {
+  if (!projects.length) return null;
+
+  const toggleProject = (projectId: string) => {
+    onChange(selectedIds.includes(projectId) ? selectedIds.filter((id) => id !== projectId) : [...selectedIds, projectId]);
+  };
+
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Linked projects</p>
+        <span className="text-xs font-semibold text-[var(--text-soft)]">{selectedIds.length} selected</span>
+      </div>
+      <div className="mt-3 flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1">
+        {projects.map((project) => {
+          const selected = selectedIds.includes(project.id);
+          return (
+            <button
+              key={project.id}
+              type="button"
+              onClick={() => toggleProject(project.id)}
+              className={`rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-xs font-semibold transition ${
+                selected
+                  ? "border-[var(--brand-primary)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+              }`}
+            >
+              {project.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MarkdownEditor({
+  value,
+  onChange,
+  compact = false,
+  previewOpen = false,
+  onTogglePreview,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  compact?: boolean;
+  previewOpen?: boolean;
+  onTogglePreview?: () => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const insertSnippet = (snippet: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      onChange(`${value}${snippet}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const next = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
+    onChange(next);
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = start + snippet.length;
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap gap-2">
+        <EditorButton icon={<Heading1 size={15} />} label="Heading" onClick={() => insertSnippet("# Heading\n")} />
+        <EditorButton icon={<Heading2 size={15} />} label="Subheading" onClick={() => insertSnippet("## Subheading\n")} />
+        <EditorButton icon={<List size={15} />} label="List" onClick={() => insertSnippet("- List item\n")} />
+        <EditorButton icon={<CheckSquare size={15} />} label="Checklist" onClick={() => insertSnippet("- [ ] Checklist item\n")} />
+        <EditorButton icon={<Code2 size={15} />} label="Code" onClick={() => insertSnippet("```\ncode\n```\n")} />
+        <EditorButton icon={<Link size={15} />} label="Link" onClick={() => insertSnippet("[Link title](https://example.com)")} />
+        <EditorButton icon={<Minus size={15} />} label="Divider" onClick={() => insertSnippet("\n---\n")} />
+        {!compact && onTogglePreview ? (
+          <button
+            type="button"
+            onClick={onTogglePreview}
+            className={`ml-auto inline-flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2 text-sm font-semibold transition ${
+              previewOpen
+                ? "border-[var(--brand-primary)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]"
+                : "border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] hover:border-[var(--border-strong)]"
+            }`}
+          >
+            <FileText size={15} />
+            {previewOpen ? "Edit" : "Preview"}
+          </button>
+        ) : null}
+      </div>
+      {previewOpen && !compact ? (
+        <div className="min-h-[520px] overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-6">
+          {value.trim() ? <NoteReader body={value} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
+        </div>
+      ) : (
+        <div className={`grid gap-3 ${compact ? "xl:grid-cols-2" : ""}`}>
+          <StudioTextarea
+            ref={textareaRef}
+            className={`${compact ? "min-h-64" : "min-h-[520px]"} resize-y font-mono text-sm leading-7`}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={"# Heading\n- [ ] Checklist item\nNotes, snippets, prompts, or decisions..."}
+          />
+          {compact ? (
+            <div className="min-h-64 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-4">
+              {value.trim() ? <NoteReader body={value} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditorButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)]"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function NoteListPanel({
+  notes,
+  projects,
+  selectedNote,
+  onSelectNote,
+}: {
+  notes: HubNote[];
+  projects: Project[];
+  selectedNote: HubNote | null;
+  onSelectNote: (note: HubNote) => void;
+}) {
+  const projectLookup = new Map(projects.map((project) => [project.id, project]));
+
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="border-b border-[var(--border)] px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-bold text-[var(--text)]">Saved Notes</h2>
+            <p className="text-sm text-[var(--text-muted)]">{notes.length} private notes</p>
+          </div>
+          <SlidersHorizontal size={17} className="text-[var(--text-soft)]" />
+        </div>
+      </div>
+      <div className="max-h-[calc(100vh-16rem)] overflow-y-auto p-3">
+        {!notes.length ? <EmptyState>No matching notes yet.</EmptyState> : null}
+        {notes.map((note) => (
+          <button
+            key={note.id}
+            type="button"
+            onClick={() => onSelectNote(note)}
+            className={`mb-2 block w-full rounded-[var(--radius-sm)] border p-4 text-left transition ${
+              selectedNote?.id === note.id
+                ? "border-[var(--brand-primary)] bg-[var(--surface-raised)] shadow-[0_0_0_1px_var(--brand-primary)]"
+                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="line-clamp-1 font-display text-base font-bold text-[var(--text)]">{note.title}</h3>
+              <Star size={15} className={note.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-[var(--text-soft)]">{format(new Date(note.updatedAt), "MMM d, yyyy")}</span>
+              {(note.projectIds ?? [])
+                .map((projectId) => projectLookup.get(projectId))
+                .filter(isProject)
+                .slice(0, 1)
+                .map((project) => (
+                  <Badge key={project.id} tone="blue">{project.name}</Badge>
+                ))}
+              {note.tags
+                ?.split(",")
+                .filter(Boolean)
+                .slice(0, 1)
+                .map((tag) => (
+                  <Badge key={tag.trim()}>{tag.trim()}</Badge>
+                ))}
+            </div>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function NotesWorkspace({
   notes,
+  projects,
   selectedNote,
   editingNoteId,
   editNoteForm,
+  creatingNote,
+  noteForm,
+  previewOpen,
+  onTogglePreview,
   onSelectNote,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
   onEditFormChange,
+  onNoteFormChange,
+  onCancelNewNote,
+  onSaveNewNote,
   onDelete,
   onToggleFavorite,
 }: {
   notes: HubNote[];
+  projects: Project[];
   selectedNote: HubNote | null;
   editingNoteId: string | null;
-  editNoteForm: { title: string; body: string; tags: string };
+  editNoteForm: NoteFormState;
+  creatingNote: boolean;
+  noteForm: NoteFormState;
+  previewOpen: boolean;
+  onTogglePreview: () => void;
   onSelectNote: (note: HubNote) => void;
   onStartEdit: (note: HubNote) => void;
   onCancelEdit: () => void;
   onSaveEdit: () => void;
-  onEditFormChange: (form: { title: string; body: string; tags: string }) => void;
+  onEditFormChange: (form: NoteFormState) => void;
+  onNoteFormChange: (form: NoteFormState) => void;
+  onCancelNewNote: () => void;
+  onSaveNewNote: () => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (note: HubNote) => void;
 }) {
-  if (!notes.length) return <EmptyState>No matching notes yet.</EmptyState>;
-
   const isEditing = selectedNote ? editingNoteId === selectedNote.id : false;
+  const projectLookup = new Map(projects.map((project) => [project.id, project]));
+  const selectedProjects = selectedNote?.projectIds?.map((projectId) => projectLookup.get(projectId)).filter(isProject);
 
   return (
-    <div className="grid gap-4 2xl:grid-cols-[420px_minmax(0,1fr)]">
-      <Card className="overflow-hidden p-0">
-        <div className="border-b border-[var(--border)] px-4 py-3">
-          <h2 className="font-display text-lg font-bold text-[var(--text)]">Saved Notes</h2>
-          <p className="text-sm text-[var(--text-muted)]">{notes.length} notes in your private workspace</p>
-        </div>
-        <div className="max-h-[720px] overflow-y-auto p-3">
-          {notes.map((note) => (
-            <button
-              key={note.id}
-              type="button"
-              onClick={() => onSelectNote(note)}
-              className={`mb-2 block w-full rounded-[var(--radius-sm)] border p-4 text-left transition ${
-                selectedNote?.id === note.id
-                  ? "border-[var(--brand-primary)] bg-[var(--surface-raised)] shadow-[0_0_0_1px_var(--brand-primary)]"
-                  : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="line-clamp-1 font-display text-base font-bold text-[var(--text)]">{note.title}</h3>
-                <Star size={15} className={note.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
+    <div className="min-h-[720px]">
+      <Card className="min-h-[720px] overflow-hidden p-0">
+        {creatingNote ? (
+          <div className="flex h-full min-h-[720px] flex-col">
+            <NotePanelHeader
+              label="New private note"
+              title={noteForm.title || "Untitled note"}
+              actions={
+                <>
+                  <Button variant="secondary" icon={<X size={15} />} onClick={onCancelNewNote}>
+                    Cancel
+                  </Button>
+                  <Button icon={<Save size={15} />} onClick={onSaveNewNote}>
+                    Save Note
+                  </Button>
+                </>
+              }
+            />
+            <div className="grid flex-1 gap-4 p-5">
+              <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
+                <Input value={noteForm.title} onChange={(event) => onNoteFormChange({ ...noteForm, title: event.target.value })} placeholder="Note title" />
+                <Input value={noteForm.tags} onChange={(event) => onNoteFormChange({ ...noteForm, tags: event.target.value })} placeholder="Tags, comma separated" />
               </div>
-              <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--text-muted)]">{note.body}</p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-[var(--text-soft)]">{format(new Date(note.updatedAt), "MMM d, yyyy")}</span>
-                {note.tags
-                  ?.split(",")
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((tag) => (
-                    <Badge key={tag.trim()}>{tag.trim()}</Badge>
-                  ))}
-              </div>
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="min-h-[620px] p-0">
-        {selectedNote ? (
-          <div className="flex h-full min-h-[620px] flex-col">
+              <ProjectPicker projects={projects} selectedIds={noteForm.projectIds} onChange={(projectIds) => onNoteFormChange({ ...noteForm, projectIds })} />
+              <MarkdownEditor value={noteForm.body} onChange={(body) => onNoteFormChange({ ...noteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
+            </div>
+          </div>
+        ) : selectedNote ? (
+          <div className="flex h-full min-h-[720px] flex-col">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] text-[var(--brand-primary)]">
@@ -556,6 +868,13 @@ function NotesWorkspace({
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Note</p>
                   <h2 className="font-display text-xl font-bold text-[var(--text)]">{selectedNote.title}</h2>
+                  {selectedProjects?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedProjects.map((project) => (
+                        <Badge key={project.id} tone="blue">{project.name}</Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -590,12 +909,8 @@ function NotesWorkspace({
                   <Input value={editNoteForm.title} onChange={(event) => onEditFormChange({ ...editNoteForm, title: event.target.value })} placeholder="Note title" />
                   <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Tags" />
                 </div>
-                <StudioTextarea
-                  className="min-h-[480px] resize-y font-mono text-sm leading-7"
-                  value={editNoteForm.body}
-                  onChange={(event) => onEditFormChange({ ...editNoteForm, body: event.target.value })}
-                  placeholder="Write the note..."
-                />
+                <ProjectPicker projects={projects} selectedIds={editNoteForm.projectIds} onChange={(projectIds) => onEditFormChange({ ...editNoteForm, projectIds })} />
+                <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-6">
@@ -619,22 +934,20 @@ function NotesWorkspace({
           <EmptyState>Select a note to read or edit it.</EmptyState>
         )}
       </Card>
+
     </div>
   );
 }
 
-function SidebarButton({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+function NotePanelHeader({ label, title, actions }: { label: string; title: string; actions: ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-semibold transition ${
-        active ? "align-gradient text-white" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-      }`}
-    >
-      <span>{label}</span>
-      <span className="text-xs opacity-80">{count}</span>
-    </button>
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">{label}</p>
+        <h2 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{title}</h2>
+      </div>
+      <div className="flex flex-wrap gap-2">{actions}</div>
+    </div>
   );
 }
 
@@ -840,35 +1153,104 @@ function ResourceDetailInline({
 
 function NoteReader({ body }: { body: string }) {
   const lines = body.split("\n");
+  const nodes: ReactNode[] = [];
+  let codeLines: string[] = [];
+  let inCodeBlock = false;
 
-  return (
-    <article className="space-y-3 text-base leading-8 text-[var(--text-muted)]">
-      {lines.map((rawLine, index) => {
-        const line = rawLine.trim();
-        if (!line) return <div key={index} className="h-2" />;
-        if (line.startsWith("# ")) {
-          return (
-            <h2 key={index} className="pt-2 font-display text-2xl font-bold leading-tight text-[var(--text)]">
-              {line.slice(2)}
-            </h2>
-          );
-        }
-        if (line.startsWith("## ")) {
-          return (
-            <h3 key={index} className="pt-2 font-display text-xl font-bold leading-tight text-[var(--text)]">
-              {line.slice(3)}
-            </h3>
-          );
-        }
-        if (line.startsWith("- ")) {
-          return (
-            <p key={index} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-2">
-              {line.slice(2)}
-            </p>
-          );
-        }
-        return <p key={index}>{line}</p>;
-      })}
-    </article>
-  );
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trim();
+
+    if (line.startsWith("```")) {
+      if (inCodeBlock) {
+        nodes.push(
+          <pre key={`code-${index}`} className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm leading-6 text-[var(--text)]">
+            <code>{codeLines.join("\n")}</code>
+          </pre>,
+        );
+        codeLines = [];
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      return;
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(rawLine);
+      return;
+    }
+
+    if (!line) {
+      nodes.push(<div key={index} className="h-2" />);
+      return;
+    }
+
+    if (line === "---") {
+      nodes.push(<hr key={index} className="border-[var(--border)]" />);
+      return;
+    }
+
+    if (line.startsWith("# ")) {
+      nodes.push(
+        <h2 key={index} className="pt-2 font-display text-2xl font-bold leading-tight text-[var(--text)]">
+          {renderInlineMarkdown(line.slice(2))}
+        </h2>,
+      );
+      return;
+    }
+
+    if (line.startsWith("## ")) {
+      nodes.push(
+        <h3 key={index} className="pt-2 font-display text-xl font-bold leading-tight text-[var(--text)]">
+          {renderInlineMarkdown(line.slice(3))}
+        </h3>,
+      );
+      return;
+    }
+
+    if (line.startsWith("- [ ] ") || line.startsWith("- [x] ")) {
+      const checked = line.startsWith("- [x] ");
+      nodes.push(
+        <p key={index} className="flex gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-2">
+          <span className={`mt-1 grid h-4 w-4 shrink-0 place-items-center rounded border ${checked ? "border-[var(--status-completed-text)] bg-[var(--status-completed-bg)]" : "border-[var(--border-strong)]"}`}>{checked ? "✓" : ""}</span>
+          <span>{renderInlineMarkdown(line.slice(6))}</span>
+        </p>,
+      );
+      return;
+    }
+
+    if (line.startsWith("- ")) {
+      nodes.push(
+        <p key={index} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-2">
+          {renderInlineMarkdown(line.slice(2))}
+        </p>,
+      );
+      return;
+    }
+
+    nodes.push(<p key={index}>{renderInlineMarkdown(line)}</p>);
+  });
+
+  if (inCodeBlock && codeLines.length) {
+    nodes.push(
+      <pre key="code-open" className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm leading-6 text-[var(--text)]">
+        <code>{codeLines.join("\n")}</code>
+      </pre>,
+    );
+  }
+
+  return <article className="space-y-3 text-base leading-8 text-[var(--text-muted)]">{nodes}</article>;
+}
+
+function renderInlineMarkdown(value: string) {
+  const parts = value.split(/(\[[^\]]+\]\([^)]+\))/g);
+  return parts.map((part, index) => {
+    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (!match) return <span key={index}>{part}</span>;
+    return (
+      <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={match[2]} target="_blank" rel="noreferrer">
+        {match[1]}
+      </a>
+    );
+  });
 }

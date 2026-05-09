@@ -22,9 +22,13 @@ create table if not exists public.hub_notes (
   body text not null,
   tags text,
   favorite boolean not null default false,
+  project_ids text[] not null default '{}',
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
+
+alter table public.hub_notes
+add column if not exists project_ids text[] not null default '{}';
 
 alter table public.hub_resources enable row level security;
 alter table public.hub_notes enable row level security;

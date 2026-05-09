@@ -34,12 +34,17 @@ const rowToNotification = (row: {
   createdAt: row.created_at,
 });
 
-export async function fetchNotifications(limit = 10) {
+const READ_NOTIFICATION_VISIBLE_DAYS = 7;
+const READ_NOTIFICATION_RETENTION_DAYS = 30;
+
+export async function fetchNotifications(limit = 20) {
   const client = requireClient();
+  const visibleReadAfter = new Date(Date.now() - READ_NOTIFICATION_VISIBLE_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const query = client
     .from("notifications")
     .select("id,task_id,type,title,message,scheduled_for,read_at,email_sent_at,email_error,created_at")
     .lte("scheduled_for", new Date().toISOString())
+    .or(`read_at.is.null,read_at.gte.${visibleReadAfter}`)
     .order("scheduled_for", { ascending: false })
     .limit(limit);
   let { data, error } = await query;
@@ -49,16 +54,17 @@ export async function fetchNotifications(limit = 10) {
       .from("notifications")
       .select("id,task_id,type,title,message,scheduled_for,read_at,created_at")
       .lte("scheduled_for", new Date().toISOString())
+      .or(`read_at.is.null,read_at.gte.${visibleReadAfter}`)
       .order("scheduled_for", { ascending: false })
       .limit(limit);
 
     if (fallback.error) throw new Error(errorMessage(fallback.error, "Could not load notifications."));
-    return (fallback.data ?? []).map(rowToNotification);
+    return sortNotifications((fallback.data ?? []).map(rowToNotification));
   }
 
   if (error) throw new Error(errorMessage(error, "Could not load notifications."));
 
-  return (data ?? []).map(rowToNotification);
+  return sortNotifications((data ?? []).map(rowToNotification));
 }
 
 export async function markNotificationRead(id: string) {
@@ -76,4 +82,27 @@ export async function markAllNotificationsRead() {
     .is("read_at", null);
 
   if (error) throw new Error(errorMessage(error, "Could not update notifications."));
+}
+
+export async function clearReadNotifications() {
+  const client = requireClient();
+  const { error } = await client.from("notifications").delete().not("read_at", "is", null);
+
+  if (error) throw new Error(errorMessage(error, "Could not clear read notifications."));
+}
+
+export async function deleteOldReadNotifications() {
+  const client = requireClient();
+  const retentionDate = new Date(Date.now() - READ_NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await client.from("notifications").delete().not("read_at", "is", null).lt("read_at", retentionDate);
+
+  if (error) throw new Error(errorMessage(error, "Could not clean old notifications."));
+}
+
+function sortNotifications(items: AppNotification[]) {
+  return items.sort((a, b) => {
+    if (!a.readAt && b.readAt) return -1;
+    if (a.readAt && !b.readAt) return 1;
+    return new Date(b.scheduledFor).getTime() - new Date(a.scheduledFor).getTime();
+  });
 }

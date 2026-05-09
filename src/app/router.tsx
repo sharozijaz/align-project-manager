@@ -57,6 +57,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "todos",
+        lazy: async () => {
+          const { Todos } = await import("../pages/Todos");
+          return { Component: () => <RequireFeature feature="project_management"><Todos /></RequireFeature> };
+        },
+      },
+      {
         path: "calendar",
         lazy: async () => {
           const { Calendar } = await import("../pages/Calendar");

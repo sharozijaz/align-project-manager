@@ -3,11 +3,14 @@ import { TaskList } from "../tasks/TaskList";
 import { TaskViewToggle } from "../tasks/TaskViewToggle";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
+import { Badge } from "../ui/Badge";
 import { ProjectNotes } from "./ProjectNotes";
 import { useMemo, useState } from "react";
 import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import { useTaskViewPreference } from "../../hooks/useTaskViewPreference";
+import { useStudioStore } from "../../store/studioStore";
 import type { Project, ProjectInput } from "../../types/project";
+import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
@@ -35,8 +38,10 @@ export function ProjectDetail({
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [view, setView] = useTaskViewPreference();
+  const hubNotes = useStudioStore((state) => state.notes);
   const complete = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
   const progress = tasks.length ? Math.round((complete / tasks.length) * 100) : 0;
+  const linkedHubNotes = useMemo(() => hubNotes.filter((note) => note.projectIds?.includes(project.id)), [hubNotes, project.id]);
   const visibleTasks = useMemo(
     () =>
       tasks.filter((task) => {
@@ -103,10 +108,46 @@ export function ProjectDetail({
         lockedProjectId={project.id}
         onReorder={onReorderTasks}
       />
+      <LinkedHubNotes notes={linkedHubNotes} />
       <ProjectNotes
         notes={project.notes ?? []}
         onChange={(notes) => onUpdateProject(project.id, { notes })}
       />
     </div>
+  );
+}
+
+function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
+  if (!notes.length) return null;
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-[var(--text)]">Personal Hub Notes</h2>
+          <p className="text-sm text-[var(--text-muted)]">Private notes linked to this project. They never appear on client share links.</p>
+        </div>
+        <Badge tone="slate">{notes.length} private</Badge>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {notes.map((note) => (
+          <article key={note.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-bold text-[var(--text)]">{note.title}</h3>
+              {note.favorite ? <Badge tone="purple">Favorite</Badge> : null}
+            </div>
+            <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{note.body}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {note.tags
+                ?.split(",")
+                .filter(Boolean)
+                .map((tag) => (
+                  <Badge key={tag.trim()}>{tag.trim()}</Badge>
+                ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </Card>
   );
 }

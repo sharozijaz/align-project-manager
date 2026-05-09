@@ -1,8 +1,10 @@
-import { Bell, CheckCheck, Inbox } from "lucide-react";
+import { Bell, CheckCheck, Inbox, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { formatDistanceToNow } from "date-fns";
 import {
+  clearReadNotifications,
+  deleteOldReadNotifications,
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -26,6 +28,7 @@ export function NotificationBell({
   const [items, setItems] = useState<AppNotification[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const cleanupAttemptedRef = useRef(false);
   const shellRef = useRef<HTMLDivElement | null>(null);
 
   const canLoad = isConfigured && Boolean(session) && !loading;
@@ -40,6 +43,12 @@ export function NotificationBell({
 
     try {
       setError("");
+      if (!cleanupAttemptedRef.current) {
+        cleanupAttemptedRef.current = true;
+        void deleteOldReadNotifications().catch(() => {
+          cleanupAttemptedRef.current = false;
+        });
+      }
       const nextItems = await fetchNotifications(10);
       setItems(nextItems);
     } catch (loadError) {
@@ -68,6 +77,7 @@ export function NotificationBell({
   }, [open, setOpen]);
 
   const unreadCount = items.filter((item) => !item.readAt).length;
+  const readCount = items.length - unreadCount;
 
   const handleMarkAllRead = async () => {
     setBusy(true);
@@ -82,6 +92,16 @@ export function NotificationBell({
   const handleMarkRead = async (id: string) => {
     await markNotificationRead(id);
     setItems((current) => current.map((item) => (item.id === id ? { ...item, readAt: new Date().toISOString() } : item)));
+  };
+
+  const handleClearRead = async () => {
+    setBusy(true);
+    try {
+      await clearReadNotifications();
+      setItems((current) => current.filter((item) => !item.readAt));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -119,15 +139,26 @@ export function NotificationBell({
                 <p className="text-sm font-semibold text-[var(--text)]">Notifications</p>
                 <p className="text-xs text-[var(--text-soft)]">{unreadCount ? `${unreadCount} unread` : "All caught up"}</p>
               </div>
-              <button
-                type="button"
-                disabled={!unreadCount || busy}
-                onClick={handleMarkAllRead}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)] disabled:opacity-40"
-              >
-                <CheckCheck size={14} />
-                Read
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={!unreadCount || busy}
+                  onClick={handleMarkAllRead}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)] disabled:opacity-40"
+                >
+                  <CheckCheck size={14} />
+                  Read
+                </button>
+                <button
+                  type="button"
+                  disabled={!readCount || busy}
+                  onClick={handleClearRead}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)] disabled:opacity-40"
+                >
+                  <Trash2 size={13} />
+                  Clear
+                </button>
+              </div>
             </div>
 
             <div className="mt-2 max-h-80 overflow-y-auto">

@@ -29,6 +29,10 @@ function createItem<T extends object>(input: T): T & { id: string; createdAt: st
   return { ...input, id: id(), createdAt: now, updatedAt: now };
 }
 
+function normalizeNote(note: HubNote): HubNote {
+  return { ...note, projectIds: note.projectIds ?? [] };
+}
+
 function updateItems<T extends { id: string; updatedAt: string }>(items: T[], itemId: string, updates: Partial<Omit<T, "id" | "createdAt" | "updatedAt">>) {
   return items.map((item) => (item.id === itemId ? { ...item, ...updates, updatedAt: stamp() } : item));
 }
@@ -58,14 +62,19 @@ export const useStudioStore = create<StudioState>()(
           };
         }),
       replaceResources: (resources) => set({ resources }),
-      replaceNotes: (notes) => set({ notes }),
+      replaceNotes: (notes) => set({ notes: notes.map(normalizeNote) }),
       addResource: (input) => set((state) => ({ resources: [createItem(input), ...state.resources] })),
       updateResource: (itemId, updates) => set((state) => ({ resources: updateItems(state.resources, itemId, updates) })),
       deleteResource: (itemId) => set((state) => ({ resources: state.resources.filter((item) => item.id !== itemId) })),
-      addNote: (input) => set((state) => ({ notes: [createItem(input), ...state.notes] })),
+      addNote: (input) => set((state) => ({ notes: [createItem({ ...input, projectIds: input.projectIds ?? [] }), ...state.notes] })),
       updateNote: (itemId, updates) => set((state) => ({ notes: updateItems(state.notes, itemId, updates) })),
       deleteNote: (itemId) => set((state) => ({ notes: state.notes.filter((item) => item.id !== itemId) })),
     }),
-    { name: "align-personal-hub-v1" },
+    {
+      name: "align-personal-hub-v1",
+      onRehydrateStorage: () => (state) => {
+        if (state) state.notes = state.notes.map(normalizeNote);
+      },
+    },
   ),
 );

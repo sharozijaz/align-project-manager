@@ -21,6 +21,7 @@ interface TaskState {
   dismissDeleteNotice: () => void;
   replaceTasks: (tasks: Task[]) => void;
   importTasks: (tasks: Task[]) => void;
+  upsertTasks: (tasks: Task[]) => void;
 }
 
 const stamp = () => new Date().toISOString();
@@ -131,6 +132,18 @@ export const useTaskStore = create<TaskState>()(
 
           return {
             tasks: normalizeTaskOrder([...importedTasks, ...state.tasks]),
+            lastDeletedTaskId: undefined,
+          };
+        }),
+      upsertTasks: (tasks) =>
+        set((state) => {
+          const incoming = new Map(tasks.map((task) => [task.id, task]));
+          const existingIds = new Set(state.tasks.map((task) => task.id));
+          const mergedTasks = state.tasks.map((task) => incoming.get(task.id) ?? task);
+          const newTasks = tasks.filter((task) => !existingIds.has(task.id));
+
+          return {
+            tasks: normalizeTaskOrder([...newTasks, ...mergedTasks]),
             lastDeletedTaskId: undefined,
           };
         }),
