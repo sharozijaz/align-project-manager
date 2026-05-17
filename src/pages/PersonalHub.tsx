@@ -11,6 +11,7 @@ import {
   Link,
   List,
   Minus,
+  Pin,
   Plus,
   Save,
   Search,
@@ -193,7 +194,13 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   );
 
   const filteredNotes = useMemo(
-    () => notes.filter((note) => `${note.title} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase())),
+    () =>
+      notes
+        .filter((note) => `${note.title} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase()))
+        .sort((left, right) => {
+          if (Boolean(left.favorite) !== Boolean(right.favorite)) return left.favorite ? -1 : 1;
+          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+        }),
     [notes, query],
   );
 
@@ -765,7 +772,7 @@ function NoteListPanel({
           >
             <div className="flex items-start justify-between gap-3">
               <h3 className="line-clamp-1 font-display text-base font-bold text-[var(--text)]">{note.title}</h3>
-              <Star size={15} className={note.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
+              <Pin size={15} className={note.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-xs text-[var(--text-soft)]">{format(new Date(note.updatedAt), "MMM d, yyyy")}</span>
@@ -895,8 +902,8 @@ function NotesWorkspace({
                   </>
                 ) : (
                   <>
-                    <Button variant="secondary" icon={<Star size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
-                      {selectedNote.favorite ? "Favorited" : "Favorite"}
+                    <Button variant="secondary" icon={<Pin size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
+                      {selectedNote.favorite ? "Pinned" : "Pin"}
                     </Button>
                     <Button icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
                       Edit

@@ -197,7 +197,8 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[], userId: string
 
 function isMissingColumn(error: { message?: string; code?: string }, column: string) {
   const message = String(error.message ?? "").toLowerCase();
-  return error.code === "PGRST204" || message.includes(column.toLowerCase());
+  const normalizedColumn = column.toLowerCase();
+  return message.includes(normalizedColumn) || message.includes(`'${normalizedColumn}'`) || message.includes(`"${normalizedColumn}"`);
 }
 
 function isMissingRelation(error?: { message?: string; code?: string } | null) {
