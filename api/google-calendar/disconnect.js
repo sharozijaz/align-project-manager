@@ -9,10 +9,13 @@ import {
   requireMethod,
   revokeGoogleToken,
 } from "../_googleCalendar.js";
+import { applyRateLimit, rejectOversizedPayload } from "../_security.js";
 
 export default async function handler(req, res) {
   if (applyApiCors(req, res, "POST,OPTIONS")) return;
   if (requireMethod(req, res, "POST")) return;
+  if (applyRateLimit(req, res, { keyPrefix: "google-calendar-disconnect", max: 20 })) return;
+  if (rejectOversizedPayload(req, res, 1024)) return;
 
   const env = getEnv();
   if (

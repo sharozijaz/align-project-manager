@@ -13,9 +13,20 @@ import {
   syncGoogleTodosForUser,
   upsertGoogleTodoSyncSettings,
 } from "./_googleCalendar.js";
+import {
+  applyRateLimit,
+  rejectOversizedPayload,
+  requireJsonPayload,
+  sanitizeGoogleTodoSettings,
+  sanitizeTaskSyncPayload,
+} from "./_security.js";
+
+const SYNC_MAX_BYTES = 512 * 1024;
+const SETTINGS_MAX_BYTES = 8 * 1024;
 
 export default async function handler(req, res) {
   if (applyApiCors(req, res, "GET,POST,OPTIONS")) return;
+  if (applyRateLimit(req, res, { keyPrefix: "google-todos", max: 120 })) return;
 
   const action = getAction(req);
 
@@ -102,16 +113,15 @@ async function handleStatus(req, res) {
 
 async function handleSettings(req, res) {
   if (requireMethod(req, res, "POST")) return;
+  if (rejectOversizedPayload(req, res, SETTINGS_MAX_BYTES)) return;
+  if (requireJsonPayload(req, res)) return;
 
   const env = getEnv();
   if (ensureEnv(res, env, ["supabaseUrl", "supabaseAnonKey", "supabaseServiceRoleKey"])) return;
 
   try {
     const user = await getSupabaseUser(req, env);
-    const settings = await upsertGoogleTodoSyncSettings(env, user.id, {
-      enabled: req.body?.enabled,
-      todoListId: req.body?.todoListId,
-    });
+    const settings = await upsertGoogleTodoSyncSettings(env, user.id, sanitizeGoogleTodoSettings(req.body));
 
     res.status(200).json({ settings });
   } catch (error) {
@@ -121,6 +131,8 @@ async function handleSettings(req, res) {
 
 async function handleSync(req, res) {
   if (requireMethod(req, res, "POST")) return;
+  if (rejectOversizedPayload(req, res, SYNC_MAX_BYTES)) return;
+  if (requireJsonPayload(req, res)) return;
 
   const env = getEnv();
   if (
@@ -138,9 +150,9 @@ async function handleSync(req, res) {
   try {
     const user = await getSupabaseUser(req, env);
     const workspace = {
-      tasks: Array.isArray(req.body?.tasks) ? req.body.tasks : [],
+      tasks: sanitizeTaskSyncPayload(req.body?.tasks),
     };
-    const result = await syncGoogleTodosForUser(env, user.id, workspace, req.body?.settings ?? {});
+    const result = await syncGoogleTodosForUser(env, user.id, workspace, sanitizeGoogleTodoSettings(req.body?.settings));
 
     res.status(200).json(result);
   } catch (error) {

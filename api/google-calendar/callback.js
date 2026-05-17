@@ -6,8 +6,11 @@ import {
   parseOAuthState,
   upsertGoogleConnection,
 } from "../_googleCalendar.js";
+import { applyRateLimit, sanitizeQueryString } from "../_security.js";
 
 export default async function handler(req, res) {
+  if (applyRateLimit(req, res, { keyPrefix: "google-calendar-callback", max: 5 })) return;
+
   const env = getEnv();
   if (
     ensureEnv(res, env, [
@@ -24,7 +27,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { code, state, error } = req.query;
+    const code = sanitizeQueryString(req.query?.code, "code", { maxLength: 2048 });
+    const state = sanitizeQueryString(req.query?.state, "state", { maxLength: 2048 });
+    const error = sanitizeQueryString(req.query?.error, "error", { maxLength: 256 });
 
     if (error) {
       res.redirect(`${env.appUrl}/settings?googleCalendar=denied`);

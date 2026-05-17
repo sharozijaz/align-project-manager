@@ -1,10 +1,22 @@
 import crypto from "node:crypto";
 import { getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
+import {
+  applyRateLimit,
+  readJsonBody,
+  rejectOversizedPayload,
+  requireJsonPayload,
+  sanitizeSharePassword,
+} from "./_security.js";
+
+const SHARE_PASSWORD_MAX_BYTES = 4 * 1024;
 
 export default async function handler(req, res) {
   if (!["GET", "POST"].includes(req.method)) {
     if (requireMethod(req, res, "GET")) return;
   }
+  if (applyRateLimit(req, res, { keyPrefix: "client-share", max: 60 })) return;
+  if (rejectOversizedPayload(req, res, SHARE_PASSWORD_MAX_BYTES)) return;
+  if (requireJsonPayload(req, res)) return;
 
   const env = getEnv();
   const token = String(req.query.token || "").trim();
@@ -27,6 +39,7 @@ export default async function handler(req, res) {
     }
 
     if (link.password_hash) {
+      if (applyRateLimit(req, res, { keyPrefix: `client-share-auth:${token}`, max: 5 })) return;
       const password = await readSharePassword(req);
       if (!verifySharePassword(token, password, link.password_hash)) {
         res.status(401).json({
@@ -172,30 +185,13 @@ function safeClientNotes(notes) {
 
 async function readSharePassword(req) {
   if (req.headers["x-share-password"]) {
-    return String(req.headers["x-share-password"]);
+    return sanitizeSharePassword(req.headers["x-share-password"]);
   }
 
   if (req.method !== "POST") return "";
 
-  if (req.body) {
-    const body = typeof req.body === "string" ? safeJsonParse(req.body) : req.body;
-    return String(body?.password || "");
-  }
-
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  const bodyText = Buffer.concat(chunks).toString("utf8");
-  return String(safeJsonParse(bodyText)?.password || "");
-}
-
-function safeJsonParse(value) {
-  try {
-    return JSON.parse(value || "{}");
-  } catch {
-    return {};
-  }
+  const body = await readJsonBody(req, SHARE_PASSWORD_MAX_BYTES);
+  return sanitizeSharePassword(body?.password);
 }
 
 function verifySharePassword(token, password, expectedHash) {

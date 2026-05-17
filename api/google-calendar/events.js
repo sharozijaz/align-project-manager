@@ -9,10 +9,12 @@ import {
   requireGoogleConnection,
   requireMethod,
 } from "../_googleCalendar.js";
+import { applyRateLimit } from "../_security.js";
 
 export default async function handler(req, res) {
   if (applyApiCors(req, res, "GET,OPTIONS")) return;
   if (requireMethod(req, res, "GET")) return;
+  if (applyRateLimit(req, res, { keyPrefix: "google-calendar-events", max: 120 })) return;
 
   const env = getEnv();
   if (
