@@ -457,7 +457,15 @@ export async function syncGoogleTodosForUser(env, userId, workspace, incomingSet
     todoListId: todoList.id,
   });
 
-  const result = await syncTodoTasks(env, connection, userId, todoList.id, workspace);
+  let result;
+  try {
+    result = await syncTodoTasks(env, connection, userId, todoList.id, workspace);
+  } catch (error) {
+    if (isGooglePermissionError(error)) {
+      throw new HttpError(403, "Google refused access to this Todo list. Reconnect Google or choose another Google Todo list.");
+    }
+    throw error;
+  }
   const lastSyncedAt = new Date().toISOString();
   await upsertGoogleTodoSyncSettings(env, userId, {
     ...settings,
@@ -626,7 +634,7 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
           });
           removed += 1;
         } catch (error) {
-          if (error.status !== 404) throw error;
+          if (!isRecoverableGoogleTaskLinkError(error)) throw error;
           skipped += 1;
         }
         await deleteGoogleTodoLink(env, userId, task.id);
@@ -650,24 +658,41 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
       const alignChanged = Date.parse(task.updatedAt || "") > Date.parse(link.last_synced_at || "");
       if (googleChanged && (!alignChanged || Date.parse(googleTask.updated || "") > Date.parse(task.updatedAt || ""))) continue;
 
-      const patched = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks/${encodeURIComponent(link.google_task_id)}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-      await upsertGoogleTodoLink(env, userId, task.id, link.google_task_id, todoListId, patched.updated);
-      updated += 1;
-      continue;
+      try {
+        const patched = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks/${encodeURIComponent(link.google_task_id)}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        await upsertGoogleTodoLink(env, userId, task.id, link.google_task_id, todoListId, patched.updated);
+        updated += 1;
+        continue;
+      } catch (error) {
+        if (!isRecoverableGoogleTaskLinkError(error)) throw error;
+        await deleteGoogleTodoLink(env, userId, task.id);
+        skipped += 1;
+      }
     }
 
-    const createdTask = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const createdTask = await createGoogleTodoTask(env, connection, todoListId, payload);
     await upsertGoogleTodoLink(env, userId, task.id, createdTask.id, todoListId, createdTask.updated);
     created += 1;
   }
 
   return { created, updated, removed, skipped, imported, changedTasks };
+}
+
+async function createGoogleTodoTask(env, connection, todoListId, payload) {
+  try {
+    return await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (isGooglePermissionError(error)) {
+      throw new HttpError(403, "Google refused writes to this Todo list. Reconnect Google or choose another Google Todo list.");
+    }
+    throw error;
+  }
 }
 
 async function getGoogleTasksInList(env, connection, listId) {
@@ -1119,6 +1144,15 @@ function isMissingGoogleTasksBridgeTable(error) {
 function isMissingGoogleTodoSyncTable(error) {
   const message = String(error?.message || "").toLowerCase();
   return message.includes("google_todo_sync_settings") || message.includes("google_todo_links") || message.includes("pgrst205");
+}
+
+function isRecoverableGoogleTaskLinkError(error) {
+  return error?.status === 404 || isGooglePermissionError(error);
+}
+
+function isGooglePermissionError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.status === 403 || message.includes("caller does not have permission") || message.includes("forbidden");
 }
 
 export function taskToGoogleEvent(task) {
