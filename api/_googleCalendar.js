@@ -567,13 +567,14 @@ async function createGoogleTaskList(env, connection, lists, title) {
 }
 
 async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
-  const alignTodos = (Array.isArray(workspace.tasks) ? workspace.tasks : []).filter((task) => task?.category === "personal" && !task.projectId);
+  const rawAlignTodos = (Array.isArray(workspace.tasks) ? workspace.tasks : []).filter((task) => task?.category === "personal" && !task.projectId);
+  const alignTodos = rawAlignTodos.map(cleanAlignTodoSyncMetadata);
   const alignTodoById = new Map(alignTodos.map((task) => [task.id, task]));
   const links = await findGoogleTodoLinks(env, userId);
   const linksByGoogleId = new Map([...links.values()].map((link) => [link.google_task_id, link]));
   const googleTasks = await getGoogleTasksInList(env, connection, todoListId);
   const googleTaskById = new Map(googleTasks.map((task) => [task.id, task]));
-  const syncableAlignTodos = dedupeAlignTodosForGoogleSync(alignTodos);
+  const syncableAlignTodos = dedupeAlignTodosForGoogleSync(alignTodos.filter((task) => task.deletedAt || !isTerminalTaskStatus(task.status)));
   const activeAlignTodoByKey = new Map(syncableAlignTodos.filter((task) => !task.deletedAt).map((task) => [alignTodoSyncKey(task), task]));
   const syncableAlignTodoIds = new Set(syncableAlignTodos.map((task) => task.id));
   const changedTasks = [];
@@ -583,8 +584,15 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
   let skipped = 0;
   let imported = 0;
   const seenGoogleTaskKeys = new Set();
+  const completedByGoogleTodoIds = new Set();
 
-  for (const duplicateTask of alignTodos.filter((task) => !task.deletedAt && !syncableAlignTodoIds.has(task.id))) {
+  for (const cleanedTask of alignTodos.filter((task, index) => task !== rawAlignTodos[index])) {
+    await upsertSyncedTask(env, userId, cleanedTask);
+    changedTasks.push(cleanedTask);
+    updated += 1;
+  }
+
+  for (const duplicateTask of alignTodos.filter((task) => !task.deletedAt && !isTerminalTaskStatus(task.status) && !syncableAlignTodoIds.has(task.id))) {
     const deletedTask = { ...duplicateTask, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await upsertSyncedTask(env, userId, deletedTask);
     changedTasks.push(deletedTask);
@@ -593,7 +601,7 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
 
   for (const googleTask of googleTasks) {
     if (!googleTask?.id) continue;
-    if (!googleTask.deleted) {
+    if (!googleTask.deleted && !isCompletedGoogleTask(googleTask)) {
       const googleKey = googleTaskSyncKey(googleTask);
       if (seenGoogleTaskKeys.has(googleKey)) {
         try {
@@ -610,6 +618,8 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
       seenGoogleTaskKeys.add(googleKey);
     }
     const link = linksByGoogleId.get(googleTask.id);
+
+    if (!link && isCompletedGoogleTask(googleTask)) continue;
 
     if (!link && !googleTask.deleted) {
       const markedAlignTask = alignTodoById.get(googleTodoAlignTaskId(googleTask));
@@ -644,6 +654,49 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
     }
 
     if (!alignTask) continue;
+
+    if (isTerminalTaskStatus(alignTask.status)) {
+      try {
+        const patched = await googleTasksRequest(env, connection, `/lists/${encodeURIComponent(todoListId)}/tasks/${encodeURIComponent(googleTask.id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: googleTask.title || alignTask.title || "Untitled todo",
+            notes: stripAlignGoogleTodoNotes(googleTask.notes),
+            status: "completed",
+            completed: new Date().toISOString(),
+          }),
+        });
+        await upsertGoogleTodoLink(env, userId, alignTask.id, googleTask.id, todoListId, patched.updated);
+        updated += 1;
+      } catch (error) {
+        if (!isRecoverableGoogleTaskLinkError(error)) throw error;
+        skipped += 1;
+      }
+      await deleteGoogleTodoLink(env, userId, alignTask.id);
+      continue;
+    }
+
+    if (isCompletedGoogleTask(googleTask)) {
+      if (!isTerminalTaskStatus(alignTask.status)) {
+        completedByGoogleTodoIds.add(alignTask.id);
+        const completedAt = new Date().toISOString();
+        const completedTask = mergeGoogleTaskIntoAlignTodo(alignTask, googleTask);
+        await upsertSyncedTask(env, userId, completedTask);
+        changedTasks.push(completedTask);
+        updated += 1;
+
+        const nextRecurringTask = createNextRecurringTodoTask(alignTask, completedAt, nextBottomSortOrder(alignTodos));
+        if (nextRecurringTask) {
+          alignTodos.push(nextRecurringTask);
+          await upsertSyncedTask(env, userId, nextRecurringTask);
+          changedTasks.push(nextRecurringTask);
+          created += 1;
+        }
+      }
+      await deleteGoogleTodoLink(env, userId, link.align_task_id);
+      continue;
+    }
+
     const googleChanged = Date.parse(googleTask.updated || "") > Date.parse(link.google_updated_at || link.last_synced_at || "");
     const alignChanged = Date.parse(alignTask.updatedAt || "") > Date.parse(link.last_synced_at || "");
 
@@ -659,6 +712,7 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
   const refreshedLinks = await findGoogleTodoLinks(env, userId);
 
   for (const task of syncableAlignTodos) {
+    if (completedByGoogleTodoIds.has(task.id)) continue;
     const link = refreshedLinks.get(task.id);
     const googleTask = link?.google_task_id ? googleTaskById.get(link.google_task_id) : null;
 
@@ -839,9 +893,25 @@ function stripAlignGoogleTodoNotes(value) {
     .trim();
 }
 
+function cleanAlignTodoSyncMetadata(task) {
+  const description = task.description || "";
+  const cleanDescription = stripAlignGoogleTodoNotes(description);
+  if (cleanDescription === description.trim()) return task;
+
+  return {
+    ...task,
+    description: cleanDescription || undefined,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function hasAlignGoogleTodoMetadata(googleTask) {
   const notes = String(googleTask?.notes || "");
   return notes.includes("Synced from Align.") || notes.includes("Align todo ID:") || notes.includes("Align task ID:");
+}
+
+function isCompletedGoogleTask(googleTask) {
+  return googleTask?.status === "completed";
 }
 
 function preferTaskForGoogleTodoSync(candidate, existing) {
@@ -854,6 +924,62 @@ function preferTaskForGoogleTodoSync(candidate, existing) {
 
 function normalizeSyncText(value) {
   return String(value || "").replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
+function nextBottomSortOrder(tasks) {
+  const orders = tasks.map((task) => task.sortOrder).filter((value) => Number.isFinite(value));
+  return orders.length ? Math.max(...orders) + 1 : 0;
+}
+
+function createNextRecurringTodoTask(task, createdAt, sortOrder) {
+  const recurrence = normalizeTaskRecurrence(task.recurrence);
+  if (recurrence === "none" || !task.dueDate || task.deletedAt) return null;
+
+  const nextDueDate = nextRecurringTodoDate(task.dueDate, recurrence);
+  if (!nextDueDate) return null;
+
+  return {
+    ...task,
+    id: crypto.randomUUID(),
+    status: "not_started",
+    startDate: nextRecurringTodoStartDate(task.startDate, task.dueDate, nextDueDate) || undefined,
+    dueDate: nextDueDate,
+    sortOrder,
+    recurringParentId: task.recurringParentId || task.id,
+    createdAt,
+    updatedAt: createdAt,
+    deletedAt: undefined,
+  };
+}
+
+function nextRecurringTodoDate(dueDate, recurrence) {
+  const safeDueDate = validDateKeyOrNull(dueDate);
+  if (!safeDueDate) return null;
+
+  if (recurrence === "daily") return shiftDateKey(safeDueDate, 1);
+  if (recurrence === "weekly") return shiftDateKey(safeDueDate, 7);
+
+  const date = new Date(`${safeDueDate}T00:00:00.000Z`);
+  if (recurrence === "monthly") date.setUTCMonth(date.getUTCMonth() + 1);
+  else if (recurrence === "yearly") date.setUTCFullYear(date.getUTCFullYear() + 1);
+  else return null;
+
+  return toDateKey(date);
+}
+
+function nextRecurringTodoStartDate(startDate, dueDate, nextDueDate) {
+  const safeStartDate = validDateKeyOrNull(startDate);
+  const safeDueDate = validDateKeyOrNull(dueDate);
+  if (!safeStartDate || !safeDueDate || !nextDueDate) return null;
+
+  const start = new Date(`${safeStartDate}T00:00:00.000Z`);
+  const due = new Date(`${safeDueDate}T00:00:00.000Z`);
+  const nextDue = new Date(`${nextDueDate}T00:00:00.000Z`);
+  if (![start, due, nextDue].every((date) => Number.isFinite(date.getTime()))) return null;
+
+  const durationDays = Math.max(0, Math.round((due.getTime() - start.getTime()) / 86400000));
+  nextDue.setUTCDate(nextDue.getUTCDate() - durationDays);
+  return toDateKey(nextDue);
 }
 
 async function upsertSyncedTask(env, userId, task) {
@@ -871,7 +997,7 @@ async function upsertSyncedTask(env, userId, task) {
     due_date: validDateKeyOrNull(task.dueDate),
     due_time: validTimeOrNull(task.dueTime),
     reminder: normalizeTaskReminder(task.reminder),
-    recurrence: task.recurrence || "none",
+    recurrence: normalizeTaskRecurrence(task.recurrence),
     recurring_parent_id: task.recurringParentId ?? null,
     sort_order: task.sortOrder ?? null,
     deleted_at: task.deletedAt ?? null,
@@ -1937,6 +2063,10 @@ function normalizeTaskStatus(status) {
 
 function normalizeTaskReminder(reminder) {
   return ["none", "due-date", "day-before", "two-days-before", "week-before"].includes(reminder) ? reminder : "none";
+}
+
+function normalizeTaskRecurrence(recurrence) {
+  return ["none", "daily", "weekly", "monthly", "yearly"].includes(recurrence) ? recurrence : "none";
 }
 
 function isTerminalTaskStatus(status) {
