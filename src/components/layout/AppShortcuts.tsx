@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { appNavigationItems } from "./AppSidebar";
 import { ProjectForm } from "../projects/ProjectForm";
 import { TaskForm } from "../tasks/TaskForm";
-import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";

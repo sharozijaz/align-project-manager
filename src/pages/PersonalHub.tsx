@@ -504,12 +504,10 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
             )
           ) : (
             <NotesWorkspace
-              notes={filteredNotes}
               projects={projects}
               selectedNote={selectedNote}
               editingNoteId={editingNoteId}
               editNoteForm={editNoteForm}
-              onSelectNote={(note) => setSelectedNoteId(note.id)}
               onStartEdit={startEditingNote}
               onCancelEdit={() => setEditingNoteId(null)}
               onSaveEdit={saveEditingNote}
@@ -799,7 +797,6 @@ function NoteListPanel({
 }
 
 function NotesWorkspace({
-  notes,
   projects,
   selectedNote,
   editingNoteId,
@@ -808,7 +805,6 @@ function NotesWorkspace({
   noteForm,
   previewOpen,
   onTogglePreview,
-  onSelectNote,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -819,7 +815,6 @@ function NotesWorkspace({
   onDelete,
   onToggleFavorite,
 }: {
-  notes: HubNote[];
   projects: Project[];
   selectedNote: HubNote | null;
   editingNoteId: string | null;
@@ -828,7 +823,6 @@ function NotesWorkspace({
   noteForm: NoteFormState;
   previewOpen: boolean;
   onTogglePreview: () => void;
-  onSelectNote: (note: HubNote) => void;
   onStartEdit: (note: HubNote) => void;
   onCancelEdit: () => void;
   onSaveEdit: () => void;

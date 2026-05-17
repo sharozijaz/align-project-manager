@@ -16,7 +16,7 @@ const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/tasks",
 ];
 
-export function getGoogleCalendarConfig(): GoogleCalendarConfig {
+function getGoogleCalendarConfig(): GoogleCalendarConfig {
   return {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "server-managed",
     redirectUri: import.meta.env.VITE_GOOGLE_REDIRECT_URI ?? getAuthRedirectUrl(),
@@ -117,10 +117,6 @@ export async function syncTasksToGoogleCalendar(tasks: Task[], options: GoogleCa
     skipped: data.skipped ?? 0,
     conflicts: data.conflicts ?? [],
   };
-}
-
-export async function syncTaskToGoogleCalendar(task: Task): Promise<void> {
-  await syncTasksToGoogleCalendar([task]);
 }
 
 export async function disconnectGoogleCalendar(): Promise<void> {

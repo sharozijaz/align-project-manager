@@ -13,7 +13,7 @@ function normalizeOrigin(value?: string) {
   }
 }
 
-export function getPublicAppOrigin() {
+function getPublicAppOrigin() {
   const configuredOrigin = normalizeOrigin(import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.VITE_APP_URL);
   if (configuredOrigin) return configuredOrigin;
 

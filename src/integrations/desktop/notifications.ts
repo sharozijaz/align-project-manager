@@ -3,7 +3,7 @@ import { isTauriRuntime } from "./runtime";
 const DESKTOP_NOTIFICATIONS_KEY = "align.desktopNotifications.enabled";
 const DESKTOP_REMINDER_HEARTBEAT_KEY = "align.desktopNotifications.reminderHeartbeat";
 
-export type DesktopReminderHeartbeatStatus = "disabled" | "idle" | "sent" | "error";
+type DesktopReminderHeartbeatStatus = "disabled" | "idle" | "sent" | "error";
 
 export interface DesktopReminderHeartbeat {
   checkedAt: string;

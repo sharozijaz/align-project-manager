@@ -7,7 +7,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const rawAllowedEmails = import.meta.env.VITE_ALLOWED_EMAILS;
 const rawAppUrl = import.meta.env.VITE_APP_URL;
 
-export const normalizeSupabaseUrl = (value?: string) => {
+const normalizeSupabaseUrl = (value?: string) => {
   if (!value) return "";
 
   const withProtocol = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
@@ -26,7 +26,7 @@ export const supabaseConfigIssue = !rawSupabaseUrl
         : "Your Supabase URL was missing https://, so it was added automatically. Update .env.local when you can.";
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-export const allowedEmails = (rawAllowedEmails ?? "")
+const allowedEmails = (rawAllowedEmails ?? "")
   .split(",")
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);

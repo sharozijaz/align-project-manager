@@ -1,6 +1,6 @@
 import type { Task } from "../../types/task";
 
-export interface GoogleTaskList {
+interface GoogleTaskList {
   id: string;
   title: string;
 }

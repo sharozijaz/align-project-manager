@@ -15,7 +15,7 @@ import {
 
 export const todayKey = () => format(new Date(), "yyyy-MM-dd");
 
-export const timeLabel = (value?: string) => {
+const timeLabel = (value?: string) => {
   if (!value) return "";
   const [hours = "0", minutes = "0"] = value.split(":");
   const date = new Date();

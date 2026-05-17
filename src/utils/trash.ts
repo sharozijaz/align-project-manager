@@ -15,7 +15,7 @@ export function setTrashCleanupPreference(key: string, enabled: boolean) {
   window.localStorage.setItem(key, enabled ? "true" : "false");
 }
 
-export function deletedAgeDays(deletedAt?: string) {
+function deletedAgeDays(deletedAt?: string) {
   if (!deletedAt) return 0;
 
   const parsed = parseISO(deletedAt);

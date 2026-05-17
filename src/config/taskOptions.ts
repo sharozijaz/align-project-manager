@@ -180,7 +180,7 @@ export const normalizeTaskStatus = (status: string): TaskStatusValue => {
   return isKnownTaskStatus(status) ? (status as TaskStatusValue) : "not_started";
 };
 
-export const isKnownTaskReminder = (reminder: string) =>
+const isKnownTaskReminder = (reminder: string) =>
   taskReminderOptions.some((option) => option.value === reminder);
 
 export const normalizeTaskReminder = (reminder?: string): TaskReminderValue =>
@@ -189,7 +189,7 @@ export const normalizeTaskReminder = (reminder?: string): TaskReminderValue =>
 export const getTaskReminderOption = (reminder?: string) =>
   taskReminderOptions.find((option) => option.value === normalizeTaskReminder(reminder)) ?? taskReminderOptions[0];
 
-export const isKnownTaskRecurrence = (recurrence: string) =>
+const isKnownTaskRecurrence = (recurrence: string) =>
   taskRecurrenceOptions.some((option) => option.value === recurrence);
 
 export const normalizeTaskRecurrence = (recurrence?: string): TaskRecurrenceValue =>
@@ -200,7 +200,7 @@ export const getTaskRecurrenceOption = (recurrence?: string) =>
 
 export const isTerminalTaskStatus = (status: string) => normalizeTaskStatus(status) === "done";
 
-export const titleizeOption = (value: string) =>
+const titleizeOption = (value: string) =>
   value
     .split(/[-_]/)
     .filter(Boolean)

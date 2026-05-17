@@ -1,4 +1,4 @@
-import { DESKTOP_AUTH_REDIRECT_URL, isTauriRuntime } from "./runtime";
+import { isTauriRuntime } from "./runtime";
 import { supabase } from "../supabase/client";
 
 let desktopAuthInitialized = false;
@@ -45,5 +45,3 @@ export async function initDesktopAuthHandler() {
     void handleDesktopAuthUrls(urls);
   });
 }
-
-export const desktopAuthRedirectUrl = DESKTOP_AUTH_REDIRECT_URL;

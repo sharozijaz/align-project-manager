@@ -7,7 +7,7 @@ export interface GoogleCalendarConflict {
   googleUpdatedAt: string;
 }
 
-export interface GoogleCalendarSyncSummary {
+interface GoogleCalendarSyncSummary {
   created: number;
   updated: number;
   removed: number;
@@ -15,7 +15,7 @@ export interface GoogleCalendarSyncSummary {
   conflicts: GoogleCalendarConflict[];
 }
 
-export interface GoogleCalendarSyncHistoryItem extends GoogleCalendarSyncSummary {
+interface GoogleCalendarSyncHistoryItem extends GoogleCalendarSyncSummary {
   id: string;
   syncedAt: string;
   mode: "manual" | "auto";

@@ -1,6 +1,6 @@
 import type { HubNote } from "../types/studio";
 
-export type HubNotesImportSummary = {
+type HubNotesImportSummary = {
   added: number;
   updated: number;
   skipped: number;
