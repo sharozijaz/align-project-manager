@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 
@@ -20,16 +21,19 @@ export function TaskFilters({
   onSortChange: (sort: TaskSort) => void;
 }) {
   return (
-    <div className="grid w-full gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 md:grid-cols-[1fr_180px_180px]">
-      <Input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search tasks" />
-      <Select value={filter} onChange={(event) => onFilterChange(event.target.value as TaskFilter)}>
+    <div className="grid min-w-0 w-full gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)] md:grid-cols-[minmax(0,1fr)_180px_180px]">
+      <label className="relative block min-w-0 flex-1">
+        <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
+        <Input className="align-field-quiet pl-10 sm:min-h-10" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search tasks" />
+      </label>
+      <Select className="align-field-quiet sm:min-h-10" value={filter} onChange={(event) => onFilterChange(event.target.value as TaskFilter)}>
         <option value="all">All</option>
         <option value="today">Today</option>
         <option value="upcoming">Upcoming</option>
         <option value="overdue">Overdue</option>
         <option value="completed">Done</option>
       </Select>
-      <Select value={sort} onChange={(event) => onSortChange(event.target.value as TaskSort)}>
+      <Select className="align-field-quiet sm:min-h-10" value={sort} onChange={(event) => onSortChange(event.target.value as TaskSort)}>
         <option value="manual">Manual order</option>
         <option value="dueDate">Due date</option>
         <option value="priority">Priority</option>

@@ -4,7 +4,7 @@ import { useCalendarStore } from "../store/calendarStore";
 import { useTaskStore } from "../store/taskStore";
 
 export function Calendar() {
-  const { tasks } = useTaskStore();
+  const { tasks, updateTask } = useTaskStore();
   const { events, addEvent, updateEvent, deleteEvent } = useCalendarStore();
 
   return (
@@ -16,6 +16,7 @@ export function Calendar() {
         onAddEvent={addEvent}
         onUpdateEvent={updateEvent}
         onDeleteEvent={deleteEvent}
+        onUpdateTask={updateTask}
       />
     </div>
   );

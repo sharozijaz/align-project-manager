@@ -143,10 +143,10 @@ function ExportMenuButton({ title, description, onClick }: { title: string; desc
   );
 }
 
-export function PersonalHub() {
+export function PersonalHub({ initialView = "resources" }: { initialView?: HubView }) {
   const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote, replaceNotes } = useStudioStore();
   const projects = useProjectStore((state) => state.projects);
-  const [view, setView] = useState<HubView>("resources");
+  const [view, setView] = useState<HubView>(initialView);
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ResourceFilter>("all");
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
@@ -166,6 +166,10 @@ export function PersonalHub() {
   useEffect(() => {
     importSeedResources();
   }, [importSeedResources]);
+
+  useEffect(() => {
+    setView(initialView);
+  }, [initialView]);
 
   useEffect(() => {
     if (!exportMenuOpen) return;
@@ -402,15 +406,15 @@ export function PersonalHub() {
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={17} />
-            <Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes, resources, tags, collections..." />
+            <Input className="align-field-quiet pl-10 sm:min-h-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes, resources, tags, collections..." />
           </label>
-          <div className="flex flex-wrap gap-2">
-            <Button variant={view === "resources" ? "primary" : "secondary"} onClick={() => setView("resources")}>
+          <div className="align-tab-list">
+            <button type="button" className="align-tab" data-active={view === "resources"} onClick={() => setView("resources")}>
               Resources
-            </Button>
-            <Button variant={view === "notes" ? "primary" : "secondary"} onClick={() => setView("notes")}>
+            </button>
+            <button type="button" className="align-tab" data-active={view === "notes"} onClick={() => setView("notes")}>
               Notes
-            </Button>
+            </button>
           </div>
         </div>
         {view === "resources" ? (
@@ -591,7 +595,9 @@ function isProject(project: Project | undefined): project is Project {
 }
 
 function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[]; selectedIds: string[]; onChange: (projectIds: string[]) => void }) {
-  if (!projects.length) return null;
+  const selectableProjects = projects.filter((project) => project.status === "active" || project.status === "paused" || selectedIds.includes(project.id));
+
+  if (!selectableProjects.length) return null;
 
   const toggleProject = (projectId: string) => {
     onChange(selectedIds.includes(projectId) ? selectedIds.filter((id) => id !== projectId) : [...selectedIds, projectId]);
@@ -604,7 +610,7 @@ function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[
         <span className="text-xs font-semibold text-[var(--text-soft)]">{selectedIds.length} selected</span>
       </div>
       <div className="mt-3 flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1">
-        {projects.map((project) => {
+        {selectableProjects.map((project) => {
           const selected = selectedIds.includes(project.id);
           return (
             <button

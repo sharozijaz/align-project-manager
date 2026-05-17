@@ -110,6 +110,7 @@ export interface Database {
           reminder: TaskReminder;
           recurrence: TaskRecurrence;
           recurring_parent_id: string | null;
+          parent_task_id: string | null;
           sort_order: number | null;
           deleted_at: string | null;
           created_at: string;
@@ -131,6 +132,7 @@ export interface Database {
           reminder?: TaskReminder;
           recurrence?: TaskRecurrence;
           recurring_parent_id?: string | null;
+          parent_task_id?: string | null;
           sort_order?: number | null;
           deleted_at?: string | null;
           created_at: string;

@@ -36,8 +36,8 @@ npm run desktop:build
 The Windows installer output is created under `src-tauri/target/release/bundle/`:
 
 ```text
-src-tauri/target/release/bundle/nsis/Align_0.2.1_x64-setup.exe
-src-tauri/target/release/bundle/msi/Align_0.2.1_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/Align_0.2.2_x64-setup.exe
+src-tauri/target/release/bundle/msi/Align_0.2.2_x64_en-US.msi
 ```
 
 Use the NSIS `.exe` installer for the easiest local install.
@@ -104,6 +104,15 @@ Align Desktop is a client shell for the same Supabase-backed workspace.
 5. Confirm Settings > Supabase Sync shows the workspace as synced.
 
 Your tasks, projects, resources, notes, share links, and preferences should come back through Supabase sync. Manual JSON restore is only needed if cloud sync was disabled or the workspace was never uploaded.
+
+If the desktop app opens with an empty dashboard after a reinstall or update:
+
+1. Do not add replacement projects/tasks yet.
+2. Open Settings > Supabase Sync.
+3. Press **Download Now**.
+4. Confirm the workspace returns from Supabase.
+
+The current desktop sync guard is designed to avoid overwriting cloud data with an empty local startup state. It keeps local data if a normal cloud pull returns empty, only clears automatically on a known account switch, and writes a local pre-clear backup before signed-out/account-switch clears.
 
 For future app changes:
 
@@ -200,3 +209,5 @@ Google Calendar sync remains separate from sign-in and still uses the deployed V
 - The desktop app is intentionally a wrapper around the existing cloud app logic.
 - Data stays in Supabase, with LocalStorage remaining as the offline fallback.
 - Desktop notifications mirror the in-app reminder bell while Align is open or hidden to tray. Reliable reminders while Align is fully quit should still stay server/email based.
+- Desktop share links should open the public web URL, `https://align.sharoz.dev`, not `tauri.localhost`.
+- After copying installers somewhere safe, `src-tauri/target/` can be deleted to reclaim several GB. Rebuild it later with `npm run desktop:build`.

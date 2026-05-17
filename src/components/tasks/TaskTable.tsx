@@ -38,10 +38,10 @@ export function TaskTable({
   lockedProjectId?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
       <div className="overflow-x-auto">
         <table className="min-w-[1880px] w-full table-fixed border-collapse text-left text-sm">
-          <thead className="bg-[var(--surface-raised)] text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+          <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
             <tr>
               <th className="w-[300px] px-4 py-3">Task</th>
               <th className="w-[230px] px-4 py-3">Project / Category</th>
@@ -121,14 +121,14 @@ function TaskTableRow({
   };
 
   return (
-    <tr className="border-t border-[var(--border)] align-top transition hover:bg-[var(--surface-hover)]">
+    <tr className="group border-t border-[var(--border)] align-top transition hover:bg-[var(--surface-hover)]">
       <td className="px-4 py-3">
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           onBlur={commitTitle}
           onKeyDown={handleTitleKeyDown}
-          className={`min-h-10 ${isTerminalTaskStatus(task.status) ? "line-through opacity-70" : ""}`}
+          className={`align-field-quiet min-h-10 ${isTerminalTaskStatus(task.status) ? "line-through opacity-70" : ""}`}
         />
         {task.description ? <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{task.description}</p> : null}
       </td>
@@ -150,7 +150,7 @@ function TaskTableRow({
             onChange={(event) =>
               onUpdate(task.id, projectCategoryUpdate(event.target.value))
             }
-            className="min-h-10"
+            className="align-field-quiet min-h-10"
           >
             {taskCategoryOptions.map((option) => (
               <option key={option.value} value={`category:${option.value}`}>
@@ -169,7 +169,7 @@ function TaskTableRow({
         <Select
           value={task.priority}
           onChange={(event) => onUpdate(task.id, { priority: event.target.value as Task["priority"] })}
-          className="min-h-10"
+          className="min-h-10 font-bold"
           style={optionSelectStyle(priorityOption)}
         >
           {!isKnownTaskPriority(task.priority) ? <option value={task.priority}>{priorityOption.label}</option> : null}
@@ -184,7 +184,7 @@ function TaskTableRow({
         <Select
           value={task.status}
           onChange={(event) => onUpdate(task.id, { status: event.target.value as Task["status"] })}
-          className="min-h-10"
+          className="min-h-10 font-bold"
           style={optionSelectStyle(statusOption)}
         >
           {!isKnownTaskStatus(task.status) ? <option value={task.status}>{statusOption.label}</option> : null}
@@ -201,14 +201,14 @@ function TaskTableRow({
             type="date"
             value={task.startDate ?? ""}
             onChange={(event) => onUpdate(task.id, { startDate: event.target.value || undefined, startTime: event.target.value ? task.startTime : undefined })}
-            className="min-h-10"
+            className="align-field-quiet min-h-10"
             aria-label="Start date"
           />
           <Input
             type="time"
             value={task.startTime ?? ""}
             onChange={(event) => onUpdate(task.id, { startTime: event.target.value || undefined })}
-            className="min-h-10"
+            className="align-field-quiet min-h-10"
             aria-label="Start time"
           />
         </div>
@@ -220,14 +220,14 @@ function TaskTableRow({
             type="date"
             value={task.dueDate ?? ""}
             onChange={(event) => onUpdate(task.id, { dueDate: event.target.value || undefined, dueTime: event.target.value ? task.dueTime : undefined })}
-            className="min-h-10"
+            className="align-field-quiet min-h-10"
             aria-label="Due date"
           />
           <Input
             type="time"
             value={task.dueTime ?? ""}
             onChange={(event) => onUpdate(task.id, { dueTime: event.target.value || undefined })}
-            className="min-h-10"
+            className="align-field-quiet min-h-10"
             aria-label="Due time"
           />
         </div>
@@ -238,7 +238,7 @@ function TaskTableRow({
         <Select
           value={task.reminder ?? "none"}
           onChange={(event) => onUpdate(task.id, { reminder: event.target.value as Task["reminder"] })}
-          className="min-h-10 min-w-[170px]"
+          className="align-field-quiet min-h-10 min-w-[170px]"
           title={getTaskReminderOption(task.reminder).label}
         >
           {taskReminderOptions.map((option) => (
@@ -252,7 +252,7 @@ function TaskTableRow({
         <Select
           value={task.recurrence ?? "none"}
           onChange={(event) => onUpdate(task.id, { recurrence: event.target.value as Task["recurrence"] })}
-          className="min-h-10 min-w-[170px]"
+          className="align-field-quiet min-h-10 min-w-[170px]"
           title={getTaskRecurrenceOption(task.recurrence).label}
         >
           {taskRecurrenceOptions.map((option) => (
@@ -263,7 +263,7 @@ function TaskTableRow({
         </Select>
       </td>
       <td className="px-4 py-3">
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 opacity-75 transition group-hover:opacity-100">
           <Button title="Mark done" variant="secondary" className="px-3" onClick={() => onComplete(task.id)} disabled={isTerminalTaskStatus(task.status)}>
             <Check size={16} />
           </Button>

@@ -21,6 +21,7 @@ export interface Task {
   reminder: TaskReminder;
   recurrence: TaskRecurrence;
   recurringParentId?: string;
+  parentTaskId?: string;
   sortOrder?: number;
   deletedAt?: string;
   createdAt: string;

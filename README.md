@@ -25,6 +25,8 @@ Build for production:
 npm run build
 ```
 
+After a storage cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
+
 Deployment notes live in `DEPLOYMENT.md`.
 Security notes live in `SECURITY.md`.
 Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
@@ -175,6 +177,12 @@ npm run desktop:build
 ```
 
 Install Rust before building the desktop app. Full desktop setup, installer, and Supabase redirect notes are in `DESKTOP.md`.
+
+Recent desktop sync safety note:
+
+- The desktop app uses Supabase as the recovery/source-of-truth path for signed-in workspaces.
+- If a new desktop install opens empty after an update, use Settings > Supabase Sync > Download Now.
+- The current sync startup guard keeps local data when a cloud pull comes back empty and saves a local pre-clear backup before any signed-out/account-switch clear.
 
 ## Roadmap
 

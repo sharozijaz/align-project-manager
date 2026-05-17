@@ -92,6 +92,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "notes",
+        lazy: async () => {
+          const { PersonalHub } = await import("../pages/PersonalHub");
+          return { Component: () => <RequireFeature feature="personal_hub"><PersonalHub initialView="notes" /></RequireFeature> };
+        },
+      },
+      {
         path: "help",
         lazy: async () => {
           const { Help } = await import("../pages/Help");

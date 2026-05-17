@@ -595,28 +595,49 @@ Desktop reminder expectation:
 - Desktop notifications are useful only while desktop app is open or hidden to tray.
 - True reminders while the app is fully closed require a native background helper/service or scheduled server reminders.
 
-## Current Remaining Work
+## Current State After Finalization
 
-The user recently said the live dev environment looks perfect, then asked to optimize/polish and push. After that, the discussion shifted to desktop reminders and then to handoff. Do not assume all those changes were committed/pushed.
+The app was finalized, committed, pushed, desktop-built, and then cleaned for backup before a Windows reinstall.
+
+Recent important commits:
+
+- `49f4d0a fix: protect workspace data during sync startup`
+- `a17acab chore: harden workspace sync privacy`
+- `fe787aa fix: consolidate vercel api routes`
+
+Recent completed work:
+
+- Added the Todos page and replaced the old Google Tasks bridge with Google Todo Sync.
+- Project tasks no longer sync to Google Tasks. Personal/unprojected Todos sync with the Google `Align Todos` list.
+- Added sidebar navigation polish, themes, bundled dashboard hero backgrounds, and the light-theme logo.
+- Improved Personal Hub notes with import/export, project links, Markdown editing, and a cleaner notes/resources workflow.
+- Hardened client share links and desktop share URLs so desktop links use the public web domain.
+- Hardened Supabase workspace sync so projects, tasks, calendar events, hub resources, and hub notes are scoped by `user_id`.
+- Fixed a desktop startup issue where the app could appear empty until Settings > Supabase Sync > Download Now was clicked.
+- Built Windows installers and user saved the `.exe` and `.msi` elsewhere.
+- Cleaned generated folders for backup: `node_modules/`, `dist/`, `src-tauri/target/`, and `tmp-preview.log`.
+- Project folder was about 15 MB after cleanup.
+
+Known recovery behavior:
+
+- If desktop opens empty after reinstall/update, go to Settings > Supabase Sync > Download Now.
+- Supabase is the source of truth for live user data.
+- The app now keeps local workspace data if a normal cloud pull returns empty and writes a local backup before signed-out/account-switch clears.
+
+Current repo state after cleanup:
+
+- `node_modules/`, `dist/`, and `src-tauri/target/` are intentionally missing.
+- Run `npm install` before `npm run build`.
+- Run `npm run desktop:build` to recreate desktop build artifacts.
+- Untracked `.agents/` and `skills-lock.json` may exist from the installed design skill and were intentionally left alone.
 
 Priority order for next chat:
 
-1. Health check local repo.
-2. Identify dirty files.
-3. Decide whether to finish only desktop reminder heartbeat polish.
-4. Verify the app still builds.
-5. Ask before committing/pushing if there are unrelated local changes.
-
-Possible remaining product/UI tasks:
-
-- Finish desktop reminder heartbeat status in Settings if not finished.
-- Make Tauri app hide-to-tray reliable.
-- Add native background reminder service only if the user explicitly wants deeper desktop work.
-- Confirm lifecycle/trash UI is simple and not over-layered.
-- Confirm Personal Hub right-side preview is sticky and not hiding content.
-- Add Favorites view/filter if favorites remain.
-- Make resource editing smooth and database-backed.
-- Confirm Project Notes visibility rules in share links.
+1. Run `git status --short`.
+2. If dependencies are missing and a build is needed, run `npm install`.
+3. Run `npm run build` only after install.
+4. Do not assume generated folders should exist after cleanup.
+5. Do not rebuild desktop unless the user asks.
 
 ## Commands To Use Carefully
 
@@ -650,7 +671,7 @@ Use PowerShell `-NoProfile` when possible to avoid noisy profile errors.
 
 Suggested assistant response:
 
-“I’ll start with a health check only: git status, changed files, and whether the app builds. I’ll avoid implementing anything until we know the current repo state.”
+“I’ll start with a health check. Since the project was cleaned for backup, I’ll first check git status and only reinstall dependencies or rebuild if needed.”
 
 Then run:
 

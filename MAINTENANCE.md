@@ -10,6 +10,23 @@ This guide is for maintaining Align after the project is finished. It covers saf
 - The desktop app is rebuilt from the same source code with Tauri.
 - `.env.local` is private local configuration and must never be committed.
 
+## Recent Finalization Notes
+
+Recent work completed before the Windows reinstall prep:
+
+- Added the Todos page and Google Todo Sync. Project tasks stay in Align; personal/unprojected work syncs with the Google `Align Todos` list.
+- Reworked the main navigation into the compact sidebar and moved secondary tools into cleaner menus.
+- Improved Personal Hub notes with a notes workspace, project links, JSON export/import, Markdown export/import, and safer note backups.
+- Added selectable dashboard hero backgrounds from bundled WebP assets.
+- Added more themes, removed the too-bright white theme, and added the light-theme logo asset.
+- Hardened share links so desktop share URLs point at `https://align.sharoz.dev` instead of `tauri.localhost`.
+- Hardened user isolation in Supabase workspace sync by explicitly scoping project, task, calendar, resource, and note rows to `user_id`.
+- Fixed a desktop sync startup bug where a freshly updated app could appear empty until Settings > Supabase Sync > Download Now was pressed.
+- Built and saved the Windows `.exe` and `.msi` installers before cleanup.
+- Cleaned generated folders so the backup copy is small.
+
+Important recovery note: if an installed desktop app opens empty after an update or reinstall, go to Settings > Supabase Sync and press **Download Now**. The cloud workspace is the source of truth.
+
 ## After Folder Cleanup
 
 The project folder was cleaned to save space. These rebuildable folders may be missing:
@@ -21,7 +38,9 @@ src-tauri/target/
 .vercel/output/
 ```
 
-That is expected. To restore the build environment:
+That is expected. The latest cleanup removed `node_modules/`, `dist/`, `src-tauri/target/`, and `tmp-preview.log`, reducing the project folder to about 15 MB.
+
+To restore the build environment:
 
 ```powershell
 git pull origin main
@@ -224,6 +243,36 @@ Do not delete:
 - `Cargo.lock`
 - `.env.local`
 
+Also keep any saved desktop installers outside the cleaned repo folder if you need them during a Windows reinstall.
+
+## Windows Reinstall Restore Checklist
+
+After reinstalling Windows:
+
+1. Restore this project folder.
+2. Install Node.js LTS.
+3. Install Rust from `https://rustup.rs`.
+4. Install Microsoft C++ Build Tools with MSVC and Windows SDK.
+5. Open PowerShell in the repo root.
+6. Run:
+
+```powershell
+npm install
+npm run build
+```
+
+7. For desktop development/building, run:
+
+```powershell
+npm run desktop:build
+```
+
+8. Install Align from the saved NSIS `.exe` or newly built installer.
+9. Sign in with the same Supabase account.
+10. If the desktop app appears empty, use Settings > Supabase Sync > Download Now.
+
+Back up `.env.local` privately. It is needed for local builds, but it must not be uploaded publicly.
+
 ## Secrets And Security Rules
 
 - Never commit `.env.local`.
@@ -259,6 +308,14 @@ Desktop shows an old UI:
 - Install the newest NSIS `.exe`.
 - Open Align again.
 - The desktop build clears stale service-worker caches automatically.
+
+Desktop opens but projects/tasks are missing:
+
+- Do not create lots of new data first.
+- Go to Settings > Supabase Sync.
+- Press **Download Now**.
+- Confirm projects, tasks, resources, and notes return.
+- The current app keeps local data if a normal cloud pull is empty and saves a local backup before signed-out/account-switch clears.
 
 ## Optional Release Tag
 

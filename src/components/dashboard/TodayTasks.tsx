@@ -17,10 +17,10 @@ export function TodayTasks({
   onComplete: (id: string) => void;
 }) {
   return (
-    <Card className="p-6">
-      <h2 className="text-xl font-semibold text-slate-950">Today's Tasks</h2>
-      <p className="mt-2 text-sm text-slate-400">Task, goal, or personal chore</p>
-      <div className="mt-6">
+    <Card className="p-5 sm:p-6">
+      <h2 className="text-xl font-bold text-[var(--text)]">Today's Tasks</h2>
+      <p className="mt-1 text-sm text-[var(--text-muted)]">Task, goal, or personal chore</p>
+      <div className="mt-5">
         <TaskList
           tasks={tasks}
           projects={projects}

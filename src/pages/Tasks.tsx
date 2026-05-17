@@ -39,7 +39,7 @@ export function Tasks() {
   return (
     <div className="space-y-4">
       <PageHeader title="Tasks" description="Search, filter, and sort project work across your workspace." />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-stretch">
         <TaskFilters filter={filter} search={search} sort={sort} onFilterChange={setFilter} onSearchChange={setSearch} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />
       </div>

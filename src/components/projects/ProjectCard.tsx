@@ -19,6 +19,8 @@ export function ProjectCard({
   onArchive,
   onRestore,
   onDelete,
+  dragging = false,
+  dropTarget = false,
 }: {
   project: Project;
   tasks: Task[];
@@ -27,6 +29,8 @@ export function ProjectCard({
   onArchive: (id: string) => void;
   onRestore: (id: string) => void;
   onDelete: (id: string) => void;
+  dragging?: boolean;
+  dropTarget?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
@@ -36,15 +40,23 @@ export function ProjectCard({
   const progress = projectTasks.length ? Math.round((complete / projectTasks.length) * 100) : 0;
 
   return (
-    <Card className="overflow-hidden p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] sm:p-5">
+    <Card
+      className={`group overflow-hidden p-4 transition duration-200 sm:p-5 ${
+        dragging
+          ? "scale-[0.985] border-[var(--brand-primary)] opacity-55 shadow-[var(--shadow-md)]"
+          : dropTarget
+            ? "translate-y-1 border-[var(--brand-primary)] bg-[var(--brand-50)] shadow-[0_0_0_2px_var(--brand-primary)]"
+            : "hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-md)]"
+      }`}
+    >
       <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
         <div className="min-w-0 overflow-hidden">
           <Link to={`/projects/${project.id}`} className="break-words text-lg font-bold text-[var(--text)] hover:underline">
             {project.name}
           </Link>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{project.description || "No description yet."}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-muted)]">{project.description || "No description yet."}</p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 gap-1.5 opacity-80 transition group-hover:opacity-100">
           <Button variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </Button>
@@ -86,7 +98,7 @@ export function ProjectCard({
           </Button>
         </div>
       </div>
-      <div className="mt-5 flex min-w-0 flex-wrap gap-2">
+      <div className="mt-4 flex min-w-0 flex-wrap gap-2">
         <Badge tone={area === "personal" ? "purple" : "blue"}>{area}</Badge>
         <Badge tone={project.status === "completed" ? "emerald" : project.status === "archived" ? "slate" : project.status === "paused" ? "amber" : "blue"}>{project.status}</Badge>
         {project.startDate ? <Badge>{startDateLabel(project.startDate, project.startTime)}</Badge> : null}
@@ -110,7 +122,7 @@ export function ProjectCard({
         </div>
         <Link
           to={`/projects/${project.id}`}
-          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
         >
           Open
           <ExternalLink size={15} />

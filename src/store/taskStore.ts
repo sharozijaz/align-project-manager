@@ -33,37 +33,47 @@ export const useTaskStore = create<TaskState>()(
       tasks: isSupabaseConfigured ? [] : demoTasks,
       lastDeletedTaskId: undefined,
       addTask: (input) =>
-        set((state) => ({
-          tasks: [
-            {
-              ...input,
-              priority: normalizeTaskPriority(input.priority),
-              status: normalizeTaskStatus(input.status),
-              reminder: normalizeTaskReminder(input.reminder),
-              recurrence: normalizeTaskRecurrence(input.recurrence),
-              sortOrder: nextTopSortOrder(state.tasks),
-              id: id(),
-              createdAt: stamp(),
-              updatedAt: stamp(),
-            },
-            ...state.tasks,
-          ],
-        })),
+        set((state) => {
+          const parentTask = validParentTask(input.parentTaskId, state.tasks);
+          const nextTask = {
+            ...input,
+            projectId: parentTask ? parentTask.projectId : input.projectId,
+            category: parentTask ? parentTask.category : input.category,
+            priority: normalizeTaskPriority(input.priority),
+            status: normalizeTaskStatus(input.status),
+            reminder: normalizeTaskReminder(input.reminder),
+            recurrence: normalizeTaskRecurrence(input.recurrence),
+            parentTaskId: parentTask ? parentTask.id : undefined,
+            sortOrder: nextTopSortOrder(state.tasks),
+            id: id(),
+            createdAt: stamp(),
+            updatedAt: stamp(),
+          };
+
+          return { tasks: [nextTask, ...state.tasks] };
+        }),
       updateTask: (taskId, updates) =>
         set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  ...updates,
-                  ...(updates.priority ? { priority: normalizeTaskPriority(updates.priority) } : {}),
-                  ...(updates.status ? { status: normalizeTaskStatus(updates.status) } : {}),
-                  ...(updates.reminder ? { reminder: normalizeTaskReminder(updates.reminder) } : {}),
-                  ...(updates.recurrence ? { recurrence: normalizeTaskRecurrence(updates.recurrence) } : {}),
-                  updatedAt: stamp(),
-                }
-              : task,
-          ),
+          tasks: state.tasks.map((task) => {
+            if (task.id !== taskId) return task;
+
+            const nextProjectId = updates.projectId !== undefined ? updates.projectId : task.projectId;
+            const parentTask =
+              updates.parentTaskId !== undefined
+                ? validParentTask(updates.parentTaskId, state.tasks, taskId, nextProjectId)
+                : validParentTask(task.parentTaskId, state.tasks, taskId, nextProjectId);
+
+            return {
+              ...task,
+              ...updates,
+              ...(updates.priority ? { priority: normalizeTaskPriority(updates.priority) } : {}),
+              ...(updates.status ? { status: normalizeTaskStatus(updates.status) } : {}),
+              ...(updates.reminder ? { reminder: normalizeTaskReminder(updates.reminder) } : {}),
+              ...(updates.recurrence ? { recurrence: normalizeTaskRecurrence(updates.recurrence) } : {}),
+              parentTaskId: parentTask ? parentTask.id : undefined,
+              updatedAt: stamp(),
+            };
+          }),
         })),
       deleteTask: (taskId) =>
         set((state) => ({
@@ -154,15 +164,48 @@ export const useTaskStore = create<TaskState>()(
 
 function normalizeTaskOrder(tasks: Task[]) {
   return tasks
-    .map((task, index) => ({
-      ...task,
-      priority: normalizeTaskPriority(task.priority),
-      status: normalizeTaskStatus(task.status),
-      reminder: normalizeTaskReminder(task.reminder),
-      recurrence: normalizeTaskRecurrence(task.recurrence),
-      sortOrder: Number.isFinite(task.sortOrder) ? task.sortOrder : index,
-    }))
+    .filter((task) => !isRemovedPrototypeTask(task))
+    .map((task, index) => {
+      const cleanedTask = stripRemovedPrototypeFields(task);
+
+      return {
+        ...cleanedTask,
+        priority: normalizeTaskPriority(task.priority),
+        status: normalizeTaskStatus(task.status),
+        reminder: normalizeTaskReminder(task.reminder),
+        recurrence: normalizeTaskRecurrence(task.recurrence),
+        parentTaskId: task.parentTaskId || undefined,
+        sortOrder: Number.isFinite(task.sortOrder) ? task.sortOrder : index,
+      };
+    })
     .sort(compareSortOrder);
+}
+
+function isRemovedPrototypeTask(task: Task) {
+  const record = task as Task & Record<string, unknown>;
+  const sourceType = record.sourceType;
+  const title = task.title.trim().toLowerCase();
+
+  return (
+    record.taskType === "routine" ||
+    title === "new routine" ||
+    sourceType === "inbox" ||
+    sourceType === "money" ||
+    sourceType === "people" ||
+    sourceType === "goal"
+  );
+}
+
+function stripRemovedPrototypeFields(task: Task) {
+  const cleanedTask = { ...task } as Task & Record<string, unknown>;
+  delete cleanedTask.lifeAreaId;
+  delete cleanedTask.taskType;
+  delete cleanedTask.sourceType;
+  delete cleanedTask.linkedGoalId;
+  delete cleanedTask.linkedPersonId;
+  delete cleanedTask.linkedMoneyReminderId;
+
+  return cleanedTask as Task;
 }
 
 function compareSortOrder(a: Task, b: Task) {
@@ -177,6 +220,16 @@ function nextTopSortOrder(tasks: Task[]) {
 function nextBottomSortOrder(tasks: Task[]) {
   const orders = tasks.map((task) => task.sortOrder).filter((value): value is number => Number.isFinite(value));
   return orders.length ? Math.max(...orders) + 1 : 0;
+}
+
+function validParentTask(parentTaskId: string | undefined, tasks: Task[], taskId?: string, projectId?: string) {
+  if (!parentTaskId || parentTaskId === taskId) return undefined;
+
+  const parentTask = tasks.find((task) => task.id === parentTaskId && !task.deletedAt);
+  if (!parentTask || parentTask.parentTaskId) return undefined;
+  if (projectId !== undefined && parentTask.projectId !== projectId) return undefined;
+
+  return parentTask;
 }
 
 function createNextRecurringTask(task: Task, createdAt: string, sortOrder: number): Task | null {
@@ -194,11 +247,13 @@ function createNextRecurringTask(task: Task, createdAt: string, sortOrder: numbe
     dueDate: nextDueDate,
     sortOrder,
     recurringParentId: task.recurringParentId ?? task.id,
+    parentTaskId: task.parentTaskId,
     createdAt,
     updatedAt: createdAt,
     deletedAt: undefined,
   };
 }
+
 
 function nextRecurringStartDate(startDate: string | undefined, dueDate: string, nextDueDate: string) {
   if (!startDate) return null;

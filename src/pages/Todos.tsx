@@ -41,7 +41,7 @@ export function Todos() {
       <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
         <TaskForm projects={[]} onSubmit={(input) => addTask({ ...input, category: "personal", projectId: undefined })} compact todoOnly />
       </section>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-stretch">
         <TaskFilters filter={filter} search={search} sort={sort} onFilterChange={setFilter} onSearchChange={setSearch} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />
       </div>

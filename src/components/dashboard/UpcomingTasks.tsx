@@ -56,10 +56,10 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
     <Card className="overflow-hidden p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-950">Upcoming Deadlines</h2>
-          <p className="mt-2 text-sm text-slate-500">Next tasks and project dates</p>
+          <h2 className="text-xl font-bold text-[var(--text)]">Upcoming Deadlines</h2>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Next tasks and project dates</p>
         </div>
-        <CalendarClock className="text-slate-400" size={22} />
+        <CalendarClock className="text-[var(--text-soft)]" size={22} />
       </div>
       <div className="mt-6 space-y-3">
         {groupedItems.length ? (
@@ -78,12 +78,12 @@ export function UpcomingTasks({ tasks, projects }: { tasks: Task[]; projects: Pr
                     <div className="min-w-0 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h4 className="break-words font-semibold text-slate-950">{item.title}</h4>
-                          <p className="mt-1 text-sm text-slate-500">{item.meta}</p>
+                          <h4 className="break-words font-bold text-[var(--text)]">{item.title}</h4>
+                          <p className="mt-1 text-sm text-[var(--text-muted)]">{item.meta}</p>
                         </div>
                         <Badge tone={priorityTone(item.priority)}>{item.priority}</Badge>
                       </div>
-                      <p className="mt-3 text-sm font-semibold text-slate-700">{dateLabel(item.date)}</p>
+                      <p className="mt-3 text-sm font-bold text-[var(--text)]">{dateLabel(item.date)}</p>
                     </div>
                   );
 

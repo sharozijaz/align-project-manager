@@ -112,29 +112,29 @@ export function Projects() {
           </Button>
         }
       />
-      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
-        <div className="grid gap-3 lg:grid-cols-[minmax(260px,1.2fr)_180px_180px_210px]">
+      <div className="align-toolbar">
+        <div className="grid w-full gap-2 lg:grid-cols-[minmax(260px,1fr)_180px_180px_210px]">
           <label className="relative block">
             <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
             <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search projects..."
-              className="pl-10"
+              className="align-field-quiet pl-10 sm:min-h-10"
             />
           </label>
-          <Select value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as ProjectLifecycleFilter)} aria-label="Project status">
+          <Select className="align-field-quiet sm:min-h-10" value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as ProjectLifecycleFilter)} aria-label="Project status">
             <option value="active">Status: Active ({activeCount})</option>
             <option value="paused">Status: Paused ({pausedCount})</option>
             <option value="completed">Status: Completed ({completedCount})</option>
             <option value="archived">Status: Archived ({archivedCount})</option>
           </Select>
-          <Select value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as ProjectAreaFilter)} aria-label="Project category">
+          <Select className="align-field-quiet sm:min-h-10" value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as ProjectAreaFilter)} aria-label="Project category">
             <option value="all">Category: All ({lifecycleProjects.length})</option>
             <option value="business">Category: Business ({businessCount})</option>
             <option value="personal">Category: Personal ({personalCount})</option>
           </Select>
-          <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as ProjectSort)} aria-label="Project sort">
+          <Select className="align-field-quiet sm:min-h-10" value={sortMode} onChange={(event) => setSortMode(event.target.value as ProjectSort)} aria-label="Project sort">
             <option value="manual">Sort: Manual order</option>
             <option value="updated">Sort: Recently updated</option>
             <option value="name">Sort: Name</option>
@@ -146,7 +146,7 @@ export function Projects() {
       <p className="text-sm font-medium text-[var(--text-muted)]">
         Showing <span className="font-bold text-[var(--brand-primary)]">{visibleProjects.length}</span> {lifecycleLabel} projects
       </p>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2 2xl:gap-7">
         {visibleProjects.map((project) => (
           <div
             key={project.id}
@@ -205,6 +205,8 @@ export function Projects() {
               <ProjectCard
                 project={project}
                 tasks={tasks.filter((task) => !task.deletedAt)}
+                dragging={draggedProjectId === project.id}
+                dropTarget={dragOverProjectId === project.id}
                 onUpdate={updateProject}
                 onComplete={setCompletingProject}
                 onArchive={(projectId) => {

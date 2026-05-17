@@ -1,12 +1,40 @@
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { addMonths, format, isSameMonth, isToday as isDateToday } from "date-fns";
-import { useState } from "react";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { CalendarEventModal } from "./CalendarEventModal";
-import { monthGrid, sameDay } from "../../utils/date";
+import {
+  CalendarDays,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  List,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  differenceInCalendarDays,
+  endOfWeek,
+  format,
+  isAfter,
+  isBefore,
+  isSameMonth,
+  isToday as isDateToday,
+  parseISO,
+  startOfWeek,
+} from "date-fns";
+import { useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import type { CalendarEvent, CalendarEventInput } from "../../types/calendar";
 import type { Task } from "../../types/task";
+import { dateLabel, monthGrid, sameDay, todayKey } from "../../utils/date";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { OptionBadge } from "../ui/OptionBadge";
+import { CalendarEventModal } from "./CalendarEventModal";
+
+type CalendarMode = "month" | "week" | "agenda";
+type CalendarItem = { id: string; date: string; kind: "task"; task: Task } | { id: string; date: string; kind: "event"; event: CalendarEvent };
 
 export function CalendarView({
   tasks,
@@ -14,138 +42,131 @@ export function CalendarView({
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
+  onUpdateTask,
 }: {
   tasks: Task[];
   events: CalendarEvent[];
   onAddEvent: (event: CalendarEventInput) => void;
   onUpdateEvent: (id: string, event: Partial<CalendarEventInput>) => void;
   onDeleteEvent: (id: string) => void;
+  onUpdateTask: (id: string, task: Partial<Task>) => void;
 }) {
+  const [mode, setMode] = useState<CalendarMode>("month");
   const [visibleDate, setVisibleDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | undefined>();
-  const days = monthGrid(visibleDate);
-  const selectedTasks = tasks.filter((task) => task.dueDate === selectedDate);
-  const selectedEvents = events.filter((event) => event.startDate === selectedDate);
+  const days = useMemo(() => monthGrid(visibleDate), [visibleDate]);
+  const weekDays = useMemo(() => {
+    const start = startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 });
+    return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+  }, [selectedDate]);
+  const today = todayKey();
+  const allItems = useMemo(() => getCalendarItems(tasks, events), [events, tasks]);
+  const selectedItems = useMemo(() => itemsForDate(allItems, selectedDate), [allItems, selectedDate]);
+  const todayItems = useMemo(() => itemsForDate(allItems, today), [allItems, today]);
+  const overdueTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.dueDate && isBefore(parseISO(task.dueDate), parseISO(today)) && !isTerminalTaskStatus(task.status))
+        .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "")),
+    [tasks, today],
+  );
+  const thisWeekItems = useMemo(() => {
+    const weekStart = startOfWeek(parseISO(today), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(parseISO(today), { weekStartsOn: 1 });
+    return allItems.filter((item) => {
+      const date = parseISO(item.date);
+      return !isBefore(date, weekStart) && !isAfter(date, weekEnd);
+    });
+  }, [allItems, today]);
+  const agendaGroups = useMemo(() => getAgendaGroups(allItems, today), [allItems, today]);
+  const label = mode === "week" ? `${format(weekDays[0], "MMM d")} - ${format(weekDays[6], "MMM d, yyyy")}` : format(visibleDate, "MMMM yyyy");
+
+  const openNewEvent = (date = selectedDate) => {
+    setSelectedDate(date);
+    setEditingEvent(undefined);
+    setModalOpen(true);
+  };
+
+  const goToday = () => {
+    const next = new Date();
+    setVisibleDate(next);
+    setSelectedDate(format(next, "yyyy-MM-dd"));
+  };
+
+  const moveVisibleDate = (direction: -1 | 1) => {
+    if (mode === "month" || mode === "agenda") {
+      setVisibleDate((current) => addMonths(current, direction));
+      return;
+    }
+
+    const nextDate = addWeeks(parseISO(selectedDate), direction);
+    setSelectedDate(format(nextDate, "yyyy-MM-dd"));
+    setVisibleDate(nextDate);
+  };
+
+  const moveTaskToDate = (task: Task, nextDueDate: string) => {
+    if (!task.dueDate || task.dueDate === nextDueDate) return;
+
+    const dayDelta = differenceInCalendarDays(parseISO(nextDueDate), parseISO(task.dueDate));
+    const nextStartDate = task.startDate ? format(addDays(parseISO(task.startDate), dayDelta), "yyyy-MM-dd") : undefined;
+
+    onUpdateTask(task.id, {
+      dueDate: nextDueDate,
+      ...(nextStartDate ? { startDate: nextStartDate } : {}),
+    });
+    setSelectedDate(nextDueDate);
+  };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-      <Card className="p-3 sm:p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-950">{format(visibleDate, "MMMM yyyy")}</h2>
-          <div className="flex gap-2">
-            <Button variant="secondary" className="px-3" onClick={() => setVisibleDate(addMonths(visibleDate, -1))}>
-              <ChevronLeft size={16} />
-            </Button>
-            <Button variant="secondary" className="px-3" onClick={() => setVisibleDate(addMonths(visibleDate, 1))}>
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-slate-400 sm:gap-2 sm:text-xs">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-            <div key={day}>{day}</div>
-          ))}
-        </div>
-        <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-2">
-          {days.map((day) => {
-            const key = format(day, "yyyy-MM-dd");
-            const dayTasks = tasks.filter((task) => task.dueDate && sameDay(task.dueDate, day));
-            const dayEvents = events.filter((event) => sameDay(event.startDate, day));
-            const taskCount = dayTasks.length;
-            const eventCount = dayEvents.length;
-            const selected = key === selectedDate;
-            const today = isDateToday(day);
-            const inMonth = isSameMonth(day, visibleDate);
-            const dayClass = selected
-              ? "border-[var(--brand-primary)] bg-[var(--calendar-selected-bg)] text-[var(--calendar-selected-text)] shadow-[inset_0_0_0_1px_var(--brand-primary)]"
-              : today
-                ? "border-[var(--warning)] bg-[var(--calendar-today-bg)] text-[var(--text)]"
-                : "border-[var(--border)] bg-[var(--calendar-cell-bg)] text-[var(--text)] hover:border-[var(--border-strong)] hover:bg-[var(--calendar-cell-hover)]";
-
-            return (
-              <button
-                key={key}
-                className={`min-h-20 rounded-md border p-1.5 text-left transition sm:min-h-24 sm:p-2 ${dayClass} ${inMonth ? "" : "opacity-45"}`}
-                onClick={() => setSelectedDate(key)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className={`grid h-6 min-w-6 place-items-center rounded-full text-sm font-bold sm:h-7 sm:min-w-7 ${selected ? "align-gradient text-white" : today ? "bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]" : ""}`}>
-                    {format(day, "d")}
-                  </span>
-                  {today ? <span className="hidden rounded-full bg-[var(--priority-low-bg)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--priority-low-text)] sm:inline">Today</span> : null}
-                </div>
-                <div className="mt-3 space-y-1 text-[10px] font-semibold sm:text-xs">
-                  {taskCount ? <p className="truncate rounded bg-[var(--status-in-progress-bg)] px-1.5 py-1 text-center text-[var(--status-in-progress-text)] sm:px-2 sm:text-left">{taskCount}<span className="hidden sm:inline"> task{taskCount === 1 ? "" : "s"}</span></p> : null}
-                  {eventCount ? <p className="truncate rounded bg-[var(--priority-urgent-bg)] px-1.5 py-1 text-center text-[var(--priority-urgent-text)] sm:px-2 sm:text-left">{eventCount}<span className="hidden sm:inline"> event{eventCount === 1 ? "" : "s"}</span></p> : null}
-                </div>
-              </button>
-            );
-          })}
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <Card className="min-w-0 overflow-hidden p-0">
+        <CalendarToolbar
+          mode={mode}
+          label={label}
+          onModeChange={setMode}
+          onToday={goToday}
+          onPrevious={() => moveVisibleDate(-1)}
+          onNext={() => moveVisibleDate(1)}
+        />
+        <div className="p-3 sm:p-4">
+          {mode === "month" ? (
+            <MonthView
+              days={days}
+              visibleDate={visibleDate}
+              selectedDate={selectedDate}
+              items={allItems}
+              onSelectDate={setSelectedDate}
+            />
+          ) : mode === "week" ? (
+            <WeekView
+              days={weekDays}
+              selectedDate={selectedDate}
+              items={allItems}
+              onSelectDate={setSelectedDate}
+              onAddEvent={openNewEvent}
+              onMoveTask={moveTaskToDate}
+            />
+          ) : (
+            <AgendaView groups={agendaGroups} onSelectDate={setSelectedDate} />
+          )}
         </div>
       </Card>
-      <Card className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-slate-950">{format(new Date(`${selectedDate}T00:00:00`), "MMM d")}</h2>
-            <p className="text-sm text-slate-500">Scheduled work</p>
-          </div>
-          <Button
-            className="px-3"
-            onClick={() => {
-              setEditingEvent(undefined);
-              setModalOpen(true);
-            }}
-          >
-            <Plus size={16} />
-          </Button>
-        </div>
-        <div className="mt-5 space-y-3">
-          {selectedTasks.map((task) => (
-            <div key={`task-${task.id}`} className="rounded-md border border-[var(--border)] bg-[var(--status-in-progress-bg)] p-3 text-sm text-[var(--status-in-progress-text)]">
-              <p className="font-semibold">{task.title}</p>
-              <p className="mt-1 text-xs opacity-75">Task due</p>
-            </div>
-          ))}
-          {selectedEvents.map((event) => (
-            <div key={`event-${event.id}`} className="rounded-md border border-[var(--border)] bg-[var(--priority-urgent-bg)] p-3 text-sm text-[var(--priority-urgent-text)]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{event.title}</p>
-                  <p className="mt-1 text-xs opacity-75">Local event</p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button
-                    title="Edit event"
-                    variant="secondary"
-                    className="min-h-8 px-2"
-                    onClick={() => {
-                      setEditingEvent(event);
-                      setModalOpen(true);
-                    }}
-                  >
-                    <Pencil size={14} />
-                  </Button>
-                  <Button
-                    title="Delete event"
-                    variant="danger"
-                    className="min-h-8 px-2"
-                    onClick={() => {
-                      if (window.confirm(`Delete "${event.title}" from your local calendar?`)) {
-                        onDeleteEvent(event.id);
-                      }
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-          {!selectedTasks.length && !selectedEvents.length ? <p className="text-sm text-slate-500">No items on this date.</p> : null}
-        </div>
-      </Card>
+      <PlanningSidebar
+        selectedDate={selectedDate}
+        selectedItems={selectedItems}
+        todayItems={todayItems}
+        overdueTasks={overdueTasks}
+        thisWeekCount={thisWeekItems.length}
+        onAddEvent={() => openNewEvent(selectedDate)}
+        onEditEvent={(event) => {
+          setEditingEvent(event);
+          setSelectedDate(event.startDate);
+          setModalOpen(true);
+        }}
+        onDeleteEvent={onDeleteEvent}
+      />
       <CalendarEventModal
         open={modalOpen}
         date={selectedDate}
@@ -164,4 +185,507 @@ export function CalendarView({
       />
     </div>
   );
+}
+
+function CalendarToolbar({
+  mode,
+  label,
+  onModeChange,
+  onToday,
+  onPrevious,
+  onNext,
+}: {
+  mode: CalendarMode;
+  label: string;
+  onModeChange: (mode: CalendarMode) => void;
+  onToday: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const modes = [
+    { value: "month" as const, label: "Month", icon: CalendarDays },
+    { value: "week" as const, label: "Week", icon: CalendarRange },
+    { value: "agenda" as const, label: "Agenda", icon: List },
+  ];
+
+  return (
+    <div className="grid gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-3 sm:px-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+      <div className="min-w-0">
+        <h2 className="truncate text-xl font-bold text-[var(--text)]">{label}</h2>
+        <p className="text-sm text-[var(--text-muted)]">Plan deadlines, local events, and the week ahead.</p>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-self-end">
+        <div className="align-tab-list sm:w-auto">
+          {modes.map(({ value, label, icon: Icon }) => (
+            <button key={value} type="button" className="align-tab" data-active={mode === value} onClick={() => onModeChange(value)}>
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" className="px-3" onClick={onPrevious} title="Previous">
+            <ChevronLeft size={16} />
+          </Button>
+          <Button variant="secondary" className="px-3" onClick={onToday}>
+            Today
+          </Button>
+          <Button variant="secondary" className="px-3" onClick={onNext} title="Next">
+            <ChevronRight size={16} />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MonthView({
+  days,
+  visibleDate,
+  selectedDate,
+  items,
+  onSelectDate,
+}: {
+  days: Date[];
+  visibleDate: Date;
+  selectedDate: string;
+  items: CalendarItem[];
+  onSelectDate: (date: string) => void;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[var(--text-soft)] sm:gap-2 sm:text-xs">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+          <div key={day}>{day}</div>
+        ))}
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-2">
+        {days.map((day) => {
+          const key = format(day, "yyyy-MM-dd");
+          const dayItems = itemsForDate(items, key);
+          const selected = key === selectedDate;
+          const today = isDateToday(day);
+          const inMonth = isSameMonth(day, visibleDate);
+
+          return (
+            <CalendarDayButton
+              key={key}
+              date={day}
+              selected={selected}
+              today={today}
+              muted={!inMonth}
+              items={dayItems}
+              className="min-h-[112px] 2xl:min-h-[132px]"
+              onSelect={() => onSelectDate(key)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WeekView({
+  days,
+  selectedDate,
+  items,
+  onSelectDate,
+  onAddEvent,
+  onMoveTask,
+}: {
+  days: Date[];
+  selectedDate: string;
+  items: CalendarItem[];
+  onSelectDate: (date: string) => void;
+  onAddEvent: (date: string) => void;
+  onMoveTask: (task: Task, date: string) => void;
+}) {
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dropDate, setDropDate] = useState<string | null>(null);
+
+  const draggedTask =
+    draggingTaskId
+      ? items.find((item): item is Extract<CalendarItem, { kind: "task" }> => item.kind === "task" && item.task.id === draggingTaskId)?.task
+      : undefined;
+
+  const handleDragOver = (event: DragEvent<HTMLElement>, date: string) => {
+    if (!draggedTask) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropDate(date);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLElement>, date: string) => {
+    event.preventDefault();
+    if (draggedTask) {
+      onMoveTask(draggedTask, date);
+    }
+    setDraggingTaskId(null);
+    setDropDate(null);
+  };
+
+  return (
+    <div className="grid min-h-[520px] min-w-0 gap-2 md:grid-cols-7">
+      {days.map((day) => {
+        const key = format(day, "yyyy-MM-dd");
+        const dayItems = itemsForDate(items, key);
+        const selected = selectedDate === key;
+        const draggingOver = dropDate === key && Boolean(draggingTaskId);
+
+        return (
+          <section
+            key={key}
+            className={`flex min-h-[180px] flex-col rounded-[var(--radius-md)] border bg-[var(--calendar-cell-bg)] transition ${
+              draggingOver
+                ? "border-[var(--brand-primary)] bg-[var(--calendar-selected-bg)] shadow-[inset_0_0_0_1px_var(--brand-primary),var(--shadow-sm)]"
+                : selected
+                  ? "border-[var(--brand-primary)] shadow-[inset_0_0_0_1px_var(--brand-primary)]"
+                  : "border-[var(--border)]"
+            }`}
+            onClick={() => onSelectDate(key)}
+            onDragOver={(event) => handleDragOver(event, key)}
+            onDragEnter={(event) => handleDragOver(event, key)}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setDropDate((current) => (current === key ? null : current));
+              }
+            }}
+            onDrop={(event) => handleDrop(event, key)}
+          >
+            <div className="flex items-start justify-between gap-2 border-b border-[var(--border)] p-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-[var(--text-soft)]">{format(day, "EEE")}</p>
+                <p className="mt-1 text-xl font-bold text-[var(--text)]">{format(day, "d")}</p>
+              </div>
+              {isDateToday(day) ? <Badge tone="emerald">Today</Badge> : null}
+            </div>
+            <div className="grid flex-1 content-start gap-2 p-3">
+              {dayItems.slice(0, 5).map((item) => (
+                <CalendarItemChip
+                  key={item.id}
+                  item={item}
+                  draggable={item.kind === "task"}
+                  dragging={item.kind === "task" && draggingTaskId === item.task.id}
+                  onDragStart={(event) => {
+                    if (item.kind !== "task") return;
+
+                    event.stopPropagation();
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", item.task.id);
+                    setDraggingTaskId(item.task.id);
+                    setDropDate(key);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingTaskId(null);
+                    setDropDate(null);
+                  }}
+                />
+              ))}
+              {dayItems.length > 5 ? <p className="text-xs font-bold text-[var(--text-soft)]">+{dayItems.length - 5} more</p> : null}
+              {!dayItems.length ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] p-3 text-center text-xs text-[var(--text-soft)]">Open</p> : null}
+            </div>
+            <button
+              type="button"
+              className="mx-3 mb-3 min-h-8 rounded-[var(--radius-sm)] border border-[var(--border)] text-xs font-bold text-[var(--text-muted)] transition hover:border-[var(--brand-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddEvent(key);
+              }}
+            >
+              + Event
+            </button>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function AgendaView({ groups, onSelectDate }: { groups: Array<{ date: string; items: CalendarItem[] }>; onSelectDate: (date: string) => void }) {
+  if (!groups.length) {
+    return <EmptyPanel title="No upcoming calendar work" description="Tasks with due dates and local events will appear here." />;
+  }
+
+  return (
+    <div className="grid gap-3">
+      {groups.map((group) => (
+        <section key={group.date} className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)]">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 text-left transition hover:bg-[var(--surface-hover)]"
+            onClick={() => onSelectDate(group.date)}
+          >
+            <div>
+              <h3 className="font-bold text-[var(--text)]">{format(parseISO(group.date), "EEEE, MMM d")}</h3>
+              <p className="text-sm text-[var(--text-muted)]">{group.items.length} scheduled</p>
+            </div>
+            {group.date === todayKey() ? <Badge tone="emerald">Today</Badge> : null}
+          </button>
+          <div className="grid gap-2 p-3">
+            {group.items.map((item) => (
+              <CalendarItemRow key={item.id} item={item} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function PlanningSidebar({
+  selectedDate,
+  selectedItems,
+  todayItems,
+  overdueTasks,
+  thisWeekCount,
+  onAddEvent,
+  onEditEvent,
+  onDeleteEvent,
+}: {
+  selectedDate: string;
+  selectedItems: CalendarItem[];
+  todayItems: CalendarItem[];
+  overdueTasks: Task[];
+  thisWeekCount: number;
+  onAddEvent: () => void;
+  onEditEvent: (event: CalendarEvent) => void;
+  onDeleteEvent: (id: string) => void;
+}) {
+  const selectedTasks = selectedItems.filter((item) => item.kind === "task").length;
+  const selectedEvents = selectedItems.filter((item) => item.kind === "event").length;
+
+  return (
+    <aside className="grid min-w-0 gap-4 xl:content-start">
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-[var(--text)]">{format(parseISO(selectedDate), "MMM d")}</h2>
+            <p className="text-sm text-[var(--text-muted)]">Selected day</p>
+          </div>
+          <Button className="px-3" onClick={onAddEvent}>
+            <Plus size={16} />
+          </Button>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <MiniStat label="Tasks" value={selectedTasks} />
+          <MiniStat label="Events" value={selectedEvents} />
+        </div>
+        <div className="mt-4 grid gap-2">
+          {selectedItems.map((item) => (
+            <CalendarItemRow
+              key={item.id}
+              item={item}
+              actions={
+                item.kind === "event" ? (
+                  <EventActions event={item.event} onEdit={onEditEvent} onDelete={onDeleteEvent} />
+                ) : null
+              }
+            />
+          ))}
+          {!selectedItems.length ? <EmptyPanel title="No items" description="Add a local event or pick a day with due tasks." compact /> : null}
+        </div>
+      </Card>
+      <Card className="p-4">
+        <h2 className="font-bold text-[var(--text)]">Planning Pulse</h2>
+        <div className="mt-4 grid gap-2">
+          <MiniStat label="Today" value={todayItems.length} />
+          <MiniStat label="Overdue" value={overdueTasks.length} tone="danger" />
+          <MiniStat label="This week" value={thisWeekCount} />
+        </div>
+      </Card>
+      <Card className="p-4">
+        <h2 className="font-bold text-[var(--text)]">Overdue</h2>
+        <div className="mt-4 grid gap-2">
+          {overdueTasks.slice(0, 5).map((task) => (
+            <CalendarItemRow key={task.id} item={{ id: `task-${task.id}`, date: task.dueDate!, kind: "task", task }} />
+          ))}
+          {overdueTasks.length > 5 ? <p className="text-xs font-bold text-[var(--text-soft)]">+{overdueTasks.length - 5} more overdue</p> : null}
+          {!overdueTasks.length ? <EmptyPanel title="No overdue work" description="Nice. Nothing is currently late." compact /> : null}
+        </div>
+      </Card>
+    </aside>
+  );
+}
+
+function CalendarDayButton({
+  date,
+  selected,
+  today,
+  muted,
+  items,
+  className,
+  onSelect,
+}: {
+  date: Date;
+  selected: boolean;
+  today: boolean;
+  muted: boolean;
+  items: CalendarItem[];
+  className?: string;
+  onSelect: () => void;
+}) {
+  const dayClass = selected
+    ? "border-[var(--brand-primary)] bg-[var(--calendar-selected-bg)] text-[var(--calendar-selected-text)] shadow-[inset_0_0_0_1px_var(--brand-primary)]"
+    : today
+      ? "border-[var(--warning)] bg-[var(--calendar-today-bg)] text-[var(--text)]"
+      : "border-[var(--border)] bg-[var(--calendar-cell-bg)] text-[var(--text)] hover:border-[var(--border-strong)] hover:bg-[var(--calendar-cell-hover)]";
+
+  return (
+    <button
+      type="button"
+      className={`min-w-0 rounded-[var(--radius-sm)] border p-2 text-left transition hover:-translate-y-px ${dayClass} ${muted ? "opacity-45" : ""} ${className ?? ""}`}
+      onClick={onSelect}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={`inline-flex min-h-7 min-w-7 items-center justify-center rounded-[var(--radius-sm)] px-1.5 text-sm font-bold ${
+            selected
+              ? "border border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)] text-[var(--text)]"
+              : today
+                ? "bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]"
+                : "text-[var(--text)]"
+          }`}
+        >
+          {format(date, "d")}
+        </span>
+        {today ? <Badge tone="emerald">Today</Badge> : null}
+      </div>
+      <div className="mt-3 grid gap-1.5">
+        {items.slice(0, 3).map((item) => (
+          <CalendarItemChip key={item.id} item={item} />
+        ))}
+        {items.length > 3 ? <p className="truncate text-xs font-bold text-[var(--text-soft)]">+{items.length - 3} more</p> : null}
+      </div>
+    </button>
+  );
+}
+
+function CalendarItemChip({
+  item,
+  draggable = false,
+  dragging = false,
+  onDragStart,
+  onDragEnd,
+}: {
+  item: CalendarItem;
+  draggable?: boolean;
+  dragging?: boolean;
+  onDragStart?: (event: DragEvent<HTMLParagraphElement>) => void;
+  onDragEnd?: () => void;
+}) {
+  if (item.kind === "event") {
+    return <p className="truncate rounded bg-[var(--priority-urgent-bg)] px-2 py-1 text-xs font-bold text-[var(--priority-urgent-text)]">{item.event.title}</p>;
+  }
+
+  const status = getTaskStatusOption(item.task.status);
+  return (
+    <p
+      draggable={draggable}
+      className={`truncate rounded px-2 py-1 text-xs font-bold transition ${
+        draggable ? "cursor-grab select-none hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] active:cursor-grabbing" : ""
+      } ${dragging ? "opacity-45 ring-2 ring-[var(--brand-primary)]" : ""}`}
+      style={{ backgroundColor: status.bg, color: status.text }}
+      title={draggable ? "Drag to reschedule" : undefined}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {item.task.title}
+    </p>
+  );
+}
+
+function CalendarItemRow({ item, actions }: { item: CalendarItem; actions?: ReactNode }) {
+  if (item.kind === "event") {
+    return (
+      <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--priority-urgent-bg)] p-3 text-sm text-[var(--priority-urgent-text)]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="break-words font-bold">{item.event.title}</p>
+            <p className="mt-1 text-xs opacity-75">Local event</p>
+          </div>
+          {actions}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="break-words font-bold text-[var(--text)]">{item.task.title}</p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{dateLabel(item.task.dueDate, item.task.dueTime)}</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          <OptionBadge option={getTaskPriorityOption(item.task.priority)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventActions({ event, onEdit, onDelete }: { event: CalendarEvent; onEdit: (event: CalendarEvent) => void; onDelete: (id: string) => void }) {
+  return (
+    <div className="flex shrink-0 gap-1">
+      <Button title="Edit event" variant="secondary" className="min-h-8 px-2" onClick={() => onEdit(event)}>
+        <Pencil size={14} />
+      </Button>
+      <Button
+        title="Delete event"
+        variant="danger"
+        className="min-h-8 px-2"
+        onClick={() => {
+          if (window.confirm(`Delete "${event.title}" from your local calendar?`)) {
+            onDelete(event.id);
+          }
+        }}
+      >
+        <Trash2 size={14} />
+      </Button>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: number; tone?: "danger" }) {
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+      <p className={tone === "danger" ? "text-xl font-bold text-[var(--danger)]" : "text-xl font-bold text-[var(--text)]"}>{value}</p>
+      <p className="text-xs font-bold uppercase text-[var(--text-soft)]">{label}</p>
+    </div>
+  );
+}
+
+function EmptyPanel({ title, description, compact = false }: { title: string; description: string; compact?: boolean }) {
+  return (
+    <div className={`rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] text-center ${compact ? "p-3" : "p-8"}`}>
+      <p className="font-bold text-[var(--text)]">{title}</p>
+      <p className="mt-1 text-sm text-[var(--text-muted)]">{description}</p>
+    </div>
+  );
+}
+
+function getCalendarItems(tasks: Task[], events: CalendarEvent[]): CalendarItem[] {
+  return [
+    ...tasks
+      .filter((task) => task.dueDate)
+      .map((task) => ({ id: `task-${task.id}`, date: task.dueDate!, kind: "task" as const, task })),
+    ...events.map((event) => ({ id: `event-${event.id}`, date: event.startDate, kind: "event" as const, event })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function itemsForDate(items: CalendarItem[], date: string) {
+  return items.filter((item) => sameDay(item.date, parseISO(date)));
+}
+
+function getAgendaGroups(items: CalendarItem[], today: string) {
+  const upcoming = items.filter((item) => !isBefore(parseISO(item.date), parseISO(today))).slice(0, 40);
+  const map = new Map<string, CalendarItem[]>();
+
+  upcoming.forEach((item) => {
+    map.set(item.date, [...(map.get(item.date) ?? []), item]);
+  });
+
+  return Array.from(map.entries()).map(([date, items]) => ({ date, items }));
 }

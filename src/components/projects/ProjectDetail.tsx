@@ -1,18 +1,22 @@
+import { Columns3, KanbanSquare, ListTree, Table2 } from "lucide-react";
 import { TaskForm } from "../tasks/TaskForm";
 import { TaskList } from "../tasks/TaskList";
-import { TaskViewToggle } from "../tasks/TaskViewToggle";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { Badge } from "../ui/Badge";
 import { ProjectNotes } from "./ProjectNotes";
-import { useMemo, useState } from "react";
+import { ProjectTaskBoard } from "./ProjectTaskBoard";
+import { ProjectTaskKanban } from "./ProjectTaskKanban";
+import { useEffect, useMemo, useState } from "react";
 import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
-import { useTaskViewPreference } from "../../hooks/useTaskViewPreference";
 import { useStudioStore } from "../../store/studioStore";
 import type { Project, ProjectInput } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
+
+type ProjectTaskView = "cards" | "table" | "board" | "kanban";
+const PROJECT_TASK_VIEW_KEY = "align-project-task-view-v1";
 
 export function ProjectDetail({
   project,
@@ -37,7 +41,7 @@ export function ProjectDetail({
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
-  const [view, setView] = useTaskViewPreference();
+  const [view, setView] = useState<ProjectTaskView>(() => getSavedProjectTaskView());
   const hubNotes = useStudioStore((state) => state.notes);
   const complete = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
   const progress = tasks.length ? Math.round((complete / tasks.length) * 100) : 0;
@@ -52,20 +56,24 @@ export function ProjectDetail({
     [priorityFilter, statusFilter, tasks],
   );
 
+  useEffect(() => {
+    window.localStorage.setItem(PROJECT_TASK_VIEW_KEY, view);
+  }, [view]);
+
   return (
     <div className="space-y-4">
       <Card className="p-5">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-2xl font-bold text-slate-950">{project.name}</h1>
-            <p className="mt-1 text-sm text-slate-500">{project.description || "Project details and tasks."}</p>
+            <h1 className="text-2xl font-bold text-[var(--text)]">{project.name}</h1>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{project.description || "Project details and tasks."}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-muted)]">
               <span>{startDateLabel(project.startDate, project.startTime)}</span>
               <span>{dateLabel(project.dueDate, project.dueTime)}</span>
               {project.startDate ? <span>{durationLabel(project.startDate, project.dueDate)}</span> : null}
             </div>
           </div>
-          <strong className="text-2xl text-slate-950">{progress}%</strong>
+          <strong className="text-2xl text-[var(--text)]">{progress}%</strong>
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
           <div className="h-full align-gradient" style={{ width: `${progress}%` }} />
@@ -79,8 +87,9 @@ export function ProjectDetail({
           compact
         />
       </Card>
-      <div className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:grid-cols-[1fr_1fr_auto]">
-        <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+      <div className="align-toolbar">
+        <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:max-w-[680px]">
+        <Select className="align-field-quiet sm:min-h-10" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
           <option value="all">All statuses</option>
           {taskStatusOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -88,7 +97,7 @@ export function ProjectDetail({
             </option>
           ))}
         </Select>
-        <Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+        <Select className="align-field-quiet sm:min-h-10" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
           <option value="all">All priorities</option>
           {taskPriorityOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -96,23 +105,78 @@ export function ProjectDetail({
             </option>
           ))}
         </Select>
-        <TaskViewToggle value={view} onChange={setView} />
+        </div>
+        <ProjectTaskViewToggle value={view} onChange={setView} />
       </div>
-      <TaskList
-        tasks={visibleTasks}
-        projects={projects}
-        onUpdate={onUpdateTask}
-        onDelete={onDeleteTask}
-        onComplete={onCompleteTask}
-        view={view}
-        lockedProjectId={project.id}
-        onReorder={onReorderTasks}
-      />
+      {view === "board" ? (
+        <ProjectTaskBoard
+          project={project}
+          tasks={tasks}
+          onAddTask={onAddTask}
+          onUpdateTask={onUpdateTask}
+          onDeleteTask={onDeleteTask}
+          onCompleteTask={onCompleteTask}
+        />
+      ) : view === "kanban" ? (
+        <ProjectTaskKanban
+          tasks={visibleTasks}
+          onUpdateTask={onUpdateTask}
+          onDeleteTask={onDeleteTask}
+          onCompleteTask={onCompleteTask}
+        />
+      ) : (
+        <TaskList
+          tasks={visibleTasks}
+          projects={projects}
+          onUpdate={onUpdateTask}
+          onDelete={onDeleteTask}
+          onComplete={onCompleteTask}
+          view={view}
+          lockedProjectId={project.id}
+          onReorder={onReorderTasks}
+        />
+      )}
       <LinkedHubNotes notes={linkedHubNotes} />
       <ProjectNotes
         notes={project.notes ?? []}
         onChange={(notes) => onUpdateProject(project.id, { notes })}
       />
+    </div>
+  );
+}
+
+function getSavedProjectTaskView(): ProjectTaskView {
+  if (typeof window === "undefined") return "cards";
+  const saved = window.localStorage.getItem(PROJECT_TASK_VIEW_KEY);
+  return saved === "table" || saved === "board" || saved === "kanban" ? saved : "cards";
+}
+
+function ProjectTaskViewToggle({ value, onChange }: { value: ProjectTaskView; onChange: (value: ProjectTaskView) => void }) {
+  const options = [
+    { value: "cards" as const, label: "Cards", icon: Columns3 },
+    { value: "table" as const, label: "Table", icon: Table2 },
+    { value: "board" as const, label: "Board", icon: ListTree },
+    { value: "kanban" as const, label: "Kanban", icon: KanbanSquare },
+  ];
+
+  return (
+    <div className="align-tab-list">
+      {options.map(({ value: optionValue, label, icon: Icon }) => {
+        const active = value === optionValue;
+
+        return (
+          <button
+            key={optionValue}
+            type="button"
+            className="align-tab"
+            data-active={active}
+            onClick={() => onChange(optionValue)}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }

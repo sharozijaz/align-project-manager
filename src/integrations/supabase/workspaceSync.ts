@@ -208,7 +208,7 @@ function isMissingRelation(error?: { message?: string; code?: string } | null) {
 }
 
 const optionalProjectColumns = ["start_time", "due_time", "sort_order", "notes"];
-const optionalTaskColumns = ["start_time", "due_time", "sort_order"];
+const optionalTaskColumns = ["start_time", "due_time", "sort_order", "parent_task_id"];
 
 function stripColumns<Row extends Record<string, unknown>>(rows: Row[], columns: string[]) {
   return rows.map((row) => {

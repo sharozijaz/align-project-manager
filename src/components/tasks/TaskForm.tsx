@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "../ui/Button";
-import { Badge } from "../ui/Badge";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import {
@@ -32,6 +31,7 @@ const blank: TaskInput = {
   reminder: "none",
   recurrence: "none",
   projectId: "",
+  parentTaskId: "",
 };
 
 export function TaskForm({
@@ -67,6 +67,11 @@ export function TaskForm({
       (initialTask?.recurrence && initialTask.recurrence !== "none"),
   );
   const [detailsOpen, setDetailsOpen] = useState(Boolean(!compact || hasAdvancedValues));
+  const showProjectField = !todoOnly && !lockedProject;
+  const selectableProjects = useMemo(
+    () => projects.filter((project) => project.status === "active" || project.status === "paused" || project.id === form.projectId),
+    [form.projectId, projects],
+  );
 
   const helperText = useMemo(() => {
     const parts = [];
@@ -90,16 +95,10 @@ export function TaskForm({
 
   const descriptionField = <Input value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} placeholder="Short description" />;
 
-  const projectField = lockedProject ? (
-    <div className="flex min-h-10 min-w-0 items-center rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3">
-      <Badge tone="blue">
-        <span className="max-w-full truncate">{lockedProject.name}</span>
-      </Badge>
-    </div>
-  ) : (
+  const projectField = (
     <Select value={form.projectId ?? ""} onChange={(event) => update("projectId", event.target.value)} aria-label="Project or category">
       <option value="">Todo</option>
-      {projects.map((project) => (
+      {selectableProjects.map((project) => (
         <option key={project.id} value={project.id}>
           {project.name}
         </option>
@@ -203,15 +202,9 @@ export function TaskForm({
     >
       {compact ? (
         <div className="space-y-3">
-          <div
-            className={`grid gap-3 ${
-              todoOnly
-                ? "xl:grid-cols-[minmax(260px,1fr)_minmax(140px,170px)_minmax(160px,190px)_auto]"
-                : "xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]"
-            }`}
-          >
+          <div className={`grid gap-3 ${showProjectField ? "xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]" : "xl:grid-cols-[minmax(320px,1fr)_minmax(140px,170px)_minmax(160px,190px)_auto]"}`}>
             {titleField}
-            {todoOnly ? null : projectField}
+            {showProjectField ? projectField : null}
             {priorityField}
             {statusField}
             <div className="hidden xl:block">{actionButtons}</div>
@@ -253,7 +246,7 @@ export function TaskForm({
         <>
           {titleField}
           {descriptionField}
-          {todoOnly ? null : projectField}
+          {showProjectField ? projectField : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {priorityField}
             {statusField}
