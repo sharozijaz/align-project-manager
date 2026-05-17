@@ -37,6 +37,10 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     () => projects.filter((project) => selectedIds.includes(project.id)),
     [projects, selectedIds],
   );
+  const selectableProjects = useMemo(
+    () => projects.filter((project) => project.status === "active" || project.status === "paused" || selectedIds.includes(project.id)),
+    [projects, selectedIds],
+  );
   const visibleLinks = useMemo(() => {
     const query = linkSearch.trim().toLowerCase();
     if (!query) return links;
@@ -261,7 +265,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
               <Button
                 icon={<Link2 size={16} />}
                 onClick={() => void (editingLink ? updateClientLink() : createClientLink())}
-                disabled={working || !isSupabaseConfigured || !projects.length}
+                disabled={working || !isSupabaseConfigured || !selectableProjects.length}
               >
                 {working ? "Saving..." : editingLink ? "Update Share Link" : "Create Share Link"}
               </Button>
@@ -293,7 +297,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
               <span className="text-xs font-bold text-[var(--text-soft)]">{selectedIds.length} selected</span>
             </div>
             <div className="flex min-w-0 flex-wrap gap-2">
-              {projects.map((project) => {
+              {selectableProjects.map((project) => {
                 const selected = selectedIds.includes(project.id);
 
                 return (
