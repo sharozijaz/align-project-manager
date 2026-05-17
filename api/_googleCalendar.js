@@ -575,6 +575,7 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
   const googleTaskById = new Map(googleTasks.map((task) => [task.id, task]));
   const syncableAlignTodos = dedupeAlignTodosForGoogleSync(alignTodos);
   const activeAlignTodoByKey = new Map(syncableAlignTodos.filter((task) => !task.deletedAt).map((task) => [alignTodoSyncKey(task), task]));
+  const syncableAlignTodoIds = new Set(syncableAlignTodos.map((task) => task.id));
   const changedTasks = [];
   let created = 0;
   let updated = 0;
@@ -583,7 +584,7 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
   let imported = 0;
   const seenGoogleTaskKeys = new Set();
 
-  for (const duplicateTask of alignTodos.filter((task) => !task.deletedAt && !syncableAlignTodos.some((syncableTask) => syncableTask.id === task.id))) {
+  for (const duplicateTask of alignTodos.filter((task) => !task.deletedAt && !syncableAlignTodoIds.has(task.id))) {
     const deletedTask = { ...duplicateTask, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await upsertSyncedTask(env, userId, deletedTask);
     changedTasks.push(deletedTask);
@@ -611,7 +612,11 @@ async function syncTodoTasks(env, connection, userId, todoListId, workspace) {
     const link = linksByGoogleId.get(googleTask.id);
 
     if (!link && !googleTask.deleted) {
-      const existingTask = activeAlignTodoByKey.get(googleTaskSyncKey(googleTask));
+      const markedAlignTask = alignTodoById.get(googleTodoAlignTaskId(googleTask));
+      const existingTask =
+        markedAlignTask && !markedAlignTask.deletedAt && syncableAlignTodoIds.has(markedAlignTask.id)
+          ? markedAlignTask
+          : activeAlignTodoByKey.get(googleTaskSyncKey(googleTask));
       const task = existingTask ? mergeGoogleTaskIntoAlignTodo(existingTask, googleTask) : googleTaskToAlignTodo(googleTask);
       await upsertSyncedTask(env, userId, task);
       await upsertGoogleTodoLink(env, userId, task.id, googleTask.id, todoListId, googleTask.updated);
@@ -760,11 +765,12 @@ function alignTodoToGoogleTask(task) {
 
 function googleTaskToAlignTodo(googleTask, existingTask) {
   const now = new Date().toISOString();
+  const cleanNotes = stripAlignGoogleTodoNotes(googleTask.notes);
 
   return {
     id: existingTask?.id || crypto.randomUUID(),
     title: String(googleTask.title || "Untitled todo").trim() || "Untitled todo",
-    description: googleTask.notes || undefined,
+    description: cleanNotes || undefined,
     projectId: undefined,
     category: "personal",
     priority: existingTask?.priority || "medium",
@@ -797,7 +803,7 @@ function dedupeAlignTodosForGoogleSync(tasks) {
 
     const key = alignTodoSyncKey(task);
     const existing = keptByKey.get(key);
-    if (!existing || Date.parse(task.createdAt || "") < Date.parse(existing.createdAt || "")) {
+    if (!existing || preferTaskForGoogleTodoSync(task, existing)) {
       keptByKey.set(key, task);
     }
   }
@@ -808,7 +814,6 @@ function dedupeAlignTodosForGoogleSync(tasks) {
 function alignTodoSyncKey(task) {
   return [
     normalizeSyncText(task.title),
-    normalizeSyncText(task.description),
     validDateKeyOrNull(task.dueDate) || "",
   ].join("|");
 }
@@ -816,9 +821,13 @@ function alignTodoSyncKey(task) {
 function googleTaskSyncKey(googleTask) {
   return [
     normalizeSyncText(googleTask.title),
-    normalizeSyncText(stripAlignGoogleTodoNotes(googleTask.notes)),
     googleTask.due ? validDateKeyOrNull(googleTask.due.slice(0, 10)) || "" : "",
   ].join("|");
+}
+
+function googleTodoAlignTaskId(googleTask) {
+  const match = String(googleTask?.notes || "").match(/Align todo ID:\s*([^\s]+)/u);
+  return match?.[1] || "";
 }
 
 function stripAlignGoogleTodoNotes(value) {
@@ -827,6 +836,14 @@ function stripAlignGoogleTodoNotes(value) {
     .filter((line) => !line.includes("Synced from Align.") && !line.includes("Align todo ID:"))
     .join("\n")
     .trim();
+}
+
+function preferTaskForGoogleTodoSync(candidate, existing) {
+  const candidateCreatedAt = Date.parse(candidate.createdAt || "");
+  const existingCreatedAt = Date.parse(existing.createdAt || "");
+  if (!Number.isFinite(existingCreatedAt)) return true;
+  if (!Number.isFinite(candidateCreatedAt)) return false;
+  return candidateCreatedAt < existingCreatedAt;
 }
 
 function normalizeSyncText(value) {
@@ -976,7 +993,7 @@ async function importGoogleTasksInbox(env, connection, userId, inboxListId, work
 
 function isAlignOwnedGoogleTask(googleTask) {
   const notes = String(googleTask.notes || "");
-  return notes.includes("Synced from Align.") || notes.includes("Align task ID:") || notes.includes("Imported into Align");
+  return notes.includes("Synced from Align.") || notes.includes("Align task ID:") || notes.includes("Align todo ID:") || notes.includes("Imported into Align");
 }
 
 function shouldMirrorTaskToGoogleTasks(task) {
