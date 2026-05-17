@@ -61,6 +61,8 @@ const profileLinks: NavItem[] = [
 
 export const appNavigationItems = [...primaryLinks, ...workspaceLinks, ...profileLinks];
 
+const sidebarSpring = { type: "spring", stiffness: 520, damping: 44, mass: 0.72 } as const;
+
 export function AppSidebar() {
   const { access, hasFeature } = useFeatureAccess();
   const { session } = useSupabaseSession();
@@ -134,7 +136,11 @@ export function AppSidebar() {
         }}
         onPointerDown={() => setRailPinned(true)}
       >
-        <div className={`absolute left-3 top-3 h-[calc(100%-1.5rem)] transition-[width] duration-200 ease-out ${desktopExpanded ? "w-[248px]" : "w-[64px]"}`}>
+        <motion.div
+          className="absolute left-3 top-3 h-[calc(100%-1.5rem)] overflow-visible will-change-[width]"
+          animate={{ width: desktopExpanded ? 248 : 64 }}
+          transition={sidebarSpring}
+        >
           <SidebarContent
             links={links}
             profileName={profileName}
@@ -143,9 +149,8 @@ export function AppSidebar() {
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
             collapsed={!desktopExpanded}
-            logoSrc={logoSrc}
           />
-        </div>
+        </motion.div>
       </aside>
 
       <AnimatePresence>
@@ -182,7 +187,6 @@ export function AppSidebar() {
                 openMenu={openMenu}
                 setOpenMenu={setOpenMenu}
                 collapsed={false}
-                logoSrc={logoSrc}
                 onNavigate={() => setMobileOpen(false)}
               />
             </motion.aside>
@@ -201,7 +205,6 @@ function SidebarContent({
   openMenu,
   setOpenMenu,
   collapsed,
-  logoSrc,
   onNavigate,
 }: {
   links: { primary: NavItem[]; workspace: NavItem[]; profile: NavItem[] };
@@ -211,7 +214,6 @@ function SidebarContent({
   openMenu: "notifications" | "profile" | null;
   setOpenMenu: (value: "notifications" | "profile" | null) => void;
   collapsed: boolean;
-  logoSrc: string;
   onNavigate?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
@@ -231,36 +233,60 @@ function SidebarContent({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
-      <div className={`border-b border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
+      <div className="border-b border-[var(--border)] p-2">
         <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : "justify-start"}`}>
           <NavLink
             to="/"
             onClick={onNavigate}
-            className={`brand-logo-shell flex items-center rounded-[var(--radius-sm)] ${collapsed ? "h-11 w-11 justify-center px-0" : "h-12 px-3"}`}
+            className={`brand-logo-shell grid h-11 grid-cols-[28px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 ${collapsed ? "w-11" : "w-full"}`}
             aria-label="Align home"
           >
-            <img src={collapsed ? "/align-icon.png" : logoSrc} alt="Align" className={`${collapsed ? "h-7 w-7" : "h-9 w-auto"} object-contain`} />
+            <img src="/align-icon.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
+            <span
+              className={`min-w-0 truncate text-xl font-black tracking-[-0.02em] text-[var(--text)] transition duration-150 ${
+                collapsed ? "opacity-0" : "opacity-100"
+              }`}
+            >
+              Align
+            </span>
           </NavLink>
         </div>
       </div>
 
-      <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto p-3">
-        <NavSection label="Workspace" items={links.primary} collapsed={collapsed} onNavigate={onNavigate} />
-        {links.workspace.length ? <NavSection label="Tools" items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} /> : null}
+      <nav className="min-h-0 flex-1 overflow-y-auto p-3">
+        <NavSection items={links.primary} collapsed={collapsed} onNavigate={onNavigate} />
+        {links.workspace.length ? <NavSection items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} separated /> : null}
       </nav>
 
-      <div className={`space-y-3 border-t border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
-        <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>
-          <NotificationBell align="left" placement="up" open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
+      <div className="space-y-3 border-t border-[var(--border)] p-2.5">
+        <div className="grid gap-1">
+          <div className={`grid min-h-10 grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] ${collapsed ? "w-10" : "px-0"}`}>
+            <NotificationBell align="left" placement="up" open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
+            <span
+              className={`truncate text-sm font-bold text-[var(--text)] transition duration-150 ${
+                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
+              }`}
+            >
+              Notifications
+            </span>
+          </div>
           <button
             type="button"
-            className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] ${collapsed ? "w-10 px-0" : "flex-1"}`}
+            className={`grid min-h-10 grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] text-sm font-bold text-[var(--text)] transition hover:bg-[var(--surface-hover)] ${collapsed ? "w-10" : ""}`}
             onClick={() => window.dispatchEvent(new CustomEvent("align:open-shortcuts"))}
             aria-label="Show keyboard shortcuts"
             title="Shortcuts"
           >
-            <Keyboard size={16} />
-            {collapsed ? null : "Shortcuts"}
+            <span className="grid h-10 w-10 place-items-center rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
+              <Keyboard size={16} />
+            </span>
+            <span
+              className={`truncate text-left transition duration-150 ${
+                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
+              }`}
+            >
+              Shortcuts
+            </span>
           </button>
         </div>
 
@@ -268,19 +294,25 @@ function SidebarContent({
           <button
             type="button"
             onClick={() => setOpenMenu(isProfileMenuOpen ? null : "profile")}
-            className={`flex cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] ${collapsed ? "h-11 w-11 justify-center p-0" : "w-full px-3 py-2"}`}
+            className={`grid h-11 cursor-pointer grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] text-left transition hover:bg-[var(--surface-hover)] ${collapsed ? "w-10" : "w-full"}`}
             aria-expanded={isProfileMenuOpen}
             aria-haspopup="menu"
             title={profileName}
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
+            <span className="grid h-11 w-10 shrink-0 place-items-center">
+              <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] ring-1 ring-[var(--border)]">
               {profileAvatarUrl ? (
                 <img src={profileAvatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
               ) : (
                 <UserRound size={16} />
               )}
+              </span>
             </span>
-            <span className={`min-w-0 ${collapsed ? "hidden" : ""}`}>
+            <span
+              className={`min-w-0 transition duration-150 ${
+                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
+              }`}
+            >
               <span className="block truncate text-sm font-bold text-[var(--text)]">{profileName}</span>
               <span className="block truncate text-xs text-[var(--text-soft)]">{profileEmail ?? "Workspace profile"}</span>
             </span>
@@ -331,10 +363,19 @@ function SidebarContent({
   );
 }
 
-function NavSection({ label, items, collapsed, onNavigate }: { label: string; items: NavItem[]; collapsed: boolean; onNavigate?: () => void }) {
+function NavSection({
+  items,
+  collapsed,
+  onNavigate,
+  separated = false,
+}: {
+  items: NavItem[];
+  collapsed: boolean;
+  onNavigate?: () => void;
+  separated?: boolean;
+}) {
   return (
-    <section className="space-y-2">
-      <p className={`px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--text-soft)] ${collapsed ? "sr-only" : ""}`}>{label}</p>
+    <section className={`${separated ? "mt-3 border-t border-[var(--border)] pt-3" : ""}`}>
       <div className="grid gap-1">
         {items.map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -344,15 +385,23 @@ function NavSection({ label, items, collapsed, onNavigate }: { label: string; it
             onClick={onNavigate}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `group flex min-w-0 items-center gap-3 rounded-[var(--radius-sm)] py-2.5 text-sm font-bold transition ${collapsed ? "justify-center px-2" : "px-3"} ${
+              `align-sidebar-link group grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2.5 text-sm font-bold transition ${collapsed ? "w-10" : ""} ${
                 isActive
-                  ? "align-gradient text-white shadow-[var(--shadow-sm)]"
+                  ? "align-sidebar-link-active align-gradient text-white shadow-[var(--shadow-sm)]"
                   : "text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
               }`
             }
           >
-            <Icon size={17} className="shrink-0" />
-            <span className={`min-w-0 flex-1 truncate ${collapsed ? "sr-only" : ""}`}>{label}</span>
+            <span className="grid h-5 w-5 shrink-0 place-items-center">
+              <Icon size={17} className="shrink-0" />
+            </span>
+            <span
+              className={`min-w-0 flex-1 truncate transition duration-150 ${
+                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
+              }`}
+            >
+              {label}
+            </span>
           </NavLink>
         ))}
       </div>

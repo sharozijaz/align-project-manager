@@ -1,5 +1,5 @@
-import { FolderKanban, GripVertical } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { FolderKanban } from "lucide-react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskTable } from "./TaskTable";
@@ -32,48 +32,6 @@ export function TaskList({
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
-  const dragScopeIdsRef = useRef<string[]>([]);
-
-  useEffect(() => {
-    if (!draggedId || !onReorder) return;
-
-    const findTargetId = () => {
-      const position = pointerPositionRef.current;
-      if (!position) return null;
-      const element = document.elementFromPoint(position.x, position.y);
-      const targetId = element?.closest<HTMLElement>("[data-task-reorder-id]")?.dataset.taskReorderId ?? null;
-      if (!targetId) return null;
-      return dragScopeIdsRef.current.length && !dragScopeIdsRef.current.includes(targetId) ? null : targetId;
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
-      const targetId = findTargetId();
-      setDragOverId(targetId && targetId !== draggedId ? targetId : null);
-    };
-
-    const handlePointerUp = () => {
-      const targetId = findTargetId();
-      if (targetId && targetId !== draggedId) {
-        onReorder(moveBefore(tasks.map((item) => item.id), draggedId, targetId));
-      }
-      pointerPositionRef.current = null;
-      dragScopeIdsRef.current = [];
-      setDraggedId(null);
-      setDragOverId(null);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp, { once: true });
-    window.addEventListener("pointercancel", handlePointerUp, { once: true });
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
-    };
-  }, [draggedId, onReorder, tasks]);
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const taskGroups = useMemo(() => groupTasksByProject(tasks, projectById), [projectById, tasks]);
@@ -106,6 +64,17 @@ export function TaskList({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -6, scale: 0.98 }}
           transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.75 }}
+          draggable={Boolean(onReorder)}
+          onDragStartCapture={(event) => {
+            if (!onReorder || isInteractiveTaskDragTarget(event.target)) {
+              event.preventDefault();
+              return;
+            }
+
+            setDraggedId(task.id);
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", task.id);
+          }}
           onDragOver={(event) => {
             if (!onReorder || draggedId === task.id) return;
             event.preventDefault();
@@ -123,43 +92,21 @@ export function TaskList({
             setDraggedId(null);
             setDragOverId(null);
           }}
-          className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-colors duration-200 ${draggedId === task.id ? "opacity-45" : ""} ${dragOverId === task.id ? "border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
+          className={`min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
+            onReorder ? "cursor-grab active:cursor-grabbing" : ""
+          } ${draggedId === task.id ? "scale-[0.99] opacity-40" : ""} ${
+            dragOverId === task.id ? "border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/35 p-1" : ""
+          }`}
         >
-          {onReorder ? (
-            <button
-              type="button"
-              draggable
-              title="Drag to reorder"
-              aria-label="Drag to reorder task"
-              onPointerDown={(event) => {
-                if (event.button !== 0) return;
-                event.preventDefault();
-                pointerPositionRef.current = { x: event.clientX, y: event.clientY };
-                dragScopeIdsRef.current = activeTasks.map((item) => item.id);
-                setDraggedId(task.id);
-              }}
-              onDragStart={(event) => {
-                setDraggedId(task.id);
-                dragScopeIdsRef.current = activeTasks.map((item) => item.id);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", task.id);
-              }}
-              className="flex w-8 shrink-0 cursor-grab items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing"
-            >
-              <GripVertical size={16} />
-            </button>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <TaskCard
-              task={task}
-              projects={projects}
-              project={project}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-              onComplete={onComplete}
-              showProjectBadge={!options?.hideProjectBadge}
-            />
-          </div>
+          <TaskCard
+            task={task}
+            projects={projects}
+            project={project}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            onComplete={onComplete}
+            showProjectBadge={!options?.hideProjectBadge}
+          />
         </motion.div>
         );
       })}
@@ -259,4 +206,8 @@ function moveBefore(ids: string[], draggedId: string, targetId: string) {
   const targetIndex = next.indexOf(targetId);
   next.splice(targetIndex < 0 ? next.length : targetIndex, 0, draggedId);
   return next;
+}
+
+function isInteractiveTaskDragTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest("a, button, input, select, textarea, [role='button']"));
 }

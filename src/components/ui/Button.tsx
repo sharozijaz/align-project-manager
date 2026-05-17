@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { motion, type HTMLMotionProps } from "motion/react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -11,19 +12,22 @@ const variants: Record<ButtonVariant, string> = {
     "border border-transparent bg-[var(--button-danger-bg)] text-[var(--button-danger-text)] hover:bg-[var(--button-danger-hover)]",
 };
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
   variant?: ButtonVariant;
   icon?: ReactNode;
+  children?: ReactNode;
 }
 
 export function Button({ variant = "primary", icon, className = "", children, ...props }: ButtonProps) {
   return (
-    <button
+    <motion.button
       className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-bold shadow-[var(--shadow-sm)] transition-[background-color,border-color,color,box-shadow,transform] duration-150 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 ${variants[variant]} ${className}`}
+      whileTap={props.disabled ? undefined : { scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.6 }}
       {...props}
     >
       {icon}
       {children}
-    </button>
+    </motion.button>
   );
 }

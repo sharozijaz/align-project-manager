@@ -21,6 +21,7 @@ export function ProjectCard({
   onDelete,
   dragging = false,
   dropTarget = false,
+  canDrag = false,
 }: {
   project: Project;
   tasks: Task[];
@@ -31,6 +32,7 @@ export function ProjectCard({
   onDelete: (id: string) => void;
   dragging?: boolean;
   dropTarget?: boolean;
+  canDrag?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
@@ -41,12 +43,15 @@ export function ProjectCard({
 
   return (
     <Card
+      layout
+      whileHover={dragging ? undefined : { y: -3 }}
       className={`group overflow-hidden p-4 transition duration-200 sm:p-5 ${
         dragging
-          ? "scale-[0.985] border-[var(--brand-primary)] opacity-55 shadow-[var(--shadow-md)]"
+          ? "rotate-[-1.3deg] scale-[0.985] border-[var(--brand-primary)] opacity-55 shadow-[var(--shadow-md)]"
           : dropTarget
-            ? "translate-y-1 border-[var(--brand-primary)] bg-[var(--brand-50)] shadow-[0_0_0_2px_var(--brand-primary)]"
-            : "hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-md)]"
+            ? "border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)] shadow-[var(--shadow-md)]"
+            : "hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-md)]"
+      } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""
       }`}
     >
       <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">

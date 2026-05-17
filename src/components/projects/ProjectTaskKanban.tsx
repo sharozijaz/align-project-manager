@@ -1,5 +1,6 @@
 import { Check, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus, taskStatusOptions } from "../../config/taskOptions";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
 import { dateLabel } from "../../utils/date";
@@ -34,7 +35,12 @@ export function ProjectTaskKanban({
           const columnTasks = parentTasks.filter((task) => task.status === status.value);
 
           return (
-            <section key={status.value} className="flex min-h-[560px] flex-col rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)]">
+            <motion.section
+              key={status.value}
+              className="flex min-h-[560px] flex-col rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)]"
+              layout
+              transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.8 }}
+            >
               <header className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-4">
                 <span
                   className="rounded-full border px-2.5 py-1 text-xs font-bold"
@@ -62,22 +68,24 @@ export function ProjectTaskKanban({
                   setDragOverStatus(null);
                 }}
               >
-                {columnTasks.map((task) => (
-                  <KanbanTaskCard
-                    key={task.id}
-                    task={task}
-                    subtaskCount={subtasksByParent.get(task.id)?.length ?? 0}
-                    dragging={draggedTaskId === task.id}
-                    onDragStart={() => setDraggedTaskId(task.id)}
-                    onDragEnd={() => {
-                      setDraggedTaskId(null);
-                      setDragOverStatus(null);
-                    }}
-                    onMove={(status) => onUpdateTask(task.id, { status })}
-                    onDelete={() => onDeleteTask(task.id)}
-                    onComplete={() => onCompleteTask(task.id)}
-                  />
-                ))}
+                <AnimatePresence initial={false}>
+                  {columnTasks.map((task) => (
+                    <KanbanTaskCard
+                      key={task.id}
+                      task={task}
+                      subtaskCount={subtasksByParent.get(task.id)?.length ?? 0}
+                      dragging={draggedTaskId === task.id}
+                      onDragStart={() => setDraggedTaskId(task.id)}
+                      onDragEnd={() => {
+                        setDraggedTaskId(null);
+                        setDragOverStatus(null);
+                      }}
+                      onMove={(status) => onUpdateTask(task.id, { status })}
+                      onDelete={() => onDeleteTask(task.id)}
+                      onComplete={() => onCompleteTask(task.id)}
+                    />
+                  ))}
+                </AnimatePresence>
                 {!columnTasks.length ? (
                   <div
                     className={`rounded-[var(--radius-sm)] border border-dashed p-6 text-center text-xs transition ${
@@ -90,7 +98,7 @@ export function ProjectTaskKanban({
                   </div>
                 ) : null}
               </div>
-            </section>
+            </motion.section>
           );
         })}
       </div>
@@ -125,8 +133,13 @@ function KanbanTaskCard({
       className={`cursor-grab p-4 transition duration-200 active:cursor-grabbing ${
         dragging ? "rotate-2 scale-[1.03] border-[var(--brand-primary)] opacity-70 shadow-[var(--shadow-md)]" : "hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)]"
       }`}
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: dragging ? 1.03 : 1 }}
+      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+      whileHover={dragging ? undefined : { y: -3 }}
       draggable
-      onDragStart={(event) => {
+      onDragStartCapture={(event) => {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", task.id);
         onDragStart();

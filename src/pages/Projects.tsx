@@ -1,5 +1,6 @@
-import { Archive, CheckCircle2, GripVertical, Plus, Search } from "lucide-react";
+import { Archive, CheckCircle2, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { ClientProjectsSharePanel } from "../components/projects/ClientProjectsSharePanel";
 import { ProjectCard } from "../components/projects/ProjectCard";
@@ -15,6 +16,7 @@ import type { Project, ProjectArea, ProjectStatus } from "../types/project";
 type ProjectAreaFilter = "all" | ProjectArea;
 type ProjectLifecycleFilter = Extract<ProjectStatus, "active" | "paused" | "completed" | "archived">;
 type ProjectSort = "manual" | "updated" | "name" | "due";
+type ProjectDragState = { id: string; startX: number; startY: number; x: number; y: number; active: boolean };
 
 export function Projects() {
   const [creating, setCreating] = useState(false);
@@ -23,9 +25,9 @@ export function Projects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<ProjectSort>("manual");
   const [completingProject, setCompletingProject] = useState<Project | null>(null);
-  const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
+  const [projectDrag, setProjectDrag] = useState<ProjectDragState | null>(null);
   const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
-  const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const projectDragRef = useRef<ProjectDragState | null>(null);
   const { projects, addProject, updateProject, deleteProject, reorderProjects, completeProject, archiveProject, restoreProject } = useProjectStore();
   const { tasks } = useTaskStore();
   const liveProjects = useMemo(() => projects.filter((project) => !project.deletedAt), [projects]);
@@ -55,38 +57,47 @@ export function Projects() {
       }),
     [filteredProjects, sortMode],
   );
+  const draggedProjectId = projectDrag?.id ?? null;
+  const draggedProject = draggedProjectId ? visibleProjects.find((project) => project.id === draggedProjectId) : undefined;
   const lifecycleLabel =
     lifecycleFilter === "active" ? "active" : lifecycleFilter === "paused" ? "paused" : lifecycleFilter === "completed" ? "completed" : "archived";
 
   useEffect(() => {
-    if (!draggedProjectId || sortMode !== "manual") return;
+    projectDragRef.current = projectDrag;
+  }, [projectDrag]);
 
-    const findTargetId = () => {
-      const position = pointerPositionRef.current;
-      if (!position) return null;
-      const element = document.elementFromPoint(position.x, position.y);
-      return element?.closest<HTMLElement>("[data-project-reorder-id]")?.dataset.projectReorderId ?? null;
-    };
+  useEffect(() => {
+    if (!projectDrag || sortMode !== "manual") return;
 
     const handlePointerMove = (event: PointerEvent) => {
-      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
-      const targetId = findTargetId();
-      setDragOverProjectId(targetId && targetId !== draggedProjectId ? targetId : null);
+      setProjectDrag((current) => {
+        if (!current) return current;
+        const distance = Math.hypot(event.clientX - current.startX, event.clientY - current.startY);
+        const active = current.active || distance > 8;
+
+        if (active) {
+          const target = getProjectDropTarget(event.clientX, event.clientY, current.id);
+          setDragOverProjectId(target);
+        }
+
+        return { ...current, x: event.clientX, y: event.clientY, active };
+      });
     };
 
     const handlePointerUp = () => {
-      const targetId = findTargetId();
-      if (targetId && targetId !== draggedProjectId) {
+      const current = projectDragRef.current;
+
+      if (current?.active && dragOverProjectId && current.id !== dragOverProjectId) {
         const reorderedLiveIds = mergeVisibleOrder(
           liveProjects,
           visibleProjects,
-          moveBefore(visibleProjects.map((item) => item.id), draggedProjectId, targetId),
+          swapProjectSlots(visibleProjects.map((item) => item.id), current.id, dragOverProjectId),
         );
         const deletedProjectIds = projects.filter((item) => item.deletedAt).map((item) => item.id);
         reorderProjects([...reorderedLiveIds, ...deletedProjectIds]);
       }
-      pointerPositionRef.current = null;
-      setDraggedProjectId(null);
+
+      setProjectDrag(null);
       setDragOverProjectId(null);
     };
 
@@ -99,7 +110,7 @@ export function Projects() {
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [draggedProjectId, liveProjects, projects, reorderProjects, sortMode, visibleProjects]);
+  }, [dragOverProjectId, liveProjects, projectDrag, projects, reorderProjects, sortMode, visibleProjects]);
 
   return (
     <div className="space-y-5">
@@ -151,82 +162,42 @@ export function Projects() {
           <div
             key={project.id}
             data-project-reorder-id={project.id}
-            onDragOver={(event) => {
-              if (draggedProjectId === project.id) return;
+            onPointerDown={(event) => {
+              if (sortMode !== "manual" || event.button !== 0 || isInteractiveDragTarget(event.target)) return;
               event.preventDefault();
-              setDragOverProjectId(project.id);
+              setProjectDrag({ id: project.id, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
             }}
-            onDragLeave={() => setDragOverProjectId((current) => (current === project.id ? null : current))}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (!draggedProjectId || draggedProjectId === project.id) return;
-              if (sortMode !== "manual") return;
-              const reorderedLiveIds = mergeVisibleOrder(
-                liveProjects,
-                visibleProjects,
-                moveBefore(visibleProjects.map((item) => item.id), draggedProjectId, project.id),
-              );
-              const deletedProjectIds = projects.filter((item) => item.deletedAt).map((item) => item.id);
-              reorderProjects([...reorderedLiveIds, ...deletedProjectIds]);
-              setDraggedProjectId(null);
-              setDragOverProjectId(null);
-            }}
-            onDragEnd={() => {
-              setDraggedProjectId(null);
-              setDragOverProjectId(null);
-            }}
-              className={`flex min-w-0 gap-2 rounded-[var(--radius-md)] transition-all duration-200 ${draggedProjectId === project.id ? "scale-[0.99] opacity-45" : ""} ${dragOverProjectId === project.id ? "translate-y-1 border-t-2 border-[var(--brand-primary)] pt-2" : ""}`}
+            className={`relative min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
+              sortMode === "manual" ? "cursor-grab active:cursor-grabbing" : ""
+            } ${projectDrag?.active && draggedProjectId === project.id ? "scale-[0.99] opacity-40" : ""}`}
           >
-            <button
-              type="button"
-              draggable={sortMode === "manual"}
-              disabled={sortMode !== "manual"}
-              title={sortMode === "manual" ? "Drag to reorder" : "Switch to manual order to drag"}
-              aria-label="Drag to reorder project"
-              onPointerDown={(event) => {
-                if (sortMode !== "manual" || event.button !== 0) return;
-                event.preventDefault();
-                pointerPositionRef.current = { x: event.clientX, y: event.clientY };
-                setDraggedProjectId(project.id);
+            {projectDrag?.active && dragOverProjectId === project.id && draggedProjectId !== project.id ? <DropCue /> : null}
+            <ProjectCard
+              project={project}
+              tasks={tasks.filter((task) => !task.deletedAt)}
+              dragging={projectDrag?.active && draggedProjectId === project.id}
+              dropTarget={projectDrag?.active && dragOverProjectId === project.id}
+              canDrag={sortMode === "manual"}
+              onUpdate={updateProject}
+              onComplete={setCompletingProject}
+              onArchive={(projectId) => {
+                const project = projects.find((item) => item.id === projectId);
+                if (window.confirm(`Archive "${project?.name ?? "this project"}"? It will move out of the active workspace.`)) {
+                  archiveProject(projectId);
+                }
               }}
-              onDragStart={(event) => {
-                if (sortMode !== "manual") return;
-                setDraggedProjectId(project.id);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", project.id);
+              onRestore={restoreProject}
+              onDelete={(projectId) => {
+                const project = projects.find((item) => item.id === projectId);
+                if (window.confirm(`Move "${project?.name ?? "this project"}" to Trash? You can restore it later.`)) {
+                  deleteProject(projectId);
+                }
               }}
-              className={`hidden w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] transition sm:flex ${
-                sortMode === "manual" ? "cursor-grab hover:border-[var(--brand-primary)] hover:text-[var(--text)] active:cursor-grabbing" : "cursor-not-allowed opacity-40"
-              }`}
-            >
-              <GripVertical size={16} />
-            </button>
-            <div className="min-w-0 flex-1">
-              <ProjectCard
-                project={project}
-                tasks={tasks.filter((task) => !task.deletedAt)}
-                dragging={draggedProjectId === project.id}
-                dropTarget={dragOverProjectId === project.id}
-                onUpdate={updateProject}
-                onComplete={setCompletingProject}
-                onArchive={(projectId) => {
-                  const project = projects.find((item) => item.id === projectId);
-                  if (window.confirm(`Archive "${project?.name ?? "this project"}"? It will move out of the active workspace.`)) {
-                    archiveProject(projectId);
-                  }
-                }}
-                onRestore={restoreProject}
-                onDelete={(projectId) => {
-                  const project = projects.find((item) => item.id === projectId);
-                  if (window.confirm(`Move "${project?.name ?? "this project"}" to Trash? You can restore it later.`)) {
-                    deleteProject(projectId);
-                  }
-                }}
-              />
-            </div>
+            />
           </div>
         ))}
       </div>
+      {projectDrag?.active && draggedProject ? <ProjectDragPreview project={draggedProject} x={projectDrag.x} y={projectDrag.y} /> : null}
       {!visibleProjects.length ? (
         <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
           {liveProjects.length ? "No projects match these filters." : "Create your first project to start grouping tasks."}
@@ -276,10 +247,14 @@ export function Projects() {
   );
 }
 
-function moveBefore(ids: string[], draggedId: string, targetId: string) {
-  const next = ids.filter((id) => id !== draggedId);
-  const targetIndex = next.indexOf(targetId);
-  next.splice(targetIndex < 0 ? next.length : targetIndex, 0, draggedId);
+function swapProjectSlots(ids: string[], draggedId: string, targetId: string) {
+  const draggedIndex = ids.indexOf(draggedId);
+  const targetIndex = ids.indexOf(targetId);
+  if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) return ids;
+
+  const next = [...ids];
+  next[draggedIndex] = targetId;
+  next[targetIndex] = draggedId;
   return next;
 }
 
@@ -288,4 +263,45 @@ function mergeVisibleOrder(allProjects: { id: string }[], visibleProjects: { id:
   const nextVisible = [...reorderedVisibleIds];
 
   return allProjects.map((project) => (visibleSlots.has(project.id) ? nextVisible.shift() ?? project.id : project.id));
+}
+
+function getProjectDropTarget(clientX: number, clientY: number, draggedProjectId: string) {
+  const element = document.elementFromPoint(clientX, clientY);
+  const directTarget = element?.closest<HTMLElement>("[data-project-reorder-id]");
+  const targetId = directTarget?.dataset.projectReorderId;
+  return targetId && targetId !== draggedProjectId ? targetId : null;
+}
+
+function isInteractiveDragTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest("a, button, input, select, textarea, [role='button']"));
+}
+
+function DropCue() {
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 z-20 rounded-[var(--radius-md)] border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/55 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
+      initial={{ opacity: 0, scaleX: 0.96 }}
+      animate={{ opacity: 1, scaleX: 1 }}
+      exit={{ opacity: 0, scaleX: 0.96 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
+    />
+  );
+}
+
+function ProjectDragPreview({ project, x, y }: { project: Project; x: number; y: number }) {
+  return (
+    <motion.div
+      className="pointer-events-none fixed z-50 w-[min(520px,calc(100vw-2rem))] rounded-[var(--radius-md)] border border-[var(--brand-primary)] bg-[var(--surface)] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.36)]"
+      style={{ left: x + 14, top: y + 14 }}
+      initial={{ opacity: 0, scale: 0.96, rotate: -1 }}
+      animate={{ opacity: 0.94, scale: 1, rotate: -1.2 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
+    >
+      <div className="text-sm font-black text-[var(--text)]">{project.name}</div>
+      <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project.description || "No description yet."}</div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+        <div className="h-full w-1/3 rounded-full bg-[var(--brand-primary)]" />
+      </div>
+    </motion.div>
+  );
 }

@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { motion } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import { AuthGate } from "../components/auth/AuthGate";
 import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
 import { AppShortcuts } from "../components/layout/AppShortcuts";
@@ -31,34 +31,36 @@ export function App() {
 
   return (
     <AuthGate>
-      <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
-        <DesktopTitleBar />
-        <div className="align-app-scroll h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
-          <div className="flex h-full w-full flex-col overflow-hidden lg:flex-row">
-            <AppSidebar />
-            <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-              <div className="min-h-full w-full p-3 sm:p-4 lg:p-5">
-                <motion.main
-                  key={location.pathname}
-                  className="mx-auto min-w-0 max-w-[2200px]"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
-                >
-                  <Outlet />
-                </motion.main>
+      <MotionConfig reducedMotion="user">
+        <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
+          <DesktopTitleBar />
+          <div className="align-app-scroll h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
+            <div className="flex h-full w-full flex-col overflow-hidden lg:flex-row">
+              <AppSidebar />
+              <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                <div className="min-h-full w-full p-3 sm:p-4 lg:p-5">
+                  <motion.main
+                    key={location.pathname}
+                    className="mx-auto min-w-0 max-w-[2200px]"
+                    initial={{ opacity: 0, y: 8, filter: "blur(2px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Outlet />
+                  </motion.main>
+                </div>
               </div>
+              <WorkspaceAutoSync />
+              <GoogleCalendarAutoSync />
+              <GoogleTodoAutoSync />
+              <DesktopNotificationBridge />
+              <ReminderEmailBridge />
+              <DeletedTaskToast />
+              <AppShortcuts />
             </div>
-            <WorkspaceAutoSync />
-            <GoogleCalendarAutoSync />
-            <GoogleTodoAutoSync />
-            <DesktopNotificationBridge />
-            <ReminderEmailBridge />
-            <DeletedTaskToast />
-            <AppShortcuts />
           </div>
         </div>
-      </div>
+      </MotionConfig>
     </AuthGate>
   );
 }

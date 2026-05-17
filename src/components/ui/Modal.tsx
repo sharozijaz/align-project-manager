@@ -16,6 +16,9 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
       {open ? (
         <motion.div
           className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) onClose();
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
