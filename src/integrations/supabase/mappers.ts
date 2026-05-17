@@ -19,9 +19,9 @@ export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   area: normalizeProjectArea(project.area),
   status: normalizeProjectStatus(project.status),
   priority: normalizeTaskPriority(project.priority),
-  start_date: project.startDate ?? null,
+  start_date: normalizeDateValue(project.startDate) ?? null,
   start_time: normalizeTimeValue(project.startTime) ?? null,
-  due_date: project.dueDate ?? null,
+  due_date: normalizeDateValue(project.dueDate) ?? null,
   due_time: normalizeTimeValue(project.dueTime) ?? null,
   sort_order: project.sortOrder ?? null,
   notes: normalizeProjectNotes(project.notes),
@@ -61,9 +61,9 @@ export const taskToRow = (task: Task, userId: string): TaskRow => ({
   category: task.category,
   priority: normalizeTaskPriority(task.priority),
   status: normalizeTaskStatus(task.status),
-  start_date: task.startDate ?? null,
+  start_date: normalizeDateValue(task.startDate) ?? null,
   start_time: normalizeTimeValue(task.startTime) ?? null,
-  due_date: task.dueDate ?? null,
+  due_date: normalizeDateValue(task.dueDate) ?? null,
   due_time: normalizeTimeValue(task.dueTime) ?? null,
   reminder: normalizeTaskReminder(task.reminder),
   recurrence: normalizeTaskRecurrence(task.recurrence),
@@ -181,6 +181,18 @@ function normalizeTimeValue(value?: string | null) {
   }
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function normalizeDateValue(value?: string | null) {
+  if (!value) return undefined;
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) return undefined;
+
+  const date = new Date(`${trimmed}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime())) return undefined;
+
+  return date.toISOString().slice(0, 10) === trimmed ? trimmed : undefined;
 }
 
 function normalizeProjectArea(value?: string | null) {
