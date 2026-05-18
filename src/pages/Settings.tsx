@@ -31,17 +31,12 @@ import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession"
 import {
   connectGoogleCalendar,
   disconnectGoogleCalendar,
-  getGoogleCalendarConnection,
   getGoogleCalendarReadiness,
 } from "../integrations/googleCalendar/googleCalendarClient";
 import type { GoogleCalendarConnection } from "../integrations/googleCalendar/types";
-import { previewGoogleCalendarSync, syncLocalTasksWithGoogleCalendar } from "../integrations/googleCalendar/sync";
-import {
-  getGoogleTodoSyncReadiness,
-  getGoogleTodoSyncStatus,
-  saveGoogleTodoSyncSettings,
-  syncGoogleTodos,
-} from "../integrations/googleTasks/googleTasksClient";
+import { previewGoogleCalendarSync } from "../integrations/googleCalendar/sync";
+import { clearGoogleSyncStatusCache, getGoogleSyncStatus, saveGoogleSyncSettings, syncGoogleWorkspace } from "../integrations/googleSync/googleSyncClient";
+import { getGoogleTodoSyncReadiness } from "../integrations/googleTasks/googleTasksClient";
 import type { GoogleTodoSyncSettings, GoogleTodoSyncStatus } from "../integrations/googleTasks/types";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { dateLabel } from "../utils/date";
@@ -56,6 +51,8 @@ import {
   TRASH_PROJECT_RETENTION_DAYS,
   TRASH_TASK_RETENTION_DAYS,
 } from "../utils/trash";
+
+type SettingsSection = "account" | "appearance" | "google" | "notifications" | "data";
 
 export function Settings() {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -101,12 +98,21 @@ export function Settings() {
   const googleReadiness = getGoogleCalendarReadiness();
   const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("google");
+  const settingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
+    { id: "account", label: "Account", description: "Profile and sign-in" },
+    { id: "appearance", label: "Appearance", description: "Theme and dashboard image" },
+    { id: "google", label: "Google Sync", description: "Calendar and Todo sync" },
+    { id: "notifications", label: "Notifications", description: "Email and desktop reminders" },
+    { id: "data", label: "Data", description: "Backup, cloud sync, and cleanup" },
+  ];
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const calendarStatus = params.get("googleCalendar");
 
     if (calendarStatus === "connected") {
+      clearGoogleSyncStatusCache();
       setCalendarMessage("Google Calendar connected.");
       setGoogleTasksMessage("Google account connected. You can enable Todo sync below.");
       window.history.replaceState({}, "", "/settings");
@@ -118,53 +124,40 @@ export function Settings() {
   }, []);
 
   useEffect(() => {
-    if (!session || !googleReadiness.ready) return;
+    if (!session || !googleReadiness.ready || !googleTasksReadiness.ready) return;
 
     let cancelled = false;
     setCheckingGoogleConnection(true);
-
-    void getGoogleCalendarConnection()
-      .then((connection) => {
-        if (!cancelled) setGoogleConnection(connection);
-      })
-      .catch((error) => {
-        if (!cancelled) setCalendarMessage(errorMessage(error, "Could not check Google Calendar connection."));
-      })
-      .finally(() => {
-        if (!cancelled) setCheckingGoogleConnection(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [googleReadiness.ready, session]);
-
-  useEffect(() => {
-    if (!session || !googleTasksReadiness.ready) return;
-
-    let cancelled = false;
     setCheckingGoogleTasks(true);
 
-    void getGoogleTodoSyncStatus()
+    void getGoogleSyncStatus({ includeLists: true, maxAgeMs: 5 * 60_000 })
       .then((status) => {
         if (cancelled) return;
-        setGoogleTasksStatus(status);
-        setGoogleTasksSettings(status.settings);
-        if (status.needsReconnect) {
+        setGoogleConnection(status.calendar);
+        setGoogleTasksStatus(status.todos);
+        setGoogleTasksSettings(status.todos.settings);
+        if (status.todos.needsReconnect) {
           setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
         }
       })
       .catch((error) => {
-        if (!cancelled) setGoogleTasksMessage(errorMessage(error, "Could not check Google Todo sync."));
+        if (!cancelled) {
+          const message = errorMessage(error, "Could not check Google sync.");
+          setCalendarMessage(message);
+          setGoogleTasksMessage(message);
+        }
       })
       .finally(() => {
-        if (!cancelled) setCheckingGoogleTasks(false);
+        if (!cancelled) {
+          setCheckingGoogleConnection(false);
+          setCheckingGoogleTasks(false);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [googleTasksReadiness.ready, session]);
+  }, [googleReadiness.ready, googleTasksReadiness.ready, session]);
 
   useEffect(() => {
     if (!session || !isSupabaseConfigured) return;
@@ -313,6 +306,7 @@ export function Settings() {
 
   const handleGoogleCalendarConnect = async () => {
     setCalendarMessage("");
+    clearGoogleSyncStatusCache();
 
     try {
       await connectGoogleCalendar();
@@ -326,21 +320,23 @@ export function Settings() {
     setCalendarMessage("");
 
     try {
-      const result = await syncLocalTasksWithGoogleCalendar(tasks);
+      const syncResult = await syncGoogleWorkspace({ tasks, calendar: true });
+      const result = syncResult.calendar;
+      if (!result) throw new Error("Google Calendar sync did not return a result.");
       const localEvents = events.filter((event) => event.source !== "google");
-      replaceEvents([...result.googleEvents, ...localEvents]);
+      replaceEvents([...result.events, ...localEvents]);
       googleSyncState.recordSuccess(
         {
           created: result.created,
           updated: result.updated,
           removed: result.removed,
-          importedEvents: result.importedEvents,
+          importedEvents: result.events.length,
           conflicts: result.conflicts,
         },
         "manual",
       );
       setCalendarMessage(
-        `Calendar synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.importedEvents} imported, ${result.conflicts.length} conflicts.`,
+        `Calendar synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.events.length} imported, ${result.conflicts.length} conflicts.`,
       );
     } catch (error) {
       const message = errorMessage(error, "Could not sync Google Calendar.");
@@ -362,21 +358,23 @@ export function Settings() {
     setCalendarMessage("");
 
     try {
-      const result = await syncLocalTasksWithGoogleCalendar(tasks, { forceTaskIds });
+      const syncResult = await syncGoogleWorkspace({ tasks, calendar: true, forceTaskIds });
+      const result = syncResult.calendar;
+      if (!result) throw new Error("Google Calendar sync did not return a result.");
       const localEvents = events.filter((event) => event.source !== "google");
-      replaceEvents([...result.googleEvents, ...localEvents]);
+      replaceEvents([...result.events, ...localEvents]);
       googleSyncState.recordSuccess(
         {
           created: result.created,
           updated: result.updated,
           removed: result.removed,
-          importedEvents: result.importedEvents,
+          importedEvents: result.events.length,
           conflicts: result.conflicts,
         },
         "manual",
       );
       setCalendarMessage(
-        `Conflicts overwritten. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.importedEvents} imported.`,
+        `Conflicts overwritten. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.events.length} imported.`,
       );
     } catch (error) {
       const message = errorMessage(error, "Could not overwrite Google Calendar conflicts.");
@@ -396,7 +394,10 @@ export function Settings() {
 
     try {
       await disconnectGoogleCalendar();
+      clearGoogleSyncStatusCache();
       setGoogleConnection({ connected: false });
+      setGoogleTasksStatus(null);
+      setGoogleTasksSettings({ enabled: false, todoListId: "" });
       replaceEvents(events.filter((event) => event.source !== "google"));
       googleSyncState.setStatus("idle", "Google Calendar disconnected.");
       setCalendarMessage("Google Calendar disconnected.");
@@ -408,19 +409,23 @@ export function Settings() {
   };
 
   const refreshGoogleTodoSyncStatus = async () => {
+    setCheckingGoogleConnection(true);
     setCheckingGoogleTasks(true);
     setGoogleTasksMessage("");
 
     try {
-      const status = await getGoogleTodoSyncStatus();
-      setGoogleTasksStatus(status);
-      setGoogleTasksSettings(status.settings);
-      if (status.needsReconnect) {
+      clearGoogleSyncStatusCache();
+      const status = await getGoogleSyncStatus({ includeLists: true });
+      setGoogleConnection(status.calendar);
+      setGoogleTasksStatus(status.todos);
+      setGoogleTasksSettings(status.todos.settings);
+      if (status.todos.needsReconnect) {
         setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
       }
     } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not check Google Todo sync."));
+      setGoogleTasksMessage(errorMessage(error, "Could not check Google sync."));
     } finally {
+      setCheckingGoogleConnection(false);
       setCheckingGoogleTasks(false);
     }
   };
@@ -430,7 +435,7 @@ export function Settings() {
     setGoogleTasksMessage("");
 
     try {
-      const savedSettings = await saveGoogleTodoSyncSettings(settings);
+      const savedSettings = await saveGoogleSyncSettings(settings);
       setGoogleTasksSettings(savedSettings);
       setGoogleTasksStatus((current) => (current ? { ...current, settings: savedSettings } : current));
       setGoogleTasksMessage(savedSettings.enabled ? "Google Todo sync enabled." : "Google Todo sync paused.");
@@ -452,10 +457,13 @@ export function Settings() {
     setGoogleTasksMessage("");
 
     try {
-      const result = await syncGoogleTodos({
+      const syncResult = await syncGoogleWorkspace({
         tasks,
         settings: googleTasksSettings,
+        todos: true,
       });
+      const result = syncResult.todos;
+      if (!result) throw new Error("Google Todo sync did not return a result.");
 
       setGoogleTasksSettings(result.settings);
       setGoogleTasksStatus((current) =>
@@ -548,13 +556,40 @@ export function Settings() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Settings" description="Preferences and integration placeholders for the next version." />
+      <PageHeader title="Settings" description="Organized controls for your workspace, sync, notifications, and app appearance." />
+      <Card className="p-2">
+        <div className="grid gap-2 md:grid-cols-5">
+          {settingsSections.map((section) => {
+            const isActive = section.id === settingsSection;
+
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setSettingsSection(section.id)}
+                className={`rounded-[var(--radius-md)] border px-3 py-3 text-left transition ${
+                  isActive
+                    ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                    : "border-transparent bg-transparent text-[var(--text-muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                }`}
+              >
+                <span className="block text-sm font-bold">{section.label}</span>
+                <span className="mt-1 block text-xs text-[var(--text-soft)]">{section.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        {settingsSection === "account" ? (
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">User name</p>
           <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text)]">Sharoz</div>
         </Card>
+        ) : null}
+        {settingsSection === "appearance" ? (
+        <>
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Theme</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
@@ -634,6 +669,10 @@ export function Settings() {
             })}
           </div>
         </Card>
+        </>
+        ) : null}
+        {settingsSection === "google" ? (
+        <>
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CalendarDays size={18} /> Google Calendar</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
@@ -817,6 +856,9 @@ export function Settings() {
           </div>
           {googleTasksMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{googleTasksMessage}</p> : null}
         </Card>
+        </>
+        ) : null}
+        {settingsSection === "data" ? (
         <Card className="p-4 sm:p-5">
           <h2 className="font-bold text-[var(--text)]">Data</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">Back up or restore tasks, projects, and local calendar events.</p>
@@ -833,6 +875,9 @@ export function Settings() {
           />
           {dataMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{dataMessage}</p> : null}
         </Card>
+        ) : null}
+        {settingsSection === "notifications" ? (
+        <>
         <Card className="p-4 sm:p-5 lg:col-span-2">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Mail size={18} /> Reminder Email</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
@@ -919,6 +964,9 @@ export function Settings() {
           </div>
           {desktopNotificationMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{desktopNotificationMessage}</p> : null}
         </Card>
+        </>
+        ) : null}
+        {settingsSection === "data" ? (
         <Card className="p-4 sm:p-5 lg:col-span-2">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
             <Cloud size={18} /> Supabase Sync
@@ -987,7 +1035,9 @@ export function Settings() {
           )}
           {syncMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{syncMessage}</p> : null}
         </Card>
+        ) : null}
       </div>
+      {settingsSection === "data" ? (
       <Card className="p-4 sm:p-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div>
@@ -1020,6 +1070,7 @@ export function Settings() {
           />
         </div>
       </Card>
+      ) : null}
       <p className="pb-2 text-center text-xs text-[var(--text-soft)]">
         Align v{appVersion} · Build {appBuild}
       </p>

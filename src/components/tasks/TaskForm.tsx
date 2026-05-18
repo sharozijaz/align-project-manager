@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { format, parseISO, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -32,6 +33,8 @@ const blank: TaskInput = {
   recurrence: "none",
   projectId: "",
   parentTaskId: "",
+  plannedMonth: "",
+  plannedWeekStart: "",
 };
 
 export function TaskForm({
@@ -64,10 +67,14 @@ export function TaskForm({
       initialTask?.dueDate ||
       initialTask?.dueTime ||
       (initialTask?.reminder && initialTask.reminder !== "none") ||
-      (initialTask?.recurrence && initialTask.recurrence !== "none"),
+      (initialTask?.recurrence && initialTask.recurrence !== "none") ||
+      initialTask?.plannedMonth ||
+      initialTask?.plannedWeekStart,
   );
   const [detailsOpen, setDetailsOpen] = useState(Boolean(!compact || hasAdvancedValues));
   const showProjectField = !todoOnly && !lockedProject;
+  const currentMonth = format(new Date(), "yyyy-MM");
+  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
   const selectableProjects = useMemo(
     () => projects.filter((project) => project.status === "active" || project.status === "paused" || project.id === form.projectId),
     [form.projectId, projects],
@@ -77,10 +84,12 @@ export function TaskForm({
     const parts = [];
     if (form.startDate) parts.push("start date");
     if (form.dueDate) parts.push("due date");
+    if (form.plannedMonth) parts.push("planned month");
+    if (form.plannedWeekStart) parts.push("planned week");
     if (form.reminder && form.reminder !== "none") parts.push("reminder");
     if (form.recurrence && form.recurrence !== "none") parts.push("repeat");
     return parts.length ? `${parts.join(", ")} active` : "Start, due, reminders, and repeat";
-  }, [form.dueDate, form.recurrence, form.reminder, form.startDate]);
+  }, [form.dueDate, form.plannedMonth, form.plannedWeekStart, form.recurrence, form.reminder, form.startDate]);
 
   const update = (key: keyof TaskInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -167,6 +176,42 @@ export function TaskForm({
       ))}
     </Select>
   );
+  const planningField = (
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+        <div>
+          <p className="text-sm font-bold normal-case tracking-normal text-[var(--text)]">Plan this month</p>
+          <p className="mt-1 text-xs font-medium normal-case tracking-normal text-[var(--text-muted)]">
+            {form.plannedMonth ? `Held in ${format(parseISO(`${form.plannedMonth}-01`), "MMMM")}` : "Keep it as a monthly intention before choosing a week."}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant={form.plannedMonth ? "secondary" : "ghost"}
+          className="min-h-9 justify-center"
+          onClick={() => update("plannedMonth", form.plannedMonth ? "" : currentMonth)}
+        >
+          {form.plannedMonth ? "Remove from month" : "Plan this month"}
+        </Button>
+      </div>
+      <div className="grid gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div>
+        <p className="text-sm font-bold normal-case tracking-normal text-[var(--text)]">Plan this week</p>
+        <p className="mt-1 text-xs font-medium normal-case tracking-normal text-[var(--text-muted)]">
+          {form.plannedWeekStart ? `Planned for week of ${format(parseISO(form.plannedWeekStart), "MMM d")}` : "Move it into a weekly planning bucket."}
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant={form.plannedWeekStart ? "secondary" : "ghost"}
+        className="min-h-9 justify-center"
+        onClick={() => update("plannedWeekStart", form.plannedWeekStart ? "" : currentWeekStart)}
+      >
+        {form.plannedWeekStart ? "Remove from week" : "Plan this week"}
+      </Button>
+      </div>
+    </div>
+  );
 
   const actionButtons = (
     <div className={compact ? "flex items-end gap-2" : "flex gap-2"}>
@@ -196,6 +241,8 @@ export function TaskForm({
           startTime: form.startDate && form.startTime ? form.startTime : undefined,
           dueDate: form.dueDate || undefined,
           dueTime: form.dueDate && form.dueTime ? form.dueTime : undefined,
+          plannedMonth: form.dueDate ? undefined : form.plannedMonth || undefined,
+          plannedWeekStart: form.dueDate ? undefined : form.plannedWeekStart || undefined,
         });
         if (!initialTask) setForm(lockedProject ? { ...blank, projectId: lockedProject.id, category: "project" } : blank);
       }}
@@ -238,6 +285,7 @@ export function TaskForm({
                 <FieldLabel label="Reminder">{reminderField}</FieldLabel>
                 <FieldLabel label="Repeat">{recurrenceField}</FieldLabel>
               </div>
+              <div className="mt-3">{planningField}</div>
             </motion.div>
             ) : null}
           </AnimatePresence>
@@ -259,6 +307,7 @@ export function TaskForm({
             {reminderField}
             {recurrenceField}
           </div>
+          {planningField}
           {actionButtons}
         </>
       )}

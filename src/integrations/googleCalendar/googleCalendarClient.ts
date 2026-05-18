@@ -1,14 +1,9 @@
-import type { Task } from "../../types/task";
-import type { CalendarEvent } from "../../types/calendar";
 import { appUrl, getAuthRedirectUrl, supabase } from "../supabase/client";
 import { isTauriRuntime, openExternalUrl } from "../desktop/runtime";
 import type {
   GoogleCalendarConfig,
   GoogleCalendarConnection,
-  GoogleCalendarEvent,
   GoogleCalendarReadiness,
-  GoogleCalendarSyncOptions,
-  GoogleCalendarSyncResult,
 } from "./types";
 
 const GOOGLE_CALENDAR_SCOPES = [
@@ -60,63 +55,6 @@ export async function connectGoogleCalendar(): Promise<GoogleCalendarConnection>
 
   await openExternalUrl(data.url);
   return { connected: false };
-}
-
-export async function getGoogleCalendarConnection(): Promise<GoogleCalendarConnection> {
-  const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-calendar/status"), {
-    headers: {
-      authorization: `Bearer ${token}`,
-    },
-  });
-  const data = (await response.json()) as GoogleCalendarConnection & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data.error || "Could not read Google Calendar connection.");
-  }
-
-  return data;
-}
-
-export async function fetchGoogleEvents(): Promise<GoogleCalendarEvent[]> {
-  const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-calendar/events"), {
-    headers: {
-      authorization: `Bearer ${token}`,
-    },
-  });
-  const data = (await response.json()) as { events?: CalendarEvent[]; error?: string };
-
-  if (!response.ok) {
-    throw new Error(data.error || "Could not fetch Google Calendar events.");
-  }
-
-  return (data.events ?? []) as GoogleCalendarEvent[];
-}
-
-export async function syncTasksToGoogleCalendar(tasks: Task[], options: GoogleCalendarSyncOptions = {}): Promise<GoogleCalendarSyncResult> {
-  const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-calendar/sync"), {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ tasks, forceTaskIds: options.forceTaskIds ?? [] }),
-  });
-  const data = (await response.json()) as Partial<GoogleCalendarSyncResult> & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data.error || "Could not sync tasks to Google Calendar.");
-  }
-
-  return {
-    created: data.created ?? 0,
-    updated: data.updated ?? 0,
-    removed: data.removed ?? 0,
-    skipped: data.skipped ?? 0,
-    conflicts: data.conflicts ?? [],
-  };
 }
 
 export async function disconnectGoogleCalendar(): Promise<void> {

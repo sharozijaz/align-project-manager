@@ -12,6 +12,7 @@ import { Select } from "../components/ui/Select";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project, ProjectArea, ProjectStatus } from "../types/project";
+import { getClampedDragPreviewPosition } from "../utils/dragPreview";
 
 type ProjectAreaFilter = "all" | ProjectArea;
 type ProjectLifecycleFilter = Extract<ProjectStatus, "active" | "paused" | "completed" | "archived">;
@@ -289,19 +290,18 @@ function DropCue() {
 }
 
 function ProjectDragPreview({ project, x, y }: { project: Project; x: number; y: number }) {
+  const position = getClampedDragPreviewPosition(x, y, 520, 120);
+
   return (
     <motion.div
       className="pointer-events-none fixed z-50 w-[min(520px,calc(100vw-2rem))] rounded-[var(--radius-md)] border border-[var(--brand-primary)] bg-[var(--surface)] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.36)]"
-      style={{ left: x + 14, top: y + 14 }}
+      style={position}
       initial={{ opacity: 0, scale: 0.96, rotate: -1 }}
       animate={{ opacity: 0.94, scale: 1, rotate: -1.2 }}
       transition={{ duration: 0.12, ease: "easeOut" }}
     >
       <div className="text-sm font-black text-[var(--text)]">{project.name}</div>
       <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project.description || "No description yet."}</div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-        <div className="h-full w-1/3 rounded-full bg-[var(--brand-primary)]" />
-      </div>
     </motion.div>
   );
 }

@@ -1,11 +1,14 @@
 import { FolderKanban } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskTable } from "./TaskTable";
 import type { TaskViewMode } from "./TaskViewToggle";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
+import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
+
+type TaskDragState = { id: string; groupIds: string[]; startX: number; startY: number; x: number; y: number; active: boolean };
 
 export function TaskList({
   tasks,
@@ -30,11 +33,57 @@ export function TaskList({
   onReorder?: (orderedIds: string[]) => void;
   groupByProject?: boolean;
 }) {
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [taskDrag, setTaskDrag] = useState<TaskDragState | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const taskDragRef = useRef<TaskDragState | null>(null);
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const taskGroups = useMemo(() => groupTasksByProject(tasks, projectById), [projectById, tasks]);
+  const draggedTaskId = taskDrag?.id ?? null;
+  const draggedTask = draggedTaskId ? tasks.find((task) => task.id === draggedTaskId) : undefined;
+
+  useEffect(() => {
+    taskDragRef.current = taskDrag;
+  }, [taskDrag]);
+
+  useEffect(() => {
+    if (!taskDrag || !onReorder) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setTaskDrag((current) => {
+        if (!current) return current;
+        const distance = Math.hypot(event.clientX - current.startX, event.clientY - current.startY);
+        const active = current.active || distance > 8;
+
+        if (active) {
+          setDragOverId(getTaskDropTarget(event.clientX, event.clientY, current.id, current.groupIds));
+        }
+
+        return { ...current, x: event.clientX, y: event.clientY, active };
+      });
+    };
+
+    const handlePointerUp = () => {
+      const current = taskDragRef.current;
+
+      if (current?.active && dragOverId && current.id !== dragOverId) {
+        onReorder(swapTaskSlots(current.groupIds, current.id, dragOverId));
+      }
+
+      setTaskDrag(null);
+      setDragOverId(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    window.addEventListener("pointercancel", handlePointerUp, { once: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragOverId, onReorder, taskDrag]);
 
   if (!tasks.length) {
     return (
@@ -54,6 +103,7 @@ export function TaskList({
       <AnimatePresence initial={false}>
       {activeTasks.map((task) => {
         const project = task.projectId ? projectById.get(task.projectId) : undefined;
+        const groupIds = activeTasks.map((item) => item.id);
 
         return (
         <motion.div
@@ -64,40 +114,16 @@ export function TaskList({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -6, scale: 0.98 }}
           transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.75 }}
-          draggable={Boolean(onReorder)}
-          onDragStartCapture={(event) => {
-            if (!onReorder || isInteractiveTaskDragTarget(event.target)) {
-              event.preventDefault();
-              return;
-            }
-
-            setDraggedId(task.id);
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", task.id);
-          }}
-          onDragOver={(event) => {
-            if (!onReorder || draggedId === task.id) return;
+          onPointerDown={(event) => {
+            if (!onReorder || event.button !== 0 || isInteractiveTaskDragTarget(event.target)) return;
             event.preventDefault();
-            setDragOverId(task.id);
+            setTaskDrag({ id: task.id, groupIds, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
           }}
-          onDragLeave={() => setDragOverId((current) => (current === task.id ? null : current))}
-          onDrop={(event) => {
-            event.preventDefault();
-            if (!onReorder || !draggedId || draggedId === task.id) return;
-            onReorder(moveBefore(activeTasks.map((item) => item.id), draggedId, task.id));
-            setDraggedId(null);
-            setDragOverId(null);
-          }}
-          onDragEnd={() => {
-            setDraggedId(null);
-            setDragOverId(null);
-          }}
-          className={`min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
+          className={`relative min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
             onReorder ? "cursor-grab active:cursor-grabbing" : ""
-          } ${draggedId === task.id ? "scale-[0.99] opacity-40" : ""} ${
-            dragOverId === task.id ? "border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/35 p-1" : ""
-          }`}
+          } ${taskDrag?.active && draggedTaskId === task.id ? "scale-[0.99] opacity-40" : ""}`}
         >
+          {taskDrag?.active && dragOverId === task.id && draggedTaskId !== task.id ? <TaskDropCue /> : null}
           <TaskCard
             task={task}
             projects={projects}
@@ -114,17 +140,25 @@ export function TaskList({
     </motion.div>
   );
 
+  const dragPreview = taskDrag?.active && draggedTask ? <TaskDragPreview task={draggedTask} project={draggedTask.projectId ? projectById.get(draggedTask.projectId) : undefined} x={taskDrag.x} y={taskDrag.y} /> : null;
+
   const cards = groupByProject ? (
-    <div className="space-y-4">
-      {taskGroups.map((group) => (
-        <section key={group.key} className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
-          <ProjectTaskGroupHeader project={group.project} fallbackLabel={group.label} count={group.tasks.length} />
-          <div className="p-3 sm:p-4">{renderCards(group.tasks, { hideProjectBadge: Boolean(group.project) })}</div>
-        </section>
-      ))}
-    </div>
+    <>
+      <div className="space-y-4">
+        {taskGroups.map((group) => (
+          <section key={group.key} className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+            <ProjectTaskGroupHeader project={group.project} fallbackLabel={group.label} count={group.tasks.length} />
+            <div className="p-3 sm:p-4">{renderCards(group.tasks, { hideProjectBadge: Boolean(group.project) })}</div>
+          </section>
+        ))}
+      </div>
+      {dragPreview}
+    </>
   ) : (
-    renderCards(tasks)
+    <>
+      {renderCards(tasks)}
+      {dragPreview}
+    </>
   );
 
   if (view === "cards") return cards;
@@ -201,13 +235,53 @@ function getProjectInitials(name: string) {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
-function moveBefore(ids: string[], draggedId: string, targetId: string) {
-  const next = ids.filter((id) => id !== draggedId);
-  const targetIndex = next.indexOf(targetId);
-  next.splice(targetIndex < 0 ? next.length : targetIndex, 0, draggedId);
+function swapTaskSlots(ids: string[], draggedId: string, targetId: string) {
+  const draggedIndex = ids.indexOf(draggedId);
+  const targetIndex = ids.indexOf(targetId);
+  if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) return ids;
+
+  const next = [...ids];
+  next[draggedIndex] = targetId;
+  next[targetIndex] = draggedId;
   return next;
 }
 
 function isInteractiveTaskDragTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && Boolean(target.closest("a, button, input, select, textarea, [role='button']"));
+}
+
+function getTaskDropTarget(clientX: number, clientY: number, draggedTaskId: string, groupIds: string[]) {
+  const element = document.elementFromPoint(clientX, clientY);
+  const directTarget = element?.closest<HTMLElement>("[data-task-reorder-id]");
+  const targetId = directTarget?.dataset.taskReorderId;
+  return targetId && targetId !== draggedTaskId && groupIds.includes(targetId) ? targetId : null;
+}
+
+function TaskDropCue() {
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 z-20 rounded-[var(--radius-md)] border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/45 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
+      initial={{ opacity: 0, scaleX: 0.98 }}
+      animate={{ opacity: 1, scaleX: 1 }}
+      exit={{ opacity: 0, scaleX: 0.98 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
+    />
+  );
+}
+
+function TaskDragPreview({ task, project, x, y }: { task: Task; project?: Project; x: number; y: number }) {
+  const position = getClampedDragPreviewPosition(x, y, 520, 120);
+
+  return (
+    <motion.div
+      className="pointer-events-none fixed z-50 w-[min(520px,calc(100vw-2rem))] rounded-[var(--radius-md)] border border-[var(--brand-primary)] bg-[var(--surface)] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.36)]"
+      style={position}
+      initial={{ opacity: 0, scale: 0.96, rotate: -1 }}
+      animate={{ opacity: 0.94, scale: 1, rotate: -1.1 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
+    >
+      <div className="text-sm font-black text-[var(--text)]">{task.title}</div>
+      <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project?.name ?? task.category}</div>
+    </motion.div>
+  );
 }

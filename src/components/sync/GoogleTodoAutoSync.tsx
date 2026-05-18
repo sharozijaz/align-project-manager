@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  getGoogleTodoSyncReadiness,
-  getGoogleTodoSyncStatus,
-  syncGoogleTodos,
-} from "../../integrations/googleTasks/googleTasksClient";
+import { getGoogleTodoSyncReadiness } from "../../integrations/googleTasks/googleTasksClient";
+import { getGoogleSyncStatus, syncGoogleWorkspace } from "../../integrations/googleSync/googleSyncClient";
 import type { GoogleTodoSyncSettings } from "../../integrations/googleTasks/types";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { useTaskStore } from "../../store/taskStore";
@@ -12,7 +9,6 @@ const CHANGE_DEBOUNCE_MS = 30_000;
 const AUTO_INTERVAL_MS = 15 * 60_000;
 const MIN_SYNC_GAP_MS = 90_000;
 const STARTUP_DELAY_MS = 12_000;
-const STATUS_REFRESH_MS = 60_000;
 
 export function GoogleTodoAutoSync() {
   const { session } = useSupabaseSession();
@@ -62,28 +58,21 @@ export function GoogleTodoAutoSync() {
 
     let cancelled = false;
 
-    const refreshStatus = () =>
-      getGoogleTodoSyncStatus()
-        .then((status) => {
-          if (cancelled) return;
-          setSettings(status.settings);
-          setReady(Boolean(status.connected && !status.needsReconnect && status.settings.enabled));
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setReady(false);
-            setSettings(null);
-          }
-        });
-
-    void refreshStatus();
-    const interval = window.setInterval(() => {
-      void refreshStatus();
-    }, STATUS_REFRESH_MS);
+    void getGoogleSyncStatus({ maxAgeMs: 5 * 60_000 })
+      .then((status) => {
+        if (cancelled) return;
+        setSettings(status.todos.settings);
+        setReady(Boolean(status.todos.connected && !status.todos.needsReconnect && status.todos.settings.enabled));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReady(false);
+          setSettings(null);
+        }
+      });
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
     };
   }, [session]);
 
@@ -132,13 +121,15 @@ export function GoogleTodoAutoSync() {
 
     syncingRef.current = true;
     try {
-      const result = await syncGoogleTodos({
+      const result = await syncGoogleWorkspace({
         tasks: tasksRef.current,
         settings: currentSettings,
+        todos: true,
       });
+      if (!result.todos) return;
       lastSyncedAtRef.current = Date.now();
-      setSettings(result.settings);
-      if (result.changedTasks.length) upsertTasks(result.changedTasks);
+      setSettings(result.todos.settings);
+      if (result.todos.changedTasks.length) upsertTasks(result.todos.changedTasks);
     } catch {
       setReady(false);
       didPrimeRef.current = false;

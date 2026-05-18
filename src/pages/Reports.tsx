@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { addDays, isAfter, isBefore, parseISO, subDays } from "date-fns";
-import { AlertTriangle, BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clipboard, Clock3, FolderKanban, Repeat2 } from "lucide-react";
+import { addDays, isAfter, isBefore, parseISO } from "date-fns";
+import { AlertTriangle, Archive, BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clipboard, FolderKanban, Repeat2, Target } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
@@ -17,21 +17,32 @@ export function Reports() {
   const [copied, setCopied] = useState(false);
   const { tasks } = useTaskStore();
   const { projects } = useProjectStore();
+  const liveProjects = projects.filter((project) => !project.deletedAt);
+  const currentProjects = liveProjects.filter((project) => project.status === "active" || project.status === "paused");
+  const completedProjects = liveProjects.filter((project) => project.status === "completed");
+  const archivedProjects = liveProjects.filter((project) => project.status === "archived");
+  const currentProjectIds = new Set(currentProjects.map((project) => project.id));
+  const liveProjectIds = new Set(liveProjects.map((project) => project.id));
   const activeTasks = tasks.filter((task) => !task.deletedAt);
-  const openTasks = activeTasks.filter((task) => !isTerminalTaskStatus(task.status));
-  const completedTasks = activeTasks.filter((task) => isTerminalTaskStatus(task.status));
+  const currentTasks = activeTasks.filter((task) => !task.projectId || currentProjectIds.has(task.projectId) || !liveProjectIds.has(task.projectId));
+  const openTasks = currentTasks.filter((task) => !isTerminalTaskStatus(task.status));
+  const completedTasks = currentTasks.filter((task) => isTerminalTaskStatus(task.status));
   const overdueTasks = openTasks.filter((task) => isOverdue(task.dueDate));
   const soon = addDays(new Date(), 14);
   const upcomingTasks = openTasks
     .filter((task) => isValidDate(task.dueDate) && !isOverdue(task.dueDate) && !isAfter(parseISO(task.dueDate!), soon))
     .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""))
     .slice(0, 6);
-  const recentCompleted = completedTasks.filter((task) => {
-    const updatedAt = parseISO(task.updatedAt);
-    return isAfter(updatedAt, subDays(new Date(), 30));
-  });
-  const completionRate = activeTasks.length ? Math.round((completedTasks.length / activeTasks.length) * 100) : 0;
-  const projectRows = projects.map((project) => projectReport(project, activeTasks));
+  const completionRate = currentTasks.length ? Math.round((completedTasks.length / currentTasks.length) * 100) : 0;
+  const projectRows = currentProjects
+    .map((project) => projectReport(project, activeTasks))
+    .sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.openHighPriority - a.openHighPriority || a.progress - b.progress);
+  const pausedProjectRows = projectRows.filter((row) => row.project.status === "paused");
+  const openProjectTasks = openTasks.filter((task) => task.projectId && currentProjectIds.has(task.projectId)).length;
+  const personalOpenTasks = openTasks.length - openProjectTasks;
+  const finishedProjectRows = [...completedProjects, ...archivedProjects]
+    .sort((a, b) => (b.completedAt ?? b.archivedAt ?? b.updatedAt).localeCompare(a.completedAt ?? a.archivedAt ?? a.updatedAt))
+    .slice(0, 5);
   const recurringTasks = openTasks
     .filter((task) => task.recurrence && task.recurrence !== "none")
     .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"))
@@ -44,8 +55,9 @@ export function Reports() {
     () =>
       [
         "Align workspace summary",
-        `${openTasks.length} open tasks, ${completedTasks.length} completed tasks, ${overdueTasks.length} overdue.`,
-        `Completion rate: ${completionRate}%.`,
+        `${openTasks.length} open current tasks, ${completedTasks.length} completed current tasks, ${overdueTasks.length} overdue.`,
+        `${currentProjects.length} active/paused projects. ${completedProjects.length} completed and ${archivedProjects.length} archived projects are excluded from active progress.`,
+        `Current completion rate: ${completionRate}%.`,
         atRiskProjects.length
           ? `Needs attention: ${atRiskProjects.map((row) => row.project.name).join(", ")}.`
           : "No projects currently need attention.",
@@ -53,7 +65,7 @@ export function Reports() {
           ? `Upcoming: ${upcomingTasks.map((task) => `${task.title} (${dateLabel(task.dueDate)})`).join(", ")}.`
           : "No upcoming dated tasks in the next 14 days.",
       ].join("\n"),
-    [atRiskProjects, completedTasks.length, completionRate, openTasks.length, overdueTasks.length, upcomingTasks],
+    [archivedProjects.length, atRiskProjects, completedProjects.length, completedTasks.length, completionRate, currentProjects.length, openTasks.length, overdueTasks.length, upcomingTasks],
   );
 
   const copySummary = async () => {
@@ -66,7 +78,7 @@ export function Reports() {
     <div className="space-y-4">
       <PageHeader
         title="Reports"
-        description="Track progress, overdue work, project health, and upcoming deadlines."
+        description="Review active work, attention areas, workload, and upcoming deadlines."
         actions={
           <button
             type="button"
@@ -79,23 +91,33 @@ export function Reports() {
         }
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ReportMetric icon={<FolderKanban size={18} />} label="Open Tasks" value={openTasks.length} helper={`${activeTasks.length} total active`} />
-        <ReportMetric icon={<CheckCircle2 size={18} />} label="Completion Rate" value={`${completionRate}%`} helper={`${completedTasks.length} completed`} />
+        <ReportMetric icon={<FolderKanban size={18} />} label="Open Work" value={openTasks.length} helper={`${openProjectTasks} project · ${personalOpenTasks} personal`} />
+        <ReportMetric icon={<CheckCircle2 size={18} />} label="Current Completion" value={`${completionRate}%`} helper={`${completedTasks.length} completed in current scope`} />
         <ReportMetric icon={<CircleAlert size={18} />} label="Overdue" value={overdueTasks.length} helper="Needs attention" tone="red" />
-        <ReportMetric icon={<Clock3 size={18} />} label="Completed 30d" value={recentCompleted.length} helper="Recent shipped work" />
+        <ReportMetric icon={<Target size={18} />} label="Current Projects" value={currentProjects.length} helper={`${pausedProjectRows.length} paused · ${finishedProjectRows.length} recently finished`} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="p-5">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
-            <BarChart3 size={18} /> Project Progress
-          </h2>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
+                <BarChart3 size={18} /> Active Project Progress
+              </h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Only active and paused projects show here. Completed and archived work is kept out of the current workload.</p>
+            </div>
+            <Badge tone="blue">{projectRows.length} current</Badge>
+          </div>
           <div className="mt-4 space-y-3">
             {projectRows.map((row) => (
               <div key={row.project.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <div>
-                    <h3 className="font-semibold text-[var(--text)]">{row.project.name}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-[var(--text)]">{row.project.name}</h3>
+                      {row.project.status === "paused" ? <Badge tone="amber">paused</Badge> : null}
+                      {row.overdue ? <Badge tone="red">overdue</Badge> : null}
+                    </div>
                     <p className="text-sm text-[var(--text-muted)]">
                       {row.open} open · {row.completed} done · {dateLabel(row.project.dueDate)}
                       {row.project.startDate ? ` · ${durationLabel(row.project.startDate, row.project.dueDate)}` : ""}
@@ -108,11 +130,12 @@ export function Reports() {
                 </div>
               </div>
             ))}
-            {!projectRows.length ? <EmptyReport message="Create projects to see progress reports." /> : null}
+            {!projectRows.length ? <EmptyReport message="No active or paused projects to report. Completed and archived projects are hidden from active progress." /> : null}
           </div>
         </Card>
 
         <div className="grid gap-4">
+          <FinishedProjectsCard completed={completedProjects.length} archived={archivedProjects.length} projects={finishedProjectRows} />
           <TaskPreviewCard
             title="Upcoming 14 Days"
             icon={<CalendarClock size={18} />}
@@ -133,6 +156,7 @@ export function Reports() {
         <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
           <AlertTriangle size={18} /> Needs Attention
         </h2>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Current projects with overdue, waiting/review, high, or urgent open work.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {atRiskProjects.map((row) => (
             <div key={row.project.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
@@ -161,7 +185,7 @@ export function Reports() {
         }))} />
         <BreakdownCard title="Status Mix" items={taskStatusOptions.map((option) => ({
           label: option.label,
-          count: activeTasks.filter((task) => task.status === option.value).length,
+          count: currentTasks.filter((task) => task.status === option.value).length,
           badge: <OptionBadge option={option} />,
         })).filter((item) => item.count > 0)} />
       </div>
@@ -203,6 +227,42 @@ function BreakdownCard({ title, items }: { title: string; items: { label: string
           );
         })}
         {!items.length ? <EmptyReport message="No matching tasks yet." /> : null}
+      </div>
+    </Card>
+  );
+}
+
+function FinishedProjectsCard({ completed, archived, projects }: { completed: number; archived: number; projects: Project[] }) {
+  return (
+    <Card className="p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
+            <Archive size={18} /> Finished Work
+          </h2>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Completed and archived projects stay here instead of cluttering active progress.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge tone="emerald">{completed} completed</Badge>
+          <Badge tone="slate">{archived} archived</Badge>
+        </div>
+      </div>
+      <div className="mt-4 space-y-3">
+        {projects.map((project) => (
+          <div key={project.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="break-words font-semibold text-[var(--text)]">{project.name}</h3>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  {project.status === "completed" ? "Completed" : "Archived"}{" "}
+                  {dateLabel((project.completedAt ?? project.archivedAt ?? project.updatedAt).slice(0, 10))}
+                </p>
+              </div>
+              <Badge tone={project.status === "completed" ? "emerald" : "slate"}>{project.status}</Badge>
+            </div>
+          </div>
+        ))}
+        {!projects.length ? <EmptyReport message="No completed or archived projects yet." /> : null}
       </div>
     </Card>
   );

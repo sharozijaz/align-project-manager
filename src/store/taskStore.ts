@@ -245,6 +245,8 @@ function createNextRecurringTask(task: Task, createdAt: string, sortOrder: numbe
     status: "not_started",
     startDate: nextRecurringStartDate(task.startDate, task.dueDate, nextDueDate) ?? undefined,
     dueDate: nextDueDate,
+    plannedMonth: undefined,
+    plannedWeekStart: undefined,
     sortOrder,
     recurringParentId: task.recurringParentId ?? task.id,
     parentTaskId: task.parentTaskId,

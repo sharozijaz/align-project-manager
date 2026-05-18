@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useThemeStore } from "../../store/themeStore";
 import { Button } from "./Button";
 
 interface ModalProps {
@@ -11,7 +13,9 @@ interface ModalProps {
 }
 
 export function Modal({ title, open, onClose, children }: ModalProps) {
-  return (
+  const theme = useThemeStore((state) => state.theme);
+
+  const modal = (
     <AnimatePresence>
       {open ? (
         <motion.div
@@ -26,6 +30,7 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
         >
           <motion.section
             className="w-full max-w-xl rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shadow-md)]"
+            onPointerDown={(event) => event.stopPropagation()}
             initial={{ opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -43,4 +48,8 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
       ) : null}
     </AnimatePresence>
   );
+
+  if (typeof document === "undefined") return modal;
+
+  return createPortal(<div data-theme={theme}>{modal}</div>, document.body);
 }

@@ -16,6 +16,7 @@ create table public.projects (
   start_time time,
   due_date date,
   due_time time,
+  planned_week_start date,
   sort_order numeric,
   notes jsonb not null default '[]'::jsonb,
   created_at timestamptz not null,
@@ -35,6 +36,8 @@ create table public.tasks (
   start_time time,
   due_date date,
   due_time time,
+  planned_month text,
+  planned_week_start date,
   sort_order numeric,
   deleted_at timestamptz,
   created_at timestamptz not null,
@@ -118,6 +121,8 @@ create index tasks_user_id_idx on public.tasks(user_id);
 create index tasks_due_date_idx on public.tasks(due_date);
 create index tasks_start_date_idx on public.tasks(start_date);
 create index tasks_user_sort_order_idx on public.tasks(user_id, sort_order);
+create index tasks_planned_month_idx on public.tasks(planned_month);
+create index tasks_planned_week_start_idx on public.tasks(planned_week_start);
 create index projects_start_date_idx on public.projects(start_date);
 create index projects_user_sort_order_idx on public.projects(user_id, sort_order);
 create index calendar_events_user_id_idx on public.calendar_events(user_id);

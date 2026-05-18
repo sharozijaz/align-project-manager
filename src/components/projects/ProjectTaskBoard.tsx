@@ -108,13 +108,10 @@ export function ProjectTaskBoard({
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-[1320px] w-full table-fixed border-collapse text-sm">
+                <table className="min-w-[1260px] w-full table-fixed border-collapse text-sm">
                   <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
                     <tr>
-                      <th className="w-[44px] border-r border-t border-[var(--border)] px-2 py-2 text-center">
-                        <span className="inline-block h-4 w-4 rounded border border-[var(--border-strong)]" />
-                      </th>
-                      <th className="w-[360px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
+                      <th className="w-[380px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
                       <th className="w-[180px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th>
                       <th className="w-[160px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th>
                       <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th>
@@ -166,7 +163,7 @@ export function ProjectTaskBoard({
                     })}
                     {!groupParents.length ? (
                       <tr className="border-t border-[var(--border)]">
-                        <td colSpan={8} className="border-t border-[var(--border)] px-3 py-6 text-center text-sm text-[var(--text-soft)]">
+                        <td colSpan={7} className="border-t border-[var(--border)] px-3 py-6 text-center text-sm text-[var(--text-soft)]">
                           {group.key === "todo" ? "Add a parent task like Home Page Design, then expand it for subitems." : "Completed tasks appear here automatically."}
                         </td>
                       </tr>
@@ -212,9 +209,6 @@ function BoardRow({
 
   return (
     <tr className={`group align-top transition hover:bg-[var(--surface-hover)] ${level === "subtask" ? "bg-[var(--bg-soft)]/40" : ""}`}>
-      <td className="border-r border-t border-[var(--border)] px-2 py-2 text-center">
-        <span className="inline-block h-4 w-4 rounded border border-[var(--border-strong)] bg-[var(--surface)]" />
-      </td>
       <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
         <div className={`flex min-w-0 items-center gap-2 ${level === "subtask" ? "pl-8" : ""}`}>
           {level === "parent" ? (
@@ -265,7 +259,6 @@ function BoardRow({
 function DraftRow({ value, placeholder, indent = false, onChange, onSubmit }: { value: string; placeholder: string; indent?: boolean; onChange: (value: string) => void; onSubmit: () => void }) {
   return (
     <tr className="bg-[var(--surface)]">
-      <td className="border-r border-t border-[var(--border)] px-2 py-2" />
       <td className="border-t border-[var(--border)] px-2 py-1.5" colSpan={7}>
         <div className={`flex gap-2 ${indent ? "pl-14" : ""}`}>
           <Input

@@ -33,8 +33,3 @@ export interface GoogleTodoSyncResult {
   settings: GoogleTodoSyncSettings;
   lists: GoogleTaskList[];
 }
-
-export interface GoogleTodoSyncPayload {
-  tasks: Task[];
-  settings: GoogleTodoSyncSettings;
-}

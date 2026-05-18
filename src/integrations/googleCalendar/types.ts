@@ -1,4 +1,3 @@
-import type { CalendarEvent } from "../../types/calendar";
 import type { GoogleCalendarConflict } from "../../store/googleCalendarSyncStore";
 
 export interface GoogleCalendarConnection {
@@ -9,10 +8,6 @@ export interface GoogleCalendarConnection {
   expiresAt?: string;
   updatedAt?: string;
   scopes?: string[];
-}
-
-export interface GoogleCalendarEvent extends CalendarEvent {
-  googleEventId?: string;
 }
 
 export interface GoogleCalendarConfig {

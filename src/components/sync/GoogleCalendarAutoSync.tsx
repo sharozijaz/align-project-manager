@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getGoogleCalendarConnection, getGoogleCalendarReadiness } from "../../integrations/googleCalendar/googleCalendarClient";
-import { syncLocalTasksWithGoogleCalendar } from "../../integrations/googleCalendar/sync";
+import { getGoogleCalendarReadiness } from "../../integrations/googleCalendar/googleCalendarClient";
+import { getGoogleSyncStatus, syncGoogleWorkspace } from "../../integrations/googleSync/googleSyncClient";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { useCalendarStore } from "../../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../../store/googleCalendarSyncStore";
@@ -50,9 +50,9 @@ export function GoogleCalendarAutoSync() {
     let cancelled = false;
     setStatus("checking", "Checking Google Calendar connection...");
 
-    void getGoogleCalendarConnection()
-      .then((connection) => {
-        if (!cancelled) setConnected(Boolean(connection.connected));
+    void getGoogleSyncStatus({ maxAgeMs: 5 * 60_000 })
+      .then((status) => {
+        if (!cancelled) setConnected(Boolean(status.calendar.connected));
       })
       .catch(() => {
         if (!cancelled) setConnected(false);
@@ -77,17 +77,18 @@ export function GoogleCalendarAutoSync() {
       syncingRef.current = true;
       setStatus("syncing", "Auto-syncing Google Calendar...");
 
-      void syncLocalTasksWithGoogleCalendar(tasks)
+      void syncGoogleWorkspace({ tasks, calendar: true })
         .then((result) => {
+          if (!result.calendar) return;
           const localEvents = eventsRef.current.filter((event) => event.source !== "google");
-          replaceEvents([...result.googleEvents, ...localEvents]);
+          replaceEvents([...result.calendar.events, ...localEvents]);
           recordSuccess(
             {
-              created: result.created,
-              updated: result.updated,
-              removed: result.removed,
-              importedEvents: result.importedEvents,
-              conflicts: result.conflicts,
+              created: result.calendar.created,
+              updated: result.calendar.updated,
+              removed: result.calendar.removed,
+              importedEvents: result.calendar.events.length,
+              conflicts: result.calendar.conflicts,
             },
             "auto",
           );
