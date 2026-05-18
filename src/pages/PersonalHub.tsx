@@ -259,6 +259,13 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
     setView("notes");
   };
 
+  const handleDeleteNote = (noteId: string) => {
+    const nextVisibleNote = filteredNotes.find((note) => note.id !== noteId) ?? null;
+    deleteNote(noteId);
+    if (selectedNoteId === noteId) setSelectedNoteId(nextVisibleNote?.id ?? null);
+    if (editingNoteId === noteId) setEditingNoteId(null);
+  };
+
   const startEditingNote = (note: HubNote) => {
     setEditingNoteId(note.id);
     setEditNoteForm({ title: note.title, body: note.body, tags: note.tags ?? "", projectIds: note.projectIds ?? [] });
@@ -519,7 +526,7 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
               onCancelEdit={() => setEditingNoteId(null)}
               onSaveEdit={saveEditingNote}
               onEditFormChange={setEditNoteForm}
-              onDelete={deleteNote}
+              onDelete={handleDeleteNote}
               onToggleFavorite={(note) => updateNote(note.id, { favorite: !note.favorite })}
               creatingNote={showForm === "note"}
               noteForm={noteForm}
@@ -1166,22 +1173,22 @@ function NotesWorkspace({
               <div className="flex gap-2">
                 {isEditing ? (
                   <>
-                    <Button variant="secondary" icon={<X size={15} />} onClick={onCancelEdit}>
+                    <Button type="button" variant="secondary" icon={<X size={15} />} onClick={onCancelEdit}>
                       Cancel
                     </Button>
-                    <Button icon={<Save size={15} />} onClick={onSaveEdit}>
+                    <Button type="button" icon={<Save size={15} />} onClick={onSaveEdit}>
                       Save
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="secondary" icon={<Pin size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
+                    <Button type="button" variant="secondary" icon={<Pin size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
                       {selectedNote.favorite ? "Pinned" : "Pin"}
                     </Button>
-                    <Button icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
+                    <Button type="button" icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
                       Edit
                     </Button>
-                    <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => onDelete(selectedNote.id)}>
+                    <Button type="button" variant="danger" icon={<Trash2 size={15} />} onClick={() => onDelete(selectedNote.id)}>
                       Delete
                     </Button>
                   </>
