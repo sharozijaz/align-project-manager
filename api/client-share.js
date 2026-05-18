@@ -82,15 +82,16 @@ async function fetchProjectShare(env, token) {
   const share = await findProjectShare(env, token);
   if (!share) return null;
 
-  const [project, tasks] = await Promise.all([
+  const [project, tasks, notes] = await Promise.all([
     findProject(env, share.user_id, share.project_id),
     findProjectTasks(env, share.user_id, share.project_id),
+    findLinkedHubNotes(env, share.user_id, share.project_id),
   ]);
 
   if (!project) return null;
 
   return {
-    project: { ...rowToProject(project), shareToken: token },
+    project: { ...rowToProject(project), notes: notes.map(rowToHubNote), shareToken: token },
     tasks: tasks.map(rowToTask),
   };
 }
@@ -116,7 +117,7 @@ async function findProject(env, userId, projectId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/projects`);
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("id", `eq.${projectId}`);
-  url.searchParams.set("select", "id,name,description,status,priority,start_date,due_date,notes,created_at,updated_at");
+  url.searchParams.set("select", "id,name,description,status,priority,start_date,due_date,created_at,updated_at");
   url.searchParams.set("limit", "1");
 
   const response = await serviceFetch(env, url);
@@ -136,6 +137,17 @@ async function findProjectTasks(env, userId, projectId) {
   return response.json();
 }
 
+async function findLinkedHubNotes(env, userId, projectId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/hub_notes`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("project_ids", `cs.{${projectId}}`);
+  url.searchParams.set("select", "id,title,body,tags,favorite,project_ids,created_at,updated_at");
+  url.searchParams.set("order", "updated_at.desc");
+
+  const response = await serviceFetch(env, url);
+  return response.json();
+}
+
 function rowToProject(row) {
   return {
     id: row.id,
@@ -145,7 +157,7 @@ function rowToProject(row) {
     priority: row.priority,
     startDate: row.start_date || "",
     dueDate: row.due_date || "",
-    notes: safeClientNotes(row.notes),
+    notes: [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -168,19 +180,15 @@ function rowToTask(row) {
   };
 }
 
-function safeClientNotes(notes) {
-  if (!Array.isArray(notes)) return [];
-
-  return notes
-    .filter((note) => note && note.visibility === "client")
-    .map((note) => ({
-      id: String(note.id || ""),
-      title: String(note.title || "Project note"),
-      content: String(note.content || ""),
-      url: note.url ? String(note.url) : "",
-      visibility: "client",
-      updatedAt: String(note.updatedAt || ""),
-    }));
+function rowToHubNote(row) {
+  return {
+    id: String(row.id || ""),
+    title: String(row.title || "Project note"),
+    content: String(row.body || ""),
+    tags: row.tags ? String(row.tags) : "",
+    favorite: Boolean(row.favorite),
+    updatedAt: String(row.updated_at || ""),
+  };
 }
 
 async function readSharePassword(req) {

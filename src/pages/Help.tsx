@@ -19,8 +19,8 @@ const sections = [
   {
     icon: Link2,
     title: "Client Share Links",
-    body: "Share links are read-only and separate from app accounts. Client-visible project notes appear there; private notes stay hidden.",
-    example: "Use password protection for private agency/client links when the project contains sensitive context.",
+    body: "Share links are read-only and separate from app accounts. Personal Hub notes linked to a project appear there; unlinked notes stay private.",
+    example: "Use password protection for agency/client links when a linked note contains sensitive project context.",
   },
   {
     icon: ShieldCheck,

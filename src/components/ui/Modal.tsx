@@ -10,9 +10,10 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  className?: string;
 }
 
-export function Modal({ title, open, onClose, children }: ModalProps) {
+export function Modal({ title, open, onClose, children, className = "" }: ModalProps) {
   const theme = useThemeStore((state) => state.theme);
 
   const modal = (
@@ -29,7 +30,7 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
           transition={{ duration: 0.16, ease: "easeOut" }}
         >
           <motion.section
-            className="w-full max-w-xl rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shadow-md)]"
+            className={`w-full max-w-xl rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shadow-md)] ${className}`}
             onPointerDown={(event) => event.stopPropagation()}
             initial={{ opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

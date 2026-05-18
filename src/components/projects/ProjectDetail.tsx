@@ -4,13 +4,14 @@ import { TaskList } from "../tasks/TaskList";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { Badge } from "../ui/Badge";
-import { ProjectNotes } from "./ProjectNotes";
+import { MarkdownRenderer } from "../notes/MarkdownRenderer";
+import { NoteReaderModal } from "../notes/NoteReaderModal";
 import { ProjectTaskBoard } from "./ProjectTaskBoard";
 import { ProjectTaskKanban } from "./ProjectTaskKanban";
 import { useEffect, useMemo, useState } from "react";
 import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import { useStudioStore } from "../../store/studioStore";
-import type { Project, ProjectInput } from "../../types/project";
+import type { Project } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
@@ -23,7 +24,6 @@ export function ProjectDetail({
   tasks,
   projects,
   onAddTask,
-  onUpdateProject,
   onUpdateTask,
   onDeleteTask,
   onCompleteTask,
@@ -33,7 +33,6 @@ export function ProjectDetail({
   tasks: Task[];
   projects: Project[];
   onAddTask: (input: TaskInput) => void;
-  onUpdateProject: (id: string, input: Partial<ProjectInput>) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
@@ -137,10 +136,6 @@ export function ProjectDetail({
         />
       )}
       <LinkedHubNotes notes={linkedHubNotes} />
-      <ProjectNotes
-        notes={project.notes ?? []}
-        onChange={(notes) => onUpdateProject(project.id, { notes })}
-      />
     </div>
   );
 }
@@ -182,25 +177,41 @@ function ProjectTaskViewToggle({ value, onChange }: { value: ProjectTaskView; on
 }
 
 function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
+  const [selectedNote, setSelectedNote] = useState<HubNote | null>(null);
+
   if (!notes.length) return null;
 
   return (
     <Card className="p-4 sm:p-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text)]">Personal Hub Notes</h2>
-          <p className="text-sm text-[var(--text-muted)]">Private notes linked to this project. They never appear on client share links.</p>
+          <h2 className="text-xl font-bold text-[var(--text)]">Project Context</h2>
+          <p className="text-sm text-[var(--text-muted)]">Notes linked from Personal Hub. Linked notes appear on client share links.</p>
         </div>
-        <Badge tone="slate">{notes.length} private</Badge>
+        <Badge tone="slate">{notes.length} linked</Badge>
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        {notes.map((note) => (
-          <article key={note.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+        {sortLinkedNotes(notes).map((note) => (
+          <article
+            key={note.id}
+            role="button"
+            tabIndex={0}
+            className="group cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-left transition-[border-color,background-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
+            onClick={() => setSelectedNote(note)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setSelectedNote(note);
+              }
+            }}
+          >
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-bold text-[var(--text)]">{note.title}</h3>
               {note.favorite ? <Badge tone="purple">Favorite</Badge> : null}
             </div>
-            <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{note.body}</p>
+            <div className="mt-3 max-h-72 overflow-hidden">
+              <MarkdownRenderer body={note.body} className="text-sm leading-6" />
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {note.tags
                 ?.split(",")
@@ -209,9 +220,20 @@ function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
                   <Badge key={tag.trim()}>{tag.trim()}</Badge>
                 ))}
             </div>
+            <p className="mt-3 text-xs font-bold text-[var(--text-brand)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">
+              Open note
+            </p>
           </article>
         ))}
       </div>
+      <NoteReaderModal
+        note={selectedNote ? { title: selectedNote.title, body: selectedNote.body, tags: selectedNote.tags, favorite: selectedNote.favorite, updatedAt: selectedNote.updatedAt } : null}
+        onClose={() => setSelectedNote(null)}
+      />
     </Card>
   );
+}
+
+function sortLinkedNotes(notes: HubNote[]) {
+  return [...notes].sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.updatedAt.localeCompare(a.updatedAt));
 }

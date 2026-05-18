@@ -12,17 +12,26 @@ import { DesktopNotificationBridge } from "../components/notifications/DesktopNo
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
 import { ReminderEmailBridge } from "../components/notifications/ReminderEmailBridge";
 import { useThemeStore } from "../store/themeStore";
+import { useProjectStore } from "../store/projectStore";
+import { useStudioStore } from "../store/studioStore";
 import { isTauriRuntime } from "../integrations/desktop/runtime";
 import { cleanupTrash } from "../utils/trashCleanup";
 
 export function App() {
   const theme = useThemeStore((state) => state.theme);
+  const projects = useProjectStore((state) => state.projects);
+  const noteCount = useStudioStore((state) => state.notes.length);
+  const migrateLegacyProjectNotes = useStudioStore((state) => state.migrateLegacyProjectNotes);
   const location = useLocation();
   const isDesktop = isTauriRuntime();
 
   useEffect(() => {
     cleanupTrash();
   }, []);
+
+  useEffect(() => {
+    migrateLegacyProjectNotes(projects);
+  }, [migrateLegacyProjectNotes, noteCount, projects]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("align-desktop-root", isDesktop);

@@ -1,8 +1,10 @@
-import { Archive, CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, PauseCircle, PlayCircle, Repeat2 } from "lucide-react";
+import { Archive, CalendarDays, CheckCircle2, Clock, LockKeyhole, NotebookTabs, PauseCircle, PlayCircle, Repeat2 } from "lucide-react";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
+import { MarkdownRenderer } from "../components/notes/MarkdownRenderer";
+import { NoteReaderModal } from "../components/notes/NoteReaderModal";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -23,7 +25,9 @@ interface SharedProjectNote {
   id: string;
   title: string;
   content: string;
-  url?: string;
+  tags?: string;
+  favorite?: boolean;
+  updatedAt?: string;
 }
 
 interface SharedTask {
@@ -52,6 +56,7 @@ export function PublicProjectShare() {
   const [error, setError] = useState("");
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [password, setPassword] = useState("");
+  const [selectedNote, setSelectedNote] = useState<SharedProjectNote | null>(null);
 
   const loadShare = async (passwordValue = "") => {
     setError("");
@@ -121,8 +126,10 @@ export function PublicProjectShare() {
     [data?.tasks],
   );
   const upcomingTasks = visibleTasks.filter((task) => !isTerminalTaskStatus(task.status)).slice(0, 5);
-  const sortedUpdates = visibleTasks
-    .map((task) => task.updatedAt)
+  const sortedUpdates = [
+    ...visibleTasks.map((task) => task.updatedAt),
+    ...(data?.project.notes ?? []).map((note) => note.updatedAt),
+  ]
     .filter(Boolean)
     .sort();
   const lastUpdated = sortedUpdates[sortedUpdates.length - 1];
@@ -130,7 +137,7 @@ export function PublicProjectShare() {
   return (
     <div data-theme="dark">
       <main className="min-h-screen bg-[var(--bg)] px-4 py-6 text-[var(--text)] sm:px-6">
-        <div className="mx-auto max-w-5xl space-y-5">
+        <div className="mx-auto max-w-[1600px] space-y-5">
           <header className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3 shadow-[var(--shadow-sm)]">
             <img src="/align-logo.png" alt="Align" className="h-10 w-auto" />
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--text-muted)]">
@@ -203,7 +210,7 @@ export function PublicProjectShare() {
                 </div>
               </section>
 
-              <section className="grid gap-4 md:grid-cols-[0.85fr_1.15fr]">
+              <section className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
                 <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                   <h2 className="text-lg font-bold text-[var(--text)]">Client Summary</h2>
                   <div className="mt-4 space-y-3 text-sm text-[var(--text-muted)]">
@@ -246,20 +253,12 @@ export function PublicProjectShare() {
                 <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
                   <h2 className="flex items-center gap-2 text-xl font-bold text-[var(--text)]">
                     <NotebookTabs size={18} />
-                    Shared Project Notes
+                    Project Context
                   </h2>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    {(data.project.notes ?? []).map((note) => (
-                      <article key={note.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-                        <h3 className="break-words font-bold text-[var(--text)]">{note.title}</h3>
-                        {note.url ? (
-                          <a className="mt-2 inline-flex max-w-full items-center gap-1 truncate text-sm font-semibold text-[var(--text-brand)] hover:underline" href={note.url} target="_blank" rel="noreferrer">
-                            <ExternalLink size={14} />
-                            <span className="truncate">{note.url}</span>
-                          </a>
-                        ) : null}
-                        {note.content ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{note.content}</p> : null}
-                      </article>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">Shared notes and decisions linked to this project.</p>
+                  <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                    {sortSharedNotes(data.project.notes ?? []).map((note) => (
+                      <SharedNoteCard key={note.id} note={note} onOpen={setSelectedNote} />
                     ))}
                   </div>
                 </section>
@@ -302,12 +301,72 @@ export function PublicProjectShare() {
                   ) : null}
                 </div>
               </section>
+              <NoteReaderModal
+                note={
+                  selectedNote
+                    ? {
+                        title: selectedNote.title,
+                        body: selectedNote.content,
+                        tags: selectedNote.tags,
+                        favorite: selectedNote.favorite,
+                        updatedAt: selectedNote.updatedAt,
+                      }
+                    : null
+                }
+                onClose={() => setSelectedNote(null)}
+              />
             </>
           ) : null}
         </div>
       </main>
     </div>
   );
+}
+
+function SharedNoteCard({ note, onOpen }: { note: SharedProjectNote; onOpen: (note: SharedProjectNote) => void }) {
+  const tags = note.tags?.split(",").map((tag) => tag.trim()).filter(Boolean) ?? [];
+
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      className="group cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-left transition-[border-color,background-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
+      onClick={() => onOpen(note)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(note);
+        }
+      }}
+    >
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+        <div className="min-w-0">
+          <h3 className="break-words font-bold text-[var(--text)]">{note.title}</h3>
+          {note.updatedAt ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">Updated {dateLabel(note.updatedAt.slice(0, 10))}</p> : null}
+        </div>
+        {note.favorite ? (
+          <span className="rounded-full bg-[var(--priority-urgent-bg)] px-2 py-1 text-xs font-bold text-[var(--priority-urgent-text)]">Pinned</span>
+        ) : null}
+      </div>
+      <div className="mt-3 max-h-64 overflow-hidden">
+        <MarkdownRenderer body={note.content} className="text-sm leading-6" />
+      </div>
+      {tags.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span key={tag} className="rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] px-2 py-1 text-xs font-bold text-[var(--text-muted)]">
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <p className="mt-3 text-sm font-bold text-[var(--text-brand)]">Open full note</p>
+    </article>
+  );
+}
+
+function sortSharedNotes(notes: SharedProjectNote[]) {
+  return [...notes].sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
 function SummaryRow({ label, value }: { label: string; value: ReactNode }) {

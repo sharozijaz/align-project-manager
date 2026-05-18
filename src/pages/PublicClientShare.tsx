@@ -1,8 +1,10 @@
-import { Archive, CalendarDays, CheckCircle2, Clock, ExternalLink, LockKeyhole, NotebookTabs, PauseCircle, PlayCircle, UsersRound } from "lucide-react";
+import { Archive, CalendarDays, CheckCircle2, Clock, LockKeyhole, NotebookTabs, PauseCircle, PlayCircle, UsersRound } from "lucide-react";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTaskPriorityOption, isTerminalTaskStatus } from "../config/taskOptions";
+import { MarkdownRenderer } from "../components/notes/MarkdownRenderer";
+import { NoteReaderModal } from "../components/notes/NoteReaderModal";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -24,7 +26,9 @@ interface SharedProjectNote {
   id: string;
   title: string;
   content: string;
-  url?: string;
+  tags?: string;
+  favorite?: boolean;
+  updatedAt?: string;
 }
 
 interface SharedTask {
@@ -51,6 +55,7 @@ export function PublicClientShare() {
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [password, setPassword] = useState("");
   const [savedClientName, setSavedClientName] = useState("");
+  const [selectedNote, setSelectedNote] = useState<SharedProjectNote | null>(null);
   const params = new URLSearchParams(window.location.search);
   const clientName = savedClientName || params.get("client")?.trim() || "Client Project Overview";
   const tokens = (params.get("projects") || "")
@@ -142,7 +147,7 @@ export function PublicClientShare() {
   return (
     <div data-theme="dark">
       <main className="min-h-screen bg-[var(--bg)] px-4 py-6 text-[var(--text)] sm:px-6">
-        <div className="mx-auto max-w-6xl space-y-5">
+        <div className="mx-auto max-w-[1600px] space-y-5">
           <header className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3 shadow-[var(--shadow-sm)]">
             <img src="/align-logo.png" alt="Align" className="h-10 w-auto" />
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--text-muted)]">
@@ -250,20 +255,11 @@ export function PublicClientShare() {
                           <div className="mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
                             <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">
                               <NotebookTabs size={14} />
-                              Shared notes
+                              Project context
                             </p>
-                            <div className="space-y-2">
-                              {(project.notes ?? []).map((note) => (
-                                <div key={note.id} className="text-sm">
-                                  <p className="font-semibold text-[var(--text)]">{note.title}</p>
-                                  {note.url ? (
-                                    <a className="mt-1 inline-flex max-w-full items-center gap-1 truncate font-semibold text-[var(--text-brand)] hover:underline" href={note.url} target="_blank" rel="noreferrer">
-                                      <ExternalLink size={13} />
-                                      <span className="truncate">{note.url}</span>
-                                    </a>
-                                  ) : null}
-                                  {note.content ? <p className="mt-1 whitespace-pre-wrap text-[var(--text-muted)]">{note.content}</p> : null}
-                                </div>
+                            <div className="grid gap-2 xl:grid-cols-2">
+                              {sortSharedNotes(project.notes ?? []).slice(0, 4).map((note) => (
+                                <SharedNotePreview key={note.id} note={note} onOpen={setSelectedNote} />
                               ))}
                             </div>
                           </div>
@@ -301,6 +297,20 @@ export function PublicClientShare() {
                   </div>
                 </aside>
               </section>
+              <NoteReaderModal
+                note={
+                  selectedNote
+                    ? {
+                        title: selectedNote.title,
+                        body: selectedNote.content,
+                        tags: selectedNote.tags,
+                        favorite: selectedNote.favorite,
+                        updatedAt: selectedNote.updatedAt,
+                      }
+                    : null
+                }
+                onClose={() => setSelectedNote(null)}
+              />
             </>
           )}
         </div>
@@ -317,6 +327,38 @@ function ShareStat({ label, value, icon }: { label: string; value: string | numb
       <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</div>
     </div>
   );
+}
+
+function SharedNotePreview({ note, onOpen }: { note: SharedProjectNote; onOpen: (note: SharedProjectNote) => void }) {
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      className="group cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+      onClick={() => onOpen(note)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(note);
+        }
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="break-words font-semibold text-[var(--text)]">{note.title}</p>
+        {note.favorite ? <span className="rounded-full bg-[var(--priority-urgent-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--priority-urgent-text)]">Pinned</span> : null}
+      </div>
+      {note.content ? (
+        <div className="mt-2 max-h-44 overflow-hidden">
+          <MarkdownRenderer body={note.content} className="text-sm leading-6" />
+        </div>
+      ) : null}
+      <p className="mt-2 text-xs font-bold text-[var(--text-brand)]">Open note</p>
+    </article>
+  );
+}
+
+function sortSharedNotes(notes: SharedProjectNote[]) {
+  return [...notes].sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
 type ProjectStatus = "active" | "paused" | "completed" | "archived";

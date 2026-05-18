@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { RESOURCE_SEED_VERSION, resourceSeeds } from "../data/resourceSeeds";
+import type { Project } from "../types/project";
 import type { HubNote, HubResource } from "../types/studio";
 
 type ResourceInput = Omit<HubResource, "id" | "createdAt" | "updatedAt">;
@@ -19,6 +20,7 @@ interface StudioState {
   addNote: (input: NoteInput) => void;
   updateNote: (id: string, updates: Partial<NoteInput>) => void;
   deleteNote: (id: string) => void;
+  migrateLegacyProjectNotes: (projects: Project[]) => void;
 }
 
 const stamp = () => new Date().toISOString();
@@ -31,6 +33,22 @@ function createItem<T extends object>(input: T): T & { id: string; createdAt: st
 
 function normalizeNote(note: HubNote): HubNote {
   return { ...note, projectIds: note.projectIds ?? [] };
+}
+
+function legacyProjectNoteId(projectId: string, noteId: string) {
+  return `legacy-project-note:${projectId}:${noteId}`;
+}
+
+function legacyNoteBody(content: string, url?: string) {
+  const trimmedContent = content.trim();
+  const trimmedUrl = url?.trim();
+  if (!trimmedUrl) return trimmedContent;
+  const linkLine = `[Open link](${trimmedUrl})`;
+  return trimmedContent ? `${linkLine}\n\n${trimmedContent}` : linkLine;
+}
+
+function projectTag(projectName: string) {
+  return projectName.trim() ? `Project: ${projectName.trim()}` : "Project note";
 }
 
 function updateItems<T extends { id: string; updatedAt: string }>(items: T[], itemId: string, updates: Partial<Omit<T, "id" | "createdAt" | "updatedAt">>) {
@@ -69,6 +87,32 @@ export const useStudioStore = create<StudioState>()(
       addNote: (input) => set((state) => ({ notes: [createItem({ ...input, projectIds: input.projectIds ?? [] }), ...state.notes] })),
       updateNote: (itemId, updates) => set((state) => ({ notes: updateItems(state.notes, itemId, updates) })),
       deleteNote: (itemId) => set((state) => ({ notes: state.notes.filter((item) => item.id !== itemId) })),
+      migrateLegacyProjectNotes: (projects) =>
+        set((state) => {
+          const existingIds = new Set(state.notes.map((note) => note.id));
+          const migratedNotes: HubNote[] = [];
+
+          projects.forEach((project) => {
+            (project.notes ?? []).forEach((note) => {
+              const migratedId = legacyProjectNoteId(project.id, note.id);
+              if (existingIds.has(migratedId)) return;
+
+              migratedNotes.push({
+                id: migratedId,
+                title: note.title || "Project note",
+                body: legacyNoteBody(note.content, note.url),
+                tags: note.visibility === "client" ? undefined : projectTag(project.name),
+                favorite: false,
+                projectIds: note.visibility === "client" ? [project.id] : [],
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
+              });
+              existingIds.add(migratedId);
+            });
+          });
+
+          return migratedNotes.length ? { notes: [...migratedNotes, ...state.notes] } : {};
+        }),
     }),
     {
       name: "align-personal-hub-v1",

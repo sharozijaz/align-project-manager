@@ -2,13 +2,12 @@ import type { TaskPriority } from "./task";
 
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";
 export type ProjectArea = "business" | "personal";
-export type ProjectNoteVisibility = "private" | "client";
 
 export interface ProjectNote {
   id: string;
   title: string;
   content: string;
-  visibility: ProjectNoteVisibility;
+  visibility: "private" | "client";
   url?: string;
   createdAt: string;
   updatedAt: string;

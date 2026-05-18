@@ -6,23 +6,30 @@ import {
   Edit3,
   ExternalLink,
   FileText,
+  Bold,
   Heading1,
   Heading2,
+  Heading3,
+  Italic,
   Link,
   List,
+  ListOrdered,
   Minus,
   Pin,
   Plus,
+  Quote,
   Save,
   Search,
   SlidersHorizontal,
   Star,
   StickyNote,
+  Strikethrough,
+  Table2,
   Trash2,
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { format } from "date-fns";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -651,34 +658,163 @@ function MarkdownEditor({
   onTogglePreview?: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const insertSnippet = (snippet: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      onChange(`${value}${snippet}`);
-      return;
-    }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const next = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
+  const updateValue = (next: string, selectionStart: number, selectionEnd = selectionStart) => {
     onChange(next);
     window.requestAnimationFrame(() => {
-      textarea.focus();
-      const cursor = start + snippet.length;
-      textarea.setSelectionRange(cursor, cursor);
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(selectionStart, selectionEnd);
     });
   };
 
+  const getSelection = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return { start: value.length, end: value.length };
+    }
+    return { start: textarea.selectionStart, end: textarea.selectionEnd };
+  };
+
+  const insertSnippet = (snippet: string, cursorOffset = snippet.length) => {
+    const { start, end } = getSelection();
+    const next = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
+    updateValue(next, start + cursorOffset);
+  };
+
+  const wrapSelection = (before: string, after = before, fallback = "text") => {
+    const { start, end } = getSelection();
+    const selected = value.slice(start, end) || fallback;
+    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+    updateValue(next, start + before.length, start + before.length + selected.length);
+  };
+
+  const replaceSelectedLines = (transform: (line: string, lineIndex: number) => string) => {
+    const { start, end } = getSelection();
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const lineEndIndex = value.indexOf("\n", end);
+    const lineEnd = lineEndIndex === -1 ? value.length : lineEndIndex;
+    const selectedBlock = value.slice(lineStart, lineEnd);
+    const lines = selectedBlock.split("\n");
+    const transformed = lines.map((line, index) => transform(line, index)).join("\n");
+    const next = `${value.slice(0, lineStart)}${transformed}${value.slice(lineEnd)}`;
+    updateValue(next, lineStart, lineStart + transformed.length);
+  };
+
+  const applyLinePrefix = (prefix: string) => {
+    replaceSelectedLines((line) => {
+      const cleaned = line.replace(/^(\s*)(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|- \[[ xX]\]\s+)/, "$1");
+      const indentation = cleaned.match(/^\s*/)?.[0] ?? "";
+      return `${indentation}${prefix}${cleaned.slice(indentation.length) || "item"}`;
+    });
+  };
+
+  const insertTable = () => {
+    insertSnippet("\n| Column | Column |\n| --- | --- |\n| Value | Value |\n", 2);
+  };
+
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const html = event.clipboardData.getData("text/html");
+    if (!html.trim()) return;
+
+    const markdown = convertHtmlToMarkdown(html);
+    if (!markdown.trim()) return;
+
+    event.preventDefault();
+    const { start, end } = getSelection();
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const needsLeadingBreak = Boolean(before && !before.endsWith("\n") && !markdown.startsWith("\n"));
+    const needsTrailingBreak = Boolean(after && !after.startsWith("\n") && !markdown.endsWith("\n"));
+    const insertion = `${needsLeadingBreak ? "\n" : ""}${markdown}${needsTrailingBreak ? "\n" : ""}`;
+    const next = `${before}${insertion}${after}`;
+    updateValue(next, start + insertion.length);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = event.currentTarget;
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+      event.preventDefault();
+      wrapSelection("**", "**", "bold text");
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "i") {
+      event.preventDefault();
+      wrapSelection("*", "*", "italic text");
+      return;
+    }
+
+    if (event.key === "Tab") {
+      const { start } = getSelection();
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      const line = value.slice(lineStart, value.indexOf("\n", start) === -1 ? value.length : value.indexOf("\n", start));
+      if (!/^(\s*)([-*+]\s+|\d+\.\s+|- \[[ xX]\]\s+)/.test(line)) return;
+      event.preventDefault();
+      const prefixChange = event.shiftKey ? -2 : 2;
+      replaceSelectedLines((selectedLine) => {
+        if (prefixChange > 0) return `  ${selectedLine}`;
+        return selectedLine.startsWith("  ") ? selectedLine.slice(2) : selectedLine.trimStart();
+      });
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+    const cursor = textarea.selectionStart;
+    if (cursor !== textarea.selectionEnd) return;
+    const lineStart = value.lastIndexOf("\n", cursor - 1) + 1;
+    const currentLine = value.slice(lineStart, cursor);
+    const checklistMatch = currentLine.match(/^(\s*)- \[([ xX])\]\s*(.*)$/);
+    const bulletMatch = currentLine.match(/^(\s*)[-*+]\s+(.*)$/);
+    const orderedMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+
+    const continueList = (prefix: string, lineContent: string) => {
+      event.preventDefault();
+      if (!lineContent.trim()) {
+        const next = `${value.slice(0, lineStart)}${value.slice(cursor)}`;
+        updateValue(next, lineStart);
+        return;
+      }
+      insertSnippet(`\n${prefix}`);
+    };
+
+    if (checklistMatch) {
+      continueList(`${checklistMatch[1]}- [ ] `, checklistMatch[3]);
+      return;
+    }
+    if (orderedMatch) {
+      continueList(`${orderedMatch[1]}${Number(orderedMatch[2]) + 1}. `, orderedMatch[3]);
+      return;
+    }
+    if (bulletMatch) {
+      continueList(`${bulletMatch[1]}- `, bulletMatch[2]);
+    }
+  };
+
+  const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
+  const lineCount = value ? value.split("\n").length : 1;
+
   return (
-    <div className="grid gap-3">
-      <div className="flex flex-wrap gap-2">
-        <EditorButton icon={<Heading1 size={15} />} label="Heading" onClick={() => insertSnippet("# Heading\n")} />
-        <EditorButton icon={<Heading2 size={15} />} label="Subheading" onClick={() => insertSnippet("## Subheading\n")} />
-        <EditorButton icon={<List size={15} />} label="List" onClick={() => insertSnippet("- List item\n")} />
-        <EditorButton icon={<CheckSquare size={15} />} label="Checklist" onClick={() => insertSnippet("- [ ] Checklist item\n")} />
-        <EditorButton icon={<Code2 size={15} />} label="Code" onClick={() => insertSnippet("```\ncode\n```\n")} />
-        <EditorButton icon={<Link size={15} />} label="Link" onClick={() => insertSnippet("[Link title](https://example.com)")} />
-        <EditorButton icon={<Minus size={15} />} label="Divider" onClick={() => insertSnippet("\n---\n")} />
+    <div className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
+      <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border)] bg-[var(--bg-soft)]/70 p-2">
+        <EditorButton icon={<Heading1 size={15} />} label="H1" title="Heading 1" onClick={() => applyLinePrefix("# ")} />
+        <EditorButton icon={<Heading2 size={15} />} label="H2" title="Heading 2" onClick={() => applyLinePrefix("## ")} />
+        <EditorButton icon={<Heading3 size={15} />} label="H3" title="Heading 3" onClick={() => applyLinePrefix("### ")} />
+        <span className="mx-1 h-7 w-px bg-[var(--border)]" />
+        <EditorButton icon={<Bold size={15} />} label="Bold" title="Bold" onClick={() => wrapSelection("**", "**", "bold text")} />
+        <EditorButton icon={<Italic size={15} />} label="Italic" title="Italic" onClick={() => wrapSelection("*", "*", "italic text")} />
+        <EditorButton icon={<Strikethrough size={15} />} label="Strike" title="Strikethrough" onClick={() => wrapSelection("~~", "~~", "old text")} />
+        <EditorButton icon={<Code2 size={15} />} label="Code" title="Inline code" onClick={() => wrapSelection("`", "`", "code")} />
+        <span className="mx-1 h-7 w-px bg-[var(--border)]" />
+        <EditorButton icon={<List size={15} />} label="Bullets" title="Bullet list" onClick={() => applyLinePrefix("- ")} />
+        <EditorButton icon={<ListOrdered size={15} />} label="Numbered" title="Numbered list" onClick={() => replaceSelectedLines((line, index) => `${index + 1}. ${line.replace(/^(\s*)(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|- \[[ xX]\]\s+)/, "").trim() || "item"}`)} />
+        <EditorButton icon={<CheckSquare size={15} />} label="Checklist" title="Checklist" onClick={() => applyLinePrefix("- [ ] ")} />
+        <EditorButton icon={<Quote size={15} />} label="Quote" title="Quote" onClick={() => applyLinePrefix("> ")} />
+        <span className="mx-1 h-7 w-px bg-[var(--border)]" />
+        <EditorButton icon={<Code2 size={15} />} label="Block" title="Code block" onClick={() => insertSnippet("```\ncode\n```\n", 4)} />
+        <EditorButton icon={<Link size={15} />} label="Link" title="Link" onClick={() => wrapSelection("[", "](https://example.com)", "Link title")} />
+        <EditorButton icon={<Table2 size={15} />} label="Table" title="Table" onClick={insertTable} />
+        <EditorButton icon={<Minus size={15} />} label="Divider" title="Divider" onClick={() => insertSnippet("\n---\n")} />
         {!compact && onTogglePreview ? (
           <button
             type="button"
@@ -695,17 +831,19 @@ function MarkdownEditor({
         ) : null}
       </div>
       {previewOpen && !compact ? (
-        <div className="min-h-[520px] overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-6">
+        <div className="min-h-[520px] overflow-y-auto bg-[var(--surface)] p-6">
           {value.trim() ? <NoteReader body={value} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
         </div>
       ) : (
         <div className={`grid gap-3 ${compact ? "xl:grid-cols-2" : ""}`}>
           <StudioTextarea
             ref={textareaRef}
-            className={`${compact ? "min-h-64" : "min-h-[520px]"} resize-y font-mono text-sm leading-7`}
+            className={`${compact ? "min-h-64" : "min-h-[520px]"} resize-y rounded-none border-0 bg-transparent font-mono text-sm leading-7 focus:ring-0`}
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder={"# Heading\n- [ ] Checklist item\nNotes, snippets, prompts, or decisions..."}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
+            placeholder={"# Heading\n\nWrite notes, decisions, snippets, prompts, links, tables, and checklists...\n\n- Bullet item\n- [ ] Checklist item"}
           />
           {compact ? (
             <div className="min-h-64 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -714,21 +852,162 @@ function MarkdownEditor({
           ) : null}
         </div>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--bg-soft)]/60 px-3 py-2 text-xs font-semibold text-[var(--text-soft)]">
+        <span>Markdown</span>
+        <span>{wordCount} words · {lineCount} lines</span>
+      </div>
     </div>
   );
 }
 
-function EditorButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+function EditorButton({ icon, label, title, onClick }: { icon: ReactNode; label: string; title?: string; onClick: () => void }) {
   return (
     <button
       type="button"
+      title={title ?? label}
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)]"
+      className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-sm)] border border-transparent px-2.5 text-sm font-semibold text-[var(--text-muted)] transition hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
     >
       {icon}
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </button>
   );
+}
+
+function convertHtmlToMarkdown(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const markdown = Array.from(doc.body.childNodes)
+    .map((node) => htmlNodeToMarkdown(node).trimEnd())
+    .filter(Boolean)
+    .join("\n\n");
+
+  return cleanMarkdown(markdown);
+}
+
+function htmlNodeToMarkdown(node: Node, listDepth = 0, orderedIndex = 1): string {
+  if (node.nodeType === Node.TEXT_NODE) return normalizeMarkdownText(node.textContent ?? "");
+  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+  const element = node as HTMLElement;
+  const tag = element.tagName.toLowerCase();
+  const children = () => inlineChildrenToMarkdown(element, listDepth).trim();
+  const blockChildren = () => Array.from(element.childNodes).map((child) => htmlNodeToMarkdown(child, listDepth)).join("").trim();
+
+  if (tag === "br") return "\n";
+  if (tag === "h1") return `# ${children()}`;
+  if (tag === "h2") return `## ${children()}`;
+  if (tag === "h3") return `### ${children()}`;
+  if (tag === "h4") return `#### ${children()}`;
+  if (tag === "h5") return `##### ${children()}`;
+  if (tag === "h6") return `###### ${children()}`;
+  if (tag === "p") return children();
+  if (tag === "div" || tag === "section" || tag === "article" || tag === "main" || tag === "header" || tag === "footer") return blockChildren();
+  if (tag === "strong" || tag === "b") return wrapMarkdown(children(), "**");
+  if (tag === "em" || tag === "i") return wrapMarkdown(children(), "*");
+  if (tag === "s" || tag === "del") return wrapMarkdown(children(), "~~");
+  if (tag === "code") {
+    const text = element.textContent ?? "";
+    return element.closest("pre") ? text : `\`${text.replace(/`/g, "\\`")}\``;
+  }
+  if (tag === "pre") return `\`\`\`\n${(element.textContent ?? "").replace(/\n+$/g, "")}\n\`\`\``;
+  if (tag === "a") {
+    const text = children() || normalizeMarkdownText(element.textContent ?? "");
+    const href = sanitizeMarkdownUrl(element.getAttribute("href") ?? "");
+    return href ? `[${text}](${href})` : text;
+  }
+  if (tag === "blockquote") {
+    return blockChildren()
+      .split("\n")
+      .map((line) => `> ${line}`)
+      .join("\n");
+  }
+  if (tag === "hr") return "---";
+  if (tag === "ul" || tag === "ol") return listToMarkdown(element, tag === "ol", listDepth);
+  if (tag === "li") return listItemToMarkdown(element, false, listDepth, orderedIndex);
+  if (tag === "table") return tableToMarkdown(element);
+  if (tag === "thead" || tag === "tbody" || tag === "tr" || tag === "th" || tag === "td") return children();
+
+  return blockChildren() || children();
+}
+
+function inlineChildrenToMarkdown(element: HTMLElement, listDepth = 0) {
+  return Array.from(element.childNodes)
+    .map((child) => htmlNodeToMarkdown(child, listDepth))
+    .join("")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function listToMarkdown(element: HTMLElement, ordered: boolean, listDepth: number) {
+  let index = 1;
+  return Array.from(element.children)
+    .filter((child) => child.tagName.toLowerCase() === "li")
+    .map((child) => listItemToMarkdown(child as HTMLElement, ordered, listDepth, index++))
+    .join("\n");
+}
+
+function listItemToMarkdown(element: HTMLElement, ordered: boolean, listDepth: number, orderedIndex: number) {
+  const indent = "  ".repeat(listDepth);
+  const marker = ordered ? `${orderedIndex}.` : "-";
+  const directContent: string[] = [];
+  const nestedLists: string[] = [];
+
+  Array.from(element.childNodes).forEach((child) => {
+    if (child.nodeType === Node.ELEMENT_NODE && ["ul", "ol"].includes((child as HTMLElement).tagName.toLowerCase())) {
+      nestedLists.push(htmlNodeToMarkdown(child, listDepth + 1));
+      return;
+    }
+    directContent.push(htmlNodeToMarkdown(child, listDepth));
+  });
+
+  const content = cleanInlineMarkdown(directContent.join("").trim()) || "Item";
+  const nested = nestedLists.filter(Boolean).join("\n");
+  return `${indent}${marker} ${content}${nested ? `\n${nested}` : ""}`;
+}
+
+function tableToMarkdown(element: HTMLElement) {
+  const rows = Array.from(element.querySelectorAll("tr"))
+    .map((row) =>
+      Array.from(row.querySelectorAll("th, td"))
+        .map((cell) => cleanTableCell(inlineChildrenToMarkdown(cell as HTMLElement)))
+        .filter((cell) => cell.length > 0),
+    )
+    .filter((row) => row.length > 0);
+
+  if (!rows.length) return "";
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const normalizedRows = rows.map((row) => Array.from({ length: columnCount }, (_, index) => row[index] ?? ""));
+  const header = normalizedRows[0];
+  const body = normalizedRows.slice(1);
+  const divider = Array.from({ length: columnCount }, () => "---");
+
+  return [header, divider, ...body].map((row) => `| ${row.join(" | ")} |`).join("\n");
+}
+
+function cleanMarkdown(value: string) {
+  return value
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function cleanInlineMarkdown(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function cleanTableCell(value: string) {
+  return cleanInlineMarkdown(value).replace(/\|/g, "\\|");
+}
+
+function normalizeMarkdownText(value: string) {
+  return value.replace(/\u00a0/g, " ").replace(/[ \t\r\n]+/g, " ");
+}
+
+function wrapMarkdown(value: string, marker: string) {
+  const trimmed = value.trim();
+  return trimmed ? `${marker}${trimmed}${marker}` : "";
 }
 
 function NoteListPanel({
@@ -920,8 +1199,8 @@ function NotesWorkspace({
                 <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="mx-auto max-w-4xl">
+              <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                <div className="w-full max-w-none">
                   <NoteReader body={selectedNote.body} />
                   <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4 text-xs text-[var(--text-soft)]">
                     <span>Created {format(new Date(selectedNote.createdAt), "MMM d, yyyy")}</span>
@@ -1164,100 +1443,252 @@ function NoteReader({ body }: { body: string }) {
   let codeLines: string[] = [];
   let inCodeBlock = false;
 
-  lines.forEach((rawLine, index) => {
+  const pushCodeBlock = (key: string) => {
+    nodes.push(
+      <pre key={key} className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm leading-6 text-[var(--text)]">
+        <code>{codeLines.join("\n")}</code>
+      </pre>,
+    );
+    codeLines = [];
+    inCodeBlock = false;
+  };
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
     const line = rawLine.trim();
 
     if (line.startsWith("```")) {
       if (inCodeBlock) {
-        nodes.push(
-          <pre key={`code-${index}`} className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm leading-6 text-[var(--text)]">
-            <code>{codeLines.join("\n")}</code>
-          </pre>,
-        );
-        codeLines = [];
-        inCodeBlock = false;
+        pushCodeBlock(`code-${index}`);
       } else {
         inCodeBlock = true;
       }
-      return;
+      continue;
     }
 
     if (inCodeBlock) {
       codeLines.push(rawLine);
-      return;
+      continue;
     }
 
     if (!line) {
       nodes.push(<div key={index} className="h-2" />);
-      return;
+      continue;
     }
 
-    if (line === "---") {
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
       nodes.push(<hr key={index} className="border-[var(--border)]" />);
-      return;
+      continue;
+    }
+
+    if (isMarkdownTableStart(lines, index)) {
+      const tableRows: string[][] = [];
+      let rowIndex = index;
+      while (rowIndex < lines.length && isMarkdownTableRow(lines[rowIndex])) {
+        if (rowIndex !== index + 1) tableRows.push(parseMarkdownTableRow(lines[rowIndex]));
+        rowIndex += 1;
+      }
+      const headerCells = tableRows.shift() ?? [];
+      const bodyRows = tableRows;
+      nodes.push(
+        <div key={`table-${index}`} className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)]">
+          <table className="min-w-full border-collapse text-left text-sm">
+            <thead className="bg-[var(--bg-soft)] text-[var(--text)]">
+              <tr>
+                {headerCells.map((cell, cellIndex) => (
+                  <th key={cellIndex} className="border-b border-[var(--border)] px-3 py-2 font-bold">
+                    {renderInlineMarkdown(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row, rowNumber) => (
+                <tr key={rowNumber} className="border-t border-[var(--border)]">
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="px-3 py-2 text-[var(--text-muted)]">
+                      {renderInlineMarkdown(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      index = rowIndex - 1;
+      continue;
     }
 
     if (line.startsWith("# ")) {
       nodes.push(
-        <h2 key={index} className="pt-2 font-display text-2xl font-bold leading-tight text-[var(--text)]">
+        <h1 key={index} className="pt-2 font-display text-3xl font-bold leading-tight text-[var(--text)]">
           {renderInlineMarkdown(line.slice(2))}
-        </h2>,
+        </h1>,
       );
-      return;
+      continue;
     }
 
     if (line.startsWith("## ")) {
       nodes.push(
-        <h3 key={index} className="pt-2 font-display text-xl font-bold leading-tight text-[var(--text)]">
+        <h2 key={index} className="pt-2 font-display text-2xl font-bold leading-tight text-[var(--text)]">
           {renderInlineMarkdown(line.slice(3))}
+        </h2>,
+      );
+      continue;
+    }
+
+    if (line.startsWith("### ")) {
+      nodes.push(
+        <h3 key={index} className="pt-2 font-display text-xl font-bold leading-tight text-[var(--text)]">
+          {renderInlineMarkdown(line.slice(4))}
         </h3>,
       );
-      return;
+      continue;
     }
 
-    if (line.startsWith("- [ ] ") || line.startsWith("- [x] ")) {
-      const checked = line.startsWith("- [x] ");
+    if (line.startsWith(">")) {
+      const quoteLines: string[] = [];
+      let quoteIndex = index;
+      while (quoteIndex < lines.length && lines[quoteIndex].trim().startsWith(">")) {
+        quoteLines.push(lines[quoteIndex].trim().replace(/^>\s?/, ""));
+        quoteIndex += 1;
+      }
       nodes.push(
-        <p key={index} className="flex gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-2">
-          <span className={`mt-1 grid h-4 w-4 shrink-0 place-items-center rounded border ${checked ? "border-[var(--status-completed-text)] bg-[var(--status-completed-bg)]" : "border-[var(--border-strong)]"}`}>{checked ? "✓" : ""}</span>
-          <span>{renderInlineMarkdown(line.slice(6))}</span>
-        </p>,
+        <blockquote key={`quote-${index}`} className="border-l-4 border-[var(--brand-primary)] bg-[var(--bg-soft)] px-4 py-3 text-[var(--text-muted)]">
+          {quoteLines.map((quoteLine, quoteLineIndex) => (
+            <p key={quoteLineIndex}>{renderInlineMarkdown(quoteLine)}</p>
+          ))}
+        </blockquote>,
       );
-      return;
+      index = quoteIndex - 1;
+      continue;
     }
 
-    if (line.startsWith("- ")) {
+    const checklistMatch = line.match(/^- \[([ xX])\]\s+(.+)$/);
+    if (checklistMatch) {
+      const items: Array<{ checked: boolean; text: string }> = [];
+      let itemIndex = index;
+      while (itemIndex < lines.length) {
+        const match = lines[itemIndex].trim().match(/^- \[([ xX])\]\s+(.+)$/);
+        if (!match) break;
+        items.push({ checked: match[1].toLowerCase() === "x", text: match[2] });
+        itemIndex += 1;
+      }
       nodes.push(
-        <p key={index} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-2">
-          {renderInlineMarkdown(line.slice(2))}
-        </p>,
+        <ul key={`checklist-${index}`} className="space-y-2 pl-1">
+          {items.map((item, itemNumber) => (
+            <li key={itemNumber} className="flex gap-3 text-[var(--text-muted)]">
+              <span className={`mt-1 grid h-4 w-4 shrink-0 place-items-center rounded border text-[10px] ${item.checked ? "border-[var(--status-completed-text)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]" : "border-[var(--border-strong)]"}`}>{item.checked ? "✓" : ""}</span>
+              <span>{renderInlineMarkdown(item.text)}</span>
+            </li>
+          ))}
+        </ul>,
       );
-      return;
+      index = itemIndex - 1;
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-*+]\s+(.+)$/);
+    if (bulletMatch) {
+      const items: string[] = [];
+      let itemIndex = index;
+      while (itemIndex < lines.length) {
+        const match = lines[itemIndex].trim().match(/^[-*+]\s+(.+)$/);
+        if (!match) break;
+        items.push(match[1]);
+        itemIndex += 1;
+      }
+      nodes.push(
+        <ul key={`list-${index}`} className="list-disc space-y-1 pl-6 text-[var(--text-muted)] marker:text-[var(--brand-primary)]">
+          {items.map((item, itemNumber) => (
+            <li key={itemNumber}>{renderInlineMarkdown(item)}</li>
+          ))}
+        </ul>,
+      );
+      index = itemIndex - 1;
+      continue;
+    }
+
+    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      const items: string[] = [];
+      let itemIndex = index;
+      while (itemIndex < lines.length) {
+        const match = lines[itemIndex].trim().match(/^\d+\.\s+(.+)$/);
+        if (!match) break;
+        items.push(match[1]);
+        itemIndex += 1;
+      }
+      nodes.push(
+        <ol key={`ordered-${index}`} className="list-decimal space-y-1 pl-6 text-[var(--text-muted)] marker:text-[var(--brand-primary)]">
+          {items.map((item, itemNumber) => (
+            <li key={itemNumber}>{renderInlineMarkdown(item)}</li>
+          ))}
+        </ol>,
+      );
+      index = itemIndex - 1;
+      continue;
     }
 
     nodes.push(<p key={index}>{renderInlineMarkdown(line)}</p>);
-  });
-
-  if (inCodeBlock && codeLines.length) {
-    nodes.push(
-      <pre key="code-open" className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm leading-6 text-[var(--text)]">
-        <code>{codeLines.join("\n")}</code>
-      </pre>,
-    );
   }
 
-  return <article className="space-y-3 text-base leading-8 text-[var(--text-muted)]">{nodes}</article>;
+  if (inCodeBlock && codeLines.length) {
+    pushCodeBlock("code-open");
+  }
+
+  return <article className="space-y-4 text-base leading-8 text-[var(--text-muted)]">{nodes}</article>;
 }
 
 function renderInlineMarkdown(value: string) {
-  const parts = value.split(/(\[[^\]]+\]\([^)]+\))/g);
+  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, index) => {
-    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (!match) return <span key={index}>{part}</span>;
-    return (
-      <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={match[2]} target="_blank" rel="noreferrer">
-        {match[1]}
-      </a>
-    );
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      const href = sanitizeMarkdownUrl(linkMatch[2]);
+      return href ? (
+        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noreferrer">
+          {linkMatch[1]}
+        </a>
+      ) : (
+        <span key={index}>{linkMatch[1]}</span>
+      );
+    }
+    if (/^`[^`]+`$/.test(part)) return <code key={index} className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 font-mono text-sm text-[var(--text)]">{part.slice(1, -1)}</code>;
+    if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={index} className="font-bold text-[var(--text)]">{part.slice(2, -2)}</strong>;
+    if (/^~~[^~]+~~$/.test(part)) return <del key={index}>{part.slice(2, -2)}</del>;
+    if (/^\*[^*]+\*$/.test(part)) return <em key={index}>{part.slice(1, -1)}</em>;
+    return <span key={index}>{part}</span>;
   });
+}
+
+function sanitizeMarkdownUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("#")) return trimmed;
+  try {
+    const parsed = new URL(trimmed, window.location.origin);
+    if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) return parsed.toString();
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function isMarkdownTableRow(line: string) {
+  return /^\s*\|.+\|\s*$/.test(line);
+}
+
+function isMarkdownTableStart(lines: string[], index: number) {
+  return isMarkdownTableRow(lines[index] ?? "") && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1] ?? "");
+}
+
+function parseMarkdownTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
 }
