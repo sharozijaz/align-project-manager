@@ -11,6 +11,7 @@ interface StudioState {
   resources: HubResource[];
   notes: HubNote[];
   resourceSeedVersion?: string;
+  migratedLegacyProjectNoteIds?: string[];
   importSeedResources: () => void;
   replaceResources: (resources: HubResource[]) => void;
   replaceNotes: (notes: HubNote[]) => void;
@@ -37,6 +38,10 @@ function normalizeNote(note: HubNote): HubNote {
 
 function legacyProjectNoteId(projectId: string, noteId: string) {
   return `legacy-project-note:${projectId}:${noteId}`;
+}
+
+function isLegacyProjectNoteId(noteId: string) {
+  return noteId.startsWith("legacy-project-note:");
 }
 
 function legacyNoteBody(content: string, url?: string) {
@@ -80,22 +85,34 @@ export const useStudioStore = create<StudioState>()(
           };
         }),
       replaceResources: (resources) => set({ resources }),
-      replaceNotes: (notes) => set({ notes: notes.map(normalizeNote) }),
+      replaceNotes: (notes) =>
+        set((state) => ({
+          notes: notes.map(normalizeNote),
+          migratedLegacyProjectNoteIds: mergeLegacyNoteIds(state.migratedLegacyProjectNoteIds, notes.map((note) => note.id)),
+        })),
       addResource: (input) => set((state) => ({ resources: [createItem(input), ...state.resources] })),
       updateResource: (itemId, updates) => set((state) => ({ resources: updateItems(state.resources, itemId, updates) })),
       deleteResource: (itemId) => set((state) => ({ resources: state.resources.filter((item) => item.id !== itemId) })),
       addNote: (input) => set((state) => ({ notes: [createItem({ ...input, projectIds: input.projectIds ?? [] }), ...state.notes] })),
       updateNote: (itemId, updates) => set((state) => ({ notes: updateItems(state.notes, itemId, updates) })),
-      deleteNote: (itemId) => set((state) => ({ notes: state.notes.filter((item) => item.id !== itemId) })),
+      deleteNote: (itemId) =>
+        set((state) => ({
+          notes: state.notes.filter((item) => item.id !== itemId),
+          migratedLegacyProjectNoteIds: isLegacyProjectNoteId(itemId)
+            ? mergeLegacyNoteIds(state.migratedLegacyProjectNoteIds, [itemId])
+            : state.migratedLegacyProjectNoteIds,
+        })),
       migrateLegacyProjectNotes: (projects) =>
         set((state) => {
           const existingIds = new Set(state.notes.map((note) => note.id));
+          const migratedLegacyProjectNoteIds = mergeLegacyNoteIds(state.migratedLegacyProjectNoteIds, state.notes.map((note) => note.id));
+          const knownMigratedIds = new Set(migratedLegacyProjectNoteIds);
           const migratedNotes: HubNote[] = [];
 
           projects.forEach((project) => {
             (project.notes ?? []).forEach((note) => {
               const migratedId = legacyProjectNoteId(project.id, note.id);
-              if (existingIds.has(migratedId)) return;
+              if (existingIds.has(migratedId) || knownMigratedIds.has(migratedId)) return;
 
               migratedNotes.push({
                 id: migratedId,
@@ -108,10 +125,15 @@ export const useStudioStore = create<StudioState>()(
                 updatedAt: note.updatedAt,
               });
               existingIds.add(migratedId);
+              knownMigratedIds.add(migratedId);
+              migratedLegacyProjectNoteIds.push(migratedId);
             });
           });
 
-          return migratedNotes.length ? { notes: [...migratedNotes, ...state.notes] } : {};
+          return {
+            notes: migratedNotes.length ? [...migratedNotes, ...state.notes] : state.notes,
+            migratedLegacyProjectNoteIds,
+          };
         }),
     }),
     {
@@ -122,3 +144,9 @@ export const useStudioStore = create<StudioState>()(
     },
   ),
 );
+
+function mergeLegacyNoteIds(current: string[] | undefined, noteIds: string[]) {
+  const merged = new Set(current ?? []);
+  noteIds.filter(isLegacyProjectNoteId).forEach((noteId) => merged.add(noteId));
+  return [...merged];
+}
