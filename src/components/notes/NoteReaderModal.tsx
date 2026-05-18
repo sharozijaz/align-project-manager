@@ -27,10 +27,15 @@ export function NoteReaderModal({
     .filter(Boolean);
 
   return (
-    <Modal title={note?.title || "Note"} open={Boolean(note)} onClose={onClose} className="max-w-4xl p-0">
+    <Modal
+      title={note?.title || "Note"}
+      open={Boolean(note)}
+      onClose={onClose}
+      className="!max-w-6xl p-0 sm:w-[90vw] xl:w-[1080px]"
+    >
       {note ? (
-        <div className="flex max-h-[78vh] flex-col">
-          <div className="border-b border-[var(--border)] px-5 pb-4">
+        <div className="flex max-h-[82vh] flex-col">
+          <div className="border-b border-[var(--border)] px-5 pb-4 sm:px-7">
             <div className="flex flex-wrap items-center gap-2">
               {note.favorite ? <Badge tone="purple">Pinned</Badge> : null}
               {note.updatedAt ? <span className="text-xs font-semibold text-[var(--text-soft)]">Updated {dateLabel(note.updatedAt.slice(0, 10))}</span> : null}
@@ -39,11 +44,11 @@ export function NoteReaderModal({
               ))}
             </div>
           </div>
-          <div className="min-h-0 overflow-y-auto px-5 py-5">
-            <MarkdownRenderer body={note.body} className="text-sm leading-7 sm:text-base" />
+          <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-7">
+            <MarkdownRenderer body={note.body} className="max-w-none text-sm leading-7 sm:text-base" />
           </div>
           {action ? (
-            <div className="border-t border-[var(--border)] px-5 py-4">
+            <div className="border-t border-[var(--border)] px-5 py-4 sm:px-7">
               <a
                 href={action.href}
                 target="_blank"
