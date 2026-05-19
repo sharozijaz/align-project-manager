@@ -1,17 +1,17 @@
-import { Columns3, KanbanSquare, ListTree, Table2 } from "lucide-react";
+import { Columns3, KanbanSquare, ListTree, Pin, Table2 } from "lucide-react";
 import { TaskForm } from "../tasks/TaskForm";
 import { TaskList } from "../tasks/TaskList";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { Badge } from "../ui/Badge";
-import { MarkdownRenderer } from "../notes/MarkdownRenderer";
+import { Button } from "../ui/Button";
 import { NoteReaderModal } from "../notes/NoteReaderModal";
 import { ProjectTaskBoard } from "./ProjectTaskBoard";
 import { ProjectTaskKanban } from "./ProjectTaskKanban";
 import { useEffect, useMemo, useState } from "react";
 import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import { useStudioStore } from "../../store/studioStore";
-import type { Project } from "../../types/project";
+import type { Project, ProjectInput } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
@@ -25,6 +25,7 @@ export function ProjectDetail({
   projects,
   onAddTask,
   onUpdateTask,
+  onUpdateProject,
   onDeleteTask,
   onCompleteTask,
   onReorderTasks,
@@ -34,6 +35,7 @@ export function ProjectDetail({
   projects: Project[];
   onAddTask: (input: TaskInput) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
+  onUpdateProject: (id: string, input: Partial<ProjectInput>) => void;
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
   onReorderTasks: (orderedIds: string[]) => void;
@@ -72,7 +74,18 @@ export function ProjectDetail({
               {project.startDate ? <span>{durationLabel(project.startDate, project.dueDate)}</span> : null}
             </div>
           </div>
-          <strong className="text-2xl text-[var(--text)]">{progress}%</strong>
+          <div className="flex items-center gap-3">
+            {project.status === "active" || project.status === "paused" ? (
+              <Button
+                variant="secondary"
+                icon={<Pin size={15} className={project.pinnedAt ? "fill-[var(--brand-primary)] text-[var(--brand-primary)]" : undefined} />}
+                onClick={() => onUpdateProject(project.id, { pinnedAt: project.pinnedAt ? undefined : new Date().toISOString() })}
+              >
+                {project.pinnedAt ? "Pinned" : "Pin project"}
+              </Button>
+            ) : null}
+            <strong className="text-2xl text-[var(--text)]">{progress}%</strong>
+          </div>
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
           <div className="h-full align-gradient" style={{ width: `${progress}%` }} />
@@ -206,21 +219,10 @@ function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
             }}
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="font-bold text-[var(--text)]">{note.title}</h3>
+              <h3 className="min-w-0 truncate font-bold text-[var(--text)]">{note.title}</h3>
               {note.favorite ? <Badge tone="purple">Favorite</Badge> : null}
             </div>
-            <div className="mt-3 max-h-72 overflow-hidden">
-              <MarkdownRenderer body={note.body} className="text-sm leading-6" />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {note.tags
-                ?.split(",")
-                .filter(Boolean)
-                .map((tag) => (
-                  <Badge key={tag.trim()}>{tag.trim()}</Badge>
-                ))}
-            </div>
-            <p className="mt-3 text-xs font-bold text-[var(--text-brand)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">
+            <p className="mt-2 text-xs font-bold text-[var(--text-brand)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">
               Open note
             </p>
           </article>

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Archive, CheckCircle2, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, CheckCircle2, ExternalLink, Pencil, Pin, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -62,6 +62,17 @@ export function ProjectCard({
           <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-muted)]">{project.description || "No description yet."}</p>
         </div>
         <div className="flex shrink-0 gap-1.5 opacity-80 transition group-hover:opacity-100">
+          {project.status === "active" || project.status === "paused" ? (
+            <Button
+              variant="secondary"
+              className="min-h-9 px-3 sm:min-h-10"
+              title={project.pinnedAt ? "Unpin from sidebar" : "Pin to sidebar"}
+              aria-label={project.pinnedAt ? "Unpin project from sidebar" : "Pin project to sidebar"}
+              onClick={() => onUpdate(project.id, { pinnedAt: project.pinnedAt ? undefined : new Date().toISOString() })}
+            >
+              <Pin size={16} className={project.pinnedAt ? "fill-[var(--brand-primary)] text-[var(--brand-primary)]" : undefined} />
+            </Button>
+          ) : null}
           <Button variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </Button>

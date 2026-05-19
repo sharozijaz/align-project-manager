@@ -25,6 +25,7 @@ export interface Project {
   dueDate?: string;
   dueTime?: string;
   sortOrder?: number;
+  pinnedAt?: string;
   notes?: ProjectNote[];
   completedAt?: string;
   archivedAt?: string;

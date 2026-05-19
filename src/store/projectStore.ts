@@ -12,6 +12,8 @@ interface ProjectState {
   completeProject: (id: string, archive?: boolean) => void;
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
+  pinProject: (id: string) => void;
+  unpinProject: (id: string) => void;
   deleteProject: (id: string) => void;
   permanentlyDeleteProject: (id: string) => void;
   cleanupDeletedProjects: (retentionDays: number) => void;
@@ -95,6 +97,24 @@ export const useProjectStore = create<ProjectState>()(
               : project,
           ),
         })),
+      pinProject: (projectId) =>
+        set((state) => {
+          const now = stamp();
+          return {
+            projects: state.projects.map((project) =>
+              project.id === projectId ? { ...project, pinnedAt: now, updatedAt: now } : project,
+            ),
+          };
+        }),
+      unpinProject: (projectId) =>
+        set((state) => {
+          const now = stamp();
+          return {
+            projects: state.projects.map((project) =>
+              project.id === projectId ? { ...project, pinnedAt: undefined, updatedAt: now } : project,
+            ),
+          };
+        }),
       deleteProject: (projectId) =>
         set((state) => ({
           projects: state.projects.map((project) =>
@@ -124,6 +144,7 @@ export const useProjectStore = create<ProjectState>()(
               area: project.area ?? "business",
               status: normalizeProjectStatus(project.status),
               sortOrder: Number.isFinite(project.sortOrder) ? project.sortOrder : index,
+              pinnedAt: project.pinnedAt,
             }))
             .sort(compareSortOrder),
         }),

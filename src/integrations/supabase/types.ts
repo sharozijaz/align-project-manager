@@ -63,6 +63,7 @@ export interface Database {
           due_date: string | null;
           due_time: string | null;
           sort_order: number | null;
+          pinned_at: string | null;
           notes: ProjectNote[] | null;
           completed_at: string | null;
           archived_at: string | null;
@@ -83,6 +84,7 @@ export interface Database {
           due_date?: string | null;
           due_time?: string | null;
           sort_order?: number | null;
+          pinned_at?: string | null;
           notes?: ProjectNote[] | null;
           completed_at?: string | null;
           archived_at?: string | null;

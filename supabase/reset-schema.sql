@@ -18,6 +18,7 @@ create table public.projects (
   due_time time,
   planned_week_start date,
   sort_order numeric,
+  pinned_at timestamptz,
   notes jsonb not null default '[]'::jsonb,
   created_at timestamptz not null,
   updated_at timestamptz not null

@@ -764,7 +764,15 @@ function CalendarItemChip({
   onDragEnd?: () => void;
 }) {
   if (item.kind === "event") {
-    return <p className="truncate rounded bg-[var(--priority-urgent-bg)] px-2 py-1 text-xs font-bold text-[var(--priority-urgent-text)]">{item.event.title}</p>;
+    return (
+      <p
+        className="flex min-w-0 items-center gap-1 rounded bg-[var(--priority-urgent-bg)] px-2 py-1 text-xs font-bold text-[var(--priority-urgent-text)]"
+        title={`Event: ${item.event.title}`}
+      >
+        <CalendarPlus size={12} className="shrink-0 opacity-80" />
+        <span className="truncate">{item.event.title}</span>
+      </p>
+    );
   }
 
   const status = getTaskStatusOption(item.task.status);
@@ -780,7 +788,7 @@ function CalendarItemChip({
   return (
     <p
       draggable={draggable}
-      className={`truncate rounded px-2 py-1 text-xs font-bold transition ${
+      className={`flex min-w-0 items-center gap-1 rounded px-2 py-1 text-xs font-bold transition ${
         draggable ? "cursor-grab select-none hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] active:cursor-grabbing" : ""
       } ${dragging ? "opacity-45 ring-2 ring-[var(--brand-primary)]" : ""}`}
       style={{ backgroundColor: status.bg, color: status.text }}
@@ -789,7 +797,8 @@ function CalendarItemChip({
       onDragEnd={onDragEnd}
       onClick={(event) => event.stopPropagation()}
     >
-      {item.task.title}
+      <CalendarDays size={12} className="shrink-0 opacity-80" />
+      <span className="truncate">{item.task.title}</span>
     </p>
   );
 }
@@ -955,12 +964,53 @@ function EmptyPanel({ title, description, compact = false }: { title: string; de
 }
 
 function getCalendarItems(tasks: Task[], events: CalendarEvent[]): CalendarItem[] {
+  const googleEventDateKeys = new Set(
+    events
+      .filter((event) => event.source === "google")
+      .map((event) => calendarDuplicateKey(event.title, event.startDate)),
+  );
+  const googleLinkedTaskIds = new Set(
+    events
+      .filter((event) => event.source === "google" && event.linkedTaskId)
+      .map((event) => event.linkedTaskId!),
+  );
+  const visibleTasks = tasks.filter((task) => {
+    if (!task.dueDate) return false;
+    if (googleLinkedTaskIds.has(task.id)) return false;
+    return !googleEventDateKeys.has(calendarDuplicateKey(task.title, task.dueDate));
+  });
+  const visibleDateKeys = new Set([
+    ...visibleTasks.map((task) => calendarDuplicateKey(task.title, task.dueDate!)),
+    ...events.filter((event) => event.source !== "local").map((event) => calendarDuplicateKey(event.title, event.startDate)),
+  ]);
+
   return [
-    ...tasks
-      .filter((task) => task.dueDate)
-      .map((task) => ({ id: `task-${task.id}`, date: task.dueDate!, kind: "task" as const, task })),
-    ...events.map((event) => ({ id: `event-${event.id}`, date: event.startDate, kind: "event" as const, event })),
+    ...visibleTasks.map((task) => ({ id: `task-${task.id}`, date: task.dueDate!, kind: "task" as const, task })),
+    ...events
+      .filter((event) => !isDuplicateLocalEvent(event, visibleDateKeys))
+      .map((event) => ({ id: `event-${event.id}`, date: event.startDate, kind: "event" as const, event })),
   ].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function isDuplicateLocalEvent(event: CalendarEvent, visibleDateKeys: Set<string>) {
+  if (event.source !== "local") return false;
+  return visibleDateKeys.has(calendarDuplicateKey(event.title, event.startDate));
+}
+
+function calendarDuplicateKey(title: string, date: string) {
+  return `${calendarDayKey(date)}::${normalizeCalendarTitle(title)}`;
+}
+
+function normalizeCalendarTitle(title: string) {
+  return title.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function calendarDayKey(date: string) {
+  try {
+    return format(parseISO(date), "yyyy-MM-dd");
+  } catch {
+    return date.slice(0, 10);
+  }
 }
 
 function itemsForDate(items: CalendarItem[], date: string) {

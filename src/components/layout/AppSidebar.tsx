@@ -9,6 +9,7 @@ import {
   LibraryBig,
   ListTodo,
   Menu,
+  Pin,
   StickyNote,
   Settings,
   Shield,
@@ -27,7 +28,9 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 import type { FeatureKey } from "../../features/access/featureRegistry";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
+import { useProjectStore } from "../../store/projectStore";
 import { isLightThemeMode, useThemeStore } from "../../store/themeStore";
+import type { Project } from "../../types/project";
 
 interface NavItem {
   to: string;
@@ -67,6 +70,7 @@ export function AppSidebar() {
   const { access, hasFeature } = useFeatureAccess();
   const { session } = useSupabaseSession();
   const theme = useThemeStore((state) => state.theme);
+  const projects = useProjectStore((state) => state.projects);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [railHovered, setRailHovered] = useState(false);
   const [railPinned, setRailPinned] = useState(false);
@@ -77,6 +81,9 @@ export function AppSidebar() {
   const profileAvatarUrl = getProfileAvatarUrl(session?.user.user_metadata);
   const desktopExpanded = railHovered || railPinned || openMenu !== null;
   const logoSrc = isLightThemeMode(theme) ? "/align-logo-light.png" : "/align-logo.png";
+  const pinnedProjects = projects
+    .filter((project) => project.pinnedAt && !project.deletedAt && (project.status === "active" || project.status === "paused"))
+    .sort((a, b) => (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
 
   const links = {
     primary: primaryLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
@@ -149,6 +156,7 @@ export function AppSidebar() {
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
             collapsed={!desktopExpanded}
+            pinnedProjects={pinnedProjects}
           />
         </motion.div>
       </aside>
@@ -187,6 +195,7 @@ export function AppSidebar() {
                 openMenu={openMenu}
                 setOpenMenu={setOpenMenu}
                 collapsed={false}
+                pinnedProjects={pinnedProjects}
                 onNavigate={() => setMobileOpen(false)}
               />
             </motion.aside>
@@ -205,6 +214,7 @@ function SidebarContent({
   openMenu,
   setOpenMenu,
   collapsed,
+  pinnedProjects,
   onNavigate,
 }: {
   links: { primary: NavItem[]; workspace: NavItem[]; profile: NavItem[] };
@@ -214,6 +224,7 @@ function SidebarContent({
   openMenu: "notifications" | "profile" | null;
   setOpenMenu: (value: "notifications" | "profile" | null) => void;
   collapsed: boolean;
+  pinnedProjects: Project[];
   onNavigate?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
@@ -254,7 +265,7 @@ function SidebarContent({
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto p-3">
-        <NavSection items={links.primary} collapsed={collapsed} onNavigate={onNavigate} />
+        <NavSection items={links.primary} collapsed={collapsed} pinnedProjects={pinnedProjects} onNavigate={onNavigate} />
         {links.workspace.length ? <NavSection items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} separated /> : null}
       </nav>
 
@@ -366,11 +377,13 @@ function SidebarContent({
 function NavSection({
   items,
   collapsed,
+  pinnedProjects = [],
   onNavigate,
   separated = false,
 }: {
   items: NavItem[];
   collapsed: boolean;
+  pinnedProjects?: Project[];
   onNavigate?: () => void;
   separated?: boolean;
 }) {
@@ -378,35 +391,74 @@ function NavSection({
     <section className={`${separated ? "mt-3 border-t border-[var(--border)] pt-3" : ""}`}>
       <div className="grid gap-1">
         {items.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            onClick={onNavigate}
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              `align-sidebar-link group grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2.5 text-sm font-bold transition ${collapsed ? "w-10" : ""} ${
-                isActive
-                  ? "align-sidebar-link-active align-gradient text-white shadow-[var(--shadow-sm)]"
-                  : "text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-              }`
-            }
-          >
-            <span className="grid h-5 w-5 shrink-0 place-items-center">
-              <Icon size={17} className="shrink-0" />
-            </span>
-            <span
-              className={`min-w-0 flex-1 truncate transition duration-150 ${
-                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
-              }`}
+          <div key={to} className="grid gap-1">
+            <NavLink
+              to={to}
+              end={to === "/"}
+              onClick={onNavigate}
+              title={collapsed ? label : undefined}
+              className={({ isActive }) =>
+                `align-sidebar-link group grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2.5 text-sm font-bold transition ${collapsed ? "w-10" : ""} ${
+                  isActive
+                    ? "align-sidebar-link-active align-gradient text-white shadow-[var(--shadow-sm)]"
+                    : "text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                }`
+              }
             >
-              {label}
-            </span>
-          </NavLink>
+              <span className="grid h-5 w-5 shrink-0 place-items-center">
+                <Icon size={17} className="shrink-0" />
+              </span>
+              <span
+                className={`min-w-0 flex-1 truncate transition duration-150 ${
+                  collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
+                }`}
+              >
+                {label}
+              </span>
+            </NavLink>
+            {to === "/projects" && pinnedProjects.length ? (
+              <div className={`grid gap-1 ${collapsed ? "pl-0" : "pl-4"}`}>
+                {pinnedProjects.map((project) => (
+                  <PinnedProjectLink key={project.id} project={project} collapsed={collapsed} onNavigate={onNavigate} />
+                ))}
+              </div>
+            ) : null}
+          </div>
         ))}
       </div>
     </section>
   );
+}
+
+function PinnedProjectLink({ project, collapsed, onNavigate }: { project: Project; collapsed: boolean; onNavigate?: () => void }) {
+  return (
+    <NavLink
+      to={`/projects/${project.id}`}
+      onClick={onNavigate}
+      title={project.name}
+      className={({ isActive }) =>
+        `group relative grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2 text-xs font-bold transition ${collapsed ? "w-10" : ""} ${
+          isActive
+            ? "bg-[var(--brand-50)] text-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]"
+            : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        }`
+      }
+    >
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-[var(--radius-xs)] bg-[var(--button-secondary-bg)] text-[10px] font-black text-[var(--button-secondary-text)] ring-1 ring-[var(--border)]">
+        {projectInitials(project.name)}
+      </span>
+      <span className={`min-w-0 truncate transition duration-150 ${collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"}`}>
+        {project.name}
+      </span>
+      <Pin size={12} className={`absolute right-2 ${collapsed ? "hidden" : "opacity-0 transition group-hover:opacity-60"}`} />
+    </NavLink>
+  );
+}
+
+function projectInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "P";
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("");
 }
 
 function canShowLink(link: NavItem, hasFeature: (feature: FeatureKey) => boolean, role?: string) {

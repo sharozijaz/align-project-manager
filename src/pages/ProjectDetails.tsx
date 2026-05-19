@@ -7,7 +7,7 @@ import { useTaskStore } from "../store/taskStore";
 
 export function ProjectDetails() {
   const { projectId } = useParams();
-  const { projects } = useProjectStore();
+  const { projects, updateProject } = useProjectStore();
   const { tasks, addTask, updateTask, deleteTask, completeTask, reorderTasks } = useTaskStore();
   const project = projects.find((item) => item.id === projectId);
 
@@ -30,6 +30,7 @@ export function ProjectDetails() {
         tasks={tasks.filter((task) => !task.deletedAt && task.projectId === project.id)}
         onAddTask={addTask}
         onUpdateTask={updateTask}
+        onUpdateProject={updateProject}
         onDeleteTask={deleteTask}
         onCompleteTask={completeTask}
         onReorderTasks={reorderTasks}

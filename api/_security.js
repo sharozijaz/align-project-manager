@@ -172,8 +172,11 @@ function sanitizeDateString(value) {
 
 function sanitizeString(value, maxLength) {
   const text = String(value ?? "").trim();
+  if (text.length > maxLength) {
+    throw new HttpError(400, "Input is too long.");
+  }
   const stripped = text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
-  return stripped.slice(0, maxLength);
+  return stripped;
 }
 
 function hashValue(value) {

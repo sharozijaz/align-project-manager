@@ -3,7 +3,6 @@ import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTaskPriorityOption, isTerminalTaskStatus } from "../config/taskOptions";
-import { MarkdownRenderer } from "../components/notes/MarkdownRenderer";
 import { NoteReaderModal } from "../components/notes/NoteReaderModal";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
@@ -344,15 +343,10 @@ function SharedNotePreview({ note, onOpen }: { note: SharedProjectNote; onOpen: 
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="break-words font-semibold text-[var(--text)]">{note.title}</p>
+        <p className="min-w-0 truncate font-semibold text-[var(--text)]">{note.title}</p>
         {note.favorite ? <span className="rounded-full bg-[var(--priority-urgent-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--priority-urgent-text)]">Pinned</span> : null}
       </div>
-      {note.content ? (
-        <div className="mt-2 max-h-44 overflow-hidden">
-          <MarkdownRenderer body={note.content} className="text-sm leading-6" />
-        </div>
-      ) : null}
-      <p className="mt-2 text-xs font-bold text-[var(--text-brand)]">Open note</p>
+      <p className="mt-2 text-xs font-bold text-[var(--text-brand)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">Open note</p>
     </article>
   );
 }

@@ -3,7 +3,6 @@ import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
-import { MarkdownRenderer } from "../components/notes/MarkdownRenderer";
 import { NoteReaderModal } from "../components/notes/NoteReaderModal";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
@@ -324,8 +323,6 @@ export function PublicProjectShare() {
 }
 
 function SharedNoteCard({ note, onOpen }: { note: SharedProjectNote; onOpen: (note: SharedProjectNote) => void }) {
-  const tags = note.tags?.split(",").map((tag) => tag.trim()).filter(Boolean) ?? [];
-
   return (
     <article
       role="button"
@@ -341,26 +338,13 @@ function SharedNoteCard({ note, onOpen }: { note: SharedProjectNote; onOpen: (no
     >
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
         <div className="min-w-0">
-          <h3 className="break-words font-bold text-[var(--text)]">{note.title}</h3>
-          {note.updatedAt ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">Updated {dateLabel(note.updatedAt.slice(0, 10))}</p> : null}
+          <h3 className="truncate font-bold text-[var(--text)]">{note.title}</h3>
         </div>
         {note.favorite ? (
           <span className="rounded-full bg-[var(--priority-urgent-bg)] px-2 py-1 text-xs font-bold text-[var(--priority-urgent-text)]">Pinned</span>
         ) : null}
       </div>
-      <div className="mt-3 max-h-64 overflow-hidden">
-        <MarkdownRenderer body={note.content} className="text-sm leading-6" />
-      </div>
-      {tags.length ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <span key={tag} className="rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] px-2 py-1 text-xs font-bold text-[var(--text-muted)]">
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <p className="mt-3 text-sm font-bold text-[var(--text-brand)]">Open full note</p>
+      <p className="mt-2 text-sm font-bold text-[var(--text-brand)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">Open note</p>
     </article>
   );
 }
