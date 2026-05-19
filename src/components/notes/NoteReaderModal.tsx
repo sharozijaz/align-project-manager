@@ -31,7 +31,7 @@ export function NoteReaderModal({
       title={note?.title || "Note"}
       open={Boolean(note)}
       onClose={onClose}
-      className="!max-w-6xl p-0 sm:w-[90vw] xl:w-[1080px]"
+      className="!max-w-[1296px] p-0 sm:w-[92vw] xl:w-[1296px]"
     >
       {note ? (
         <div className="flex max-h-[82vh] flex-col">
