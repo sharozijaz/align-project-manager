@@ -8,7 +8,7 @@ import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project } from "../types/project";
 import type { Task } from "../types/task";
-import { dateLabel } from "../utils/date";
+import { dateLabel, plainDateLabel } from "../utils/date";
 import {
   daysUntilPermanentDelete,
   TRASH_PROJECT_RETENTION_DAYS,
@@ -133,7 +133,7 @@ function TrashProjectRow({
         <p className="mt-1 text-sm text-[var(--text-muted)]">{project.description || "No description yet."}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Badge tone={project.status === "completed" ? "emerald" : project.status === "archived" ? "slate" : "blue"}>{project.status}</Badge>
-          <Badge tone="red">Deleted {project.deletedAt ? dateLabel(project.deletedAt.slice(0, 10)) : ""}</Badge>
+          <Badge tone="red">Deleted {project.deletedAt ? plainDateLabel(project.deletedAt.slice(0, 10)) : ""}</Badge>
           <Badge>{retentionLabel(project.deletedAt, TRASH_PROJECT_RETENTION_DAYS)}</Badge>
         </div>
       </div>
@@ -162,7 +162,7 @@ function TrashTaskRow({
           <Badge tone={priorityTone(task.priority)}>{task.priority}</Badge>
           <Badge>{projectName ?? task.category}</Badge>
           <Badge>{dateLabel(task.dueDate, task.dueTime)}</Badge>
-          <Badge tone="red">Deleted {task.deletedAt ? dateLabel(task.deletedAt.slice(0, 10)) : ""}</Badge>
+          <Badge tone="red">Deleted {task.deletedAt ? plainDateLabel(task.deletedAt.slice(0, 10)) : ""}</Badge>
           <Badge>{retentionLabel(task.deletedAt, TRASH_TASK_RETENTION_DAYS)}</Badge>
         </div>
       </div>

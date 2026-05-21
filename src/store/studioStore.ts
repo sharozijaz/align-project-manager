@@ -18,7 +18,7 @@ interface StudioState {
   addResource: (input: ResourceInput) => void;
   updateResource: (id: string, updates: Partial<ResourceInput>) => void;
   deleteResource: (id: string) => void;
-  addNote: (input: NoteInput) => void;
+  addNote: (input: NoteInput) => HubNote;
   updateNote: (id: string, updates: Partial<NoteInput>) => void;
   deleteNote: (id: string) => void;
   migrateLegacyProjectNotes: (projects: Project[]) => void;
@@ -93,7 +93,11 @@ export const useStudioStore = create<StudioState>()(
       addResource: (input) => set((state) => ({ resources: [createItem(input), ...state.resources] })),
       updateResource: (itemId, updates) => set((state) => ({ resources: updateItems(state.resources, itemId, updates) })),
       deleteResource: (itemId) => set((state) => ({ resources: state.resources.filter((item) => item.id !== itemId) })),
-      addNote: (input) => set((state) => ({ notes: [createItem({ ...input, projectIds: input.projectIds ?? [] }), ...state.notes] })),
+      addNote: (input) => {
+        const note = createItem({ ...input, projectIds: input.projectIds ?? [] });
+        set((state) => ({ notes: [note, ...state.notes] }));
+        return note;
+      },
       updateNote: (itemId, updates) => set((state) => ({ notes: updateItems(state.notes, itemId, updates) })),
       deleteNote: (itemId) =>
         set((state) => ({

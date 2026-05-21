@@ -26,6 +26,8 @@ import {
   Strikethrough,
   Table2,
   Trash2,
+  Redo2,
+  Undo2,
   Upload,
   X,
 } from "lucide-react";
@@ -138,6 +140,15 @@ function slugifyFilename(value: string) {
   );
 }
 
+function normalizeNoteFormForSave(form: NoteFormState): NoteFormState {
+  return {
+    title: form.title.trim() || "Untitled note",
+    body: form.body,
+    tags: form.tags.trim() || "",
+    projectIds: form.projectIds,
+  };
+}
+
 function ExportMenuButton({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
   return (
     <button
@@ -162,6 +173,8 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [draftNoteId, setDraftNoteId] = useState<string | null>(null);
+  const [noteAutosaveStatus, setNoteAutosaveStatus] = useState("");
   const [editNoteForm, setEditNoteForm] = useState<NoteFormState>(emptyNoteForm);
   const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
   const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm);
@@ -228,6 +241,46 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
     }
   }, [resources, selectedResourceId]);
 
+  useEffect(() => {
+    if (showForm !== "note") return;
+
+    const hasDraftContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.tags.trim() || noteForm.projectIds.length);
+    if (!hasDraftContent) {
+      setNoteAutosaveStatus("");
+      return;
+    }
+
+    setNoteAutosaveStatus("Saving draft...");
+    const timeout = window.setTimeout(() => {
+      const payload = normalizeNoteFormForSave(noteForm);
+
+      if (draftNoteId) {
+        updateNote(draftNoteId, payload);
+        setSelectedNoteId(draftNoteId);
+      } else {
+        const draft = addNote(payload);
+        setDraftNoteId(draft.id);
+        setSelectedNoteId(draft.id);
+      }
+
+      setNoteAutosaveStatus("Draft saved");
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [addNote, draftNoteId, noteForm, showForm, updateNote]);
+
+  useEffect(() => {
+    if (!editingNoteId) return;
+
+    setNoteAutosaveStatus("Saving changes...");
+    const timeout = window.setTimeout(() => {
+      updateNote(editingNoteId, normalizeNoteFormForSave(editNoteForm));
+      setNoteAutosaveStatus("Changes saved");
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [editNoteForm, editingNoteId, updateNote]);
+
   const submitResource = (event: FormEvent) => {
     event.preventDefault();
     if (!resourceForm.title.trim()) return;
@@ -246,15 +299,20 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   };
 
   const saveNewNote = () => {
-    if (!noteForm.title.trim() || !noteForm.body.trim()) return;
-    const nextNote = {
-      ...noteForm,
-      title: noteForm.title.trim(),
-      body: noteForm.body.trim(),
-      tags: noteForm.tags.trim() || undefined,
-    };
-    addNote(nextNote);
+    const hasContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.tags.trim() || noteForm.projectIds.length);
+    if (!hasContent) return;
+
+    if (draftNoteId) {
+      updateNote(draftNoteId, normalizeNoteFormForSave(noteForm));
+      setSelectedNoteId(draftNoteId);
+    } else {
+      const saved = addNote(normalizeNoteFormForSave(noteForm));
+      setSelectedNoteId(saved.id);
+    }
+
     setNoteForm(emptyNoteForm);
+    setDraftNoteId(null);
+    setNoteAutosaveStatus("");
     setShowForm(null);
     setView("notes");
   };
@@ -268,17 +326,14 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
 
   const startEditingNote = (note: HubNote) => {
     setEditingNoteId(note.id);
+    setNoteAutosaveStatus("");
     setEditNoteForm({ title: note.title, body: note.body, tags: note.tags ?? "", projectIds: note.projectIds ?? [] });
   };
 
   const saveEditingNote = () => {
-    if (!editingNoteId || !editNoteForm.title.trim() || !editNoteForm.body.trim()) return;
-    updateNote(editingNoteId, {
-      title: editNoteForm.title.trim(),
-      body: editNoteForm.body.trim(),
-      tags: editNoteForm.tags.trim() || undefined,
-      projectIds: editNoteForm.projectIds,
-    });
+    if (!editingNoteId) return;
+    updateNote(editingNoteId, normalizeNoteFormForSave(editNoteForm));
+    setNoteAutosaveStatus("");
     setEditingNoteId(null);
   };
 
@@ -530,12 +585,16 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
               onToggleFavorite={(note) => updateNote(note.id, { favorite: !note.favorite })}
               creatingNote={showForm === "note"}
               noteForm={noteForm}
+              autosaveStatus={noteAutosaveStatus}
               previewOpen={notePreviewOpen}
               onTogglePreview={() => setNotePreviewOpen((open) => !open)}
               onNoteFormChange={setNoteForm}
               onCancelNewNote={() => {
+                if (draftNoteId) setSelectedNoteId(draftNoteId);
                 setShowForm(null);
                 setNoteForm(emptyNoteForm);
+                setDraftNoteId(null);
+                setNoteAutosaveStatus("");
               }}
               onSaveNewNote={saveNewNote}
             />
@@ -719,6 +778,11 @@ function MarkdownEditor({
     insertSnippet("\n| Column | Column |\n| --- | --- |\n| Value | Value |\n", 2);
   };
 
+  const runNativeEditCommand = (command: "undo" | "redo") => {
+    textareaRef.current?.focus();
+    document.execCommand(command);
+  };
+
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const html = event.clipboardData.getData("text/html");
     if (!html.trim()) return;
@@ -804,6 +868,9 @@ function MarkdownEditor({
   return (
     <div className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
       <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border)] bg-[var(--bg-soft)]/70 p-2">
+        <EditorButton icon={<Undo2 size={15} />} label="Undo" title="Undo" onClick={() => runNativeEditCommand("undo")} />
+        <EditorButton icon={<Redo2 size={15} />} label="Redo" title="Redo" onClick={() => runNativeEditCommand("redo")} />
+        <span className="mx-1 h-7 w-px bg-[var(--border)]" />
         <EditorButton icon={<Heading1 size={15} />} label="H1" title="Heading 1" onClick={() => applyLinePrefix("# ")} />
         <EditorButton icon={<Heading2 size={15} />} label="H2" title="Heading 2" onClick={() => applyLinePrefix("## ")} />
         <EditorButton icon={<Heading3 size={15} />} label="H3" title="Heading 3" onClick={() => applyLinePrefix("### ")} />
@@ -838,14 +905,14 @@ function MarkdownEditor({
         ) : null}
       </div>
       {previewOpen && !compact ? (
-        <div className="min-h-[520px] overflow-y-auto bg-[var(--surface)] p-6">
+        <div className="min-h-[640px] overflow-y-auto bg-[var(--surface)] p-6">
           {value.trim() ? <NoteReader body={value} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
         </div>
       ) : (
         <div className={`grid gap-3 ${compact ? "xl:grid-cols-2" : ""}`}>
           <StudioTextarea
             ref={textareaRef}
-            className={`${compact ? "min-h-64" : "min-h-[520px]"} resize-y rounded-none border-0 bg-transparent font-mono text-sm leading-7 focus:ring-0`}
+            className={`${compact ? "min-h-64" : "min-h-[640px]"} resize-y rounded-none border-0 bg-transparent font-mono text-[15px] leading-8 focus:ring-0`}
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onPaste={handlePaste}
@@ -1089,6 +1156,7 @@ function NotesWorkspace({
   editNoteForm,
   creatingNote,
   noteForm,
+  autosaveStatus,
   previewOpen,
   onTogglePreview,
   onStartEdit,
@@ -1107,6 +1175,7 @@ function NotesWorkspace({
   editNoteForm: NoteFormState;
   creatingNote: boolean;
   noteForm: NoteFormState;
+  autosaveStatus: string;
   previewOpen: boolean;
   onTogglePreview: () => void;
   onStartEdit: (note: HubNote) => void;
@@ -1131,13 +1200,14 @@ function NotesWorkspace({
             <NotePanelHeader
               label="New private note"
               title={noteForm.title || "Untitled note"}
+              meta={autosaveStatus || "Autosaves while you write"}
               actions={
                 <>
                   <Button variant="secondary" icon={<X size={15} />} onClick={onCancelNewNote}>
-                    Cancel
+                    Close
                   </Button>
                   <Button icon={<Save size={15} />} onClick={onSaveNewNote}>
-                    Save Note
+                    Done
                   </Button>
                 </>
               }
@@ -1161,6 +1231,7 @@ function NotesWorkspace({
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">Note</p>
                   <h2 className="font-display text-xl font-bold text-[var(--text)]">{selectedNote.title}</h2>
+                  {isEditing && autosaveStatus ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{autosaveStatus}</p> : null}
                   {selectedProjects?.length ? (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {selectedProjects.map((project) => (
@@ -1232,12 +1303,13 @@ function NotesWorkspace({
   );
 }
 
-function NotePanelHeader({ label, title, actions }: { label: string; title: string; actions: ReactNode }) {
+function NotePanelHeader({ label, title, actions, meta }: { label: string; title: string; actions: ReactNode; meta?: string }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">{label}</p>
         <h2 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{title}</h2>
+        {meta ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{meta}</p> : null}
       </div>
       <div className="flex flex-wrap gap-2">{actions}</div>
     </div>

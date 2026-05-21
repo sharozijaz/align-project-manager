@@ -39,7 +39,7 @@ import { clearGoogleSyncStatusCache, getGoogleSyncStatus, saveGoogleSyncSettings
 import { getGoogleTodoSyncReadiness } from "../integrations/googleTasks/googleTasksClient";
 import type { GoogleTodoSyncSettings, GoogleTodoSyncStatus } from "../integrations/googleTasks/types";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
-import { dateLabel } from "../utils/date";
+import { plainDateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
 import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup } from "../utils/storage";
 import { appBuild, appVersion } from "../utils/appVersion";
@@ -216,7 +216,7 @@ export function Settings() {
       replaceTasks(backup.tasks);
       replaceProjects(backup.projects);
       replaceEvents(backup.events);
-      setDataMessage(`Imported backup from ${dateLabel(backup.exportedAt.slice(0, 10))}.`);
+      setDataMessage(`Imported backup from ${plainDateLabel(backup.exportedAt.slice(0, 10))}.`);
     } catch (error) {
       setDataMessage(errorMessage(error, "Could not import this backup."));
     } finally {

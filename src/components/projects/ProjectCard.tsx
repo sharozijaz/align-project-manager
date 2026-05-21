@@ -7,7 +7,7 @@ import { Card } from "../ui/Card";
 import { Modal } from "../ui/Modal";
 import { ProjectForm } from "./ProjectForm";
 import { isTerminalTaskStatus } from "../../config/taskOptions";
-import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
+import { dateLabel, durationLabel, plainDateLabel, startDateLabel } from "../../utils/date";
 import type { Project, ProjectInput } from "../../types/project";
 import type { Task } from "../../types/task";
 
@@ -120,8 +120,8 @@ export function ProjectCard({
         {project.startDate ? <Badge>{startDateLabel(project.startDate, project.startTime)}</Badge> : null}
         <Badge>{dateLabel(project.dueDate, project.dueTime)}</Badge>
         {project.startDate ? <Badge>{durationLabel(project.startDate, project.dueDate)}</Badge> : null}
-        {project.completedAt ? <Badge tone="emerald">Completed {dateLabel(project.completedAt.slice(0, 10))}</Badge> : null}
-        {project.archivedAt ? <Badge>Archived {dateLabel(project.archivedAt.slice(0, 10))}</Badge> : null}
+        {project.completedAt ? <Badge tone="emerald">Completed {plainDateLabel(project.completedAt.slice(0, 10))}</Badge> : null}
+        {project.archivedAt ? <Badge>Archived {plainDateLabel(project.archivedAt.slice(0, 10))}</Badge> : null}
         <Badge>{projectTasks.length} tasks</Badge>
         <Badge>{open} open</Badge>
         <Badge>{complete} done</Badge>

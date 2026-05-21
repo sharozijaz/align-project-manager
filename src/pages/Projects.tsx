@@ -125,7 +125,7 @@ export function Projects() {
         }
       />
       <div className="align-toolbar">
-        <div className="grid w-full gap-2 lg:grid-cols-[minmax(260px,1fr)_180px_180px_210px]">
+        <div className="grid w-full gap-2 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,240px)_minmax(220px,240px)_minmax(210px,230px)]">
           <label className="relative block">
             <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
             <Input

@@ -28,6 +28,11 @@ export const dateLabel = (value?: string, time?: string) => {
   return `Due ${format(parseISO(value), "MMM d, yyyy")}${time ? ` at ${timeLabel(time)}` : ""}`;
 };
 
+export const plainDateLabel = (value?: string, fallback = "No date") => {
+  if (!value) return fallback;
+  return format(parseISO(value), "MMM d, yyyy");
+};
+
 export const startDateLabel = (value?: string, time?: string) => {
   if (!value) return "No start date";
   return `Start ${format(parseISO(value), "MMM d, yyyy")}${time ? ` at ${timeLabel(time)}` : ""}`;

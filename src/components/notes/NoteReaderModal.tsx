@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { dateLabel } from "../../utils/date";
+import { plainDateLabel } from "../../utils/date";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { MarkdownRenderer } from "./MarkdownRenderer";
@@ -38,7 +38,7 @@ export function NoteReaderModal({
           <div className="border-b border-[var(--border)] px-5 pb-4 sm:px-7">
             <div className="flex flex-wrap items-center gap-2">
               {note.favorite ? <Badge tone="purple">Pinned</Badge> : null}
-              {note.updatedAt ? <span className="text-xs font-semibold text-[var(--text-soft)]">Updated {dateLabel(note.updatedAt.slice(0, 10))}</span> : null}
+              {note.updatedAt ? <span className="text-xs font-semibold text-[var(--text-soft)]">Updated {plainDateLabel(note.updatedAt.slice(0, 10))}</span> : null}
               {tags?.map((tag) => (
                 <Badge key={tag}>{tag}</Badge>
               ))}

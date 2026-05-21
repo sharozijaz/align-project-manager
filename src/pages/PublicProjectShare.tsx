@@ -7,7 +7,7 @@ import { NoteReaderModal } from "../components/notes/NoteReaderModal";
 import { OptionBadge } from "../components/ui/OptionBadge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { dateLabel, durationLabel, startDateLabel } from "../utils/date";
+import { dateLabel, durationLabel, plainDateLabel, startDateLabel } from "../utils/date";
 
 interface SharedProject {
   id: string;
@@ -218,7 +218,7 @@ export function PublicProjectShare() {
                     <SummaryRow label="Duration" value={durationLabel(data.project.startDate, data.project.dueDate)} />
                     <SummaryRow label="Progress" value={`${stats.progress}% complete`} />
                     <SummaryRow label="Open work" value={`${stats.open} tasks remaining`} />
-                    <SummaryRow label="Last updated" value={lastUpdated ? dateLabel(lastUpdated.slice(0, 10)) : "No task updates yet"} />
+                    <SummaryRow label="Last updated" value={lastUpdated ? plainDateLabel(lastUpdated.slice(0, 10)) : "No task updates yet"} />
                   </div>
                 </div>
                 <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">

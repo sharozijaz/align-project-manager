@@ -11,7 +11,7 @@ import {
 import { isSupabaseConfigured } from "../../integrations/supabase/client";
 import type { Project } from "../../types/project";
 import type { ClientShareLink } from "../../types/projectShare";
-import { dateLabel } from "../../utils/date";
+import { plainDateLabel } from "../../utils/date";
 import { clientShareUrl as buildClientShareUrl, openShareUrl } from "../../utils/shareUrls";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -535,7 +535,7 @@ function SavedClientLink({
         <span className="min-w-0">
           <span className="block truncate font-bold text-[var(--text)]">{link.name || "Client overview"}</span>
           <span className="mt-1 block text-xs font-semibold text-[var(--text-muted)]">
-            {linkedProjects.length} projects · Created {dateLabel(link.createdAt.slice(0, 10))}
+            {linkedProjects.length} projects · Created {plainDateLabel(link.createdAt.slice(0, 10))}
           </span>
         </span>
       </button>

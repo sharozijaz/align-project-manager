@@ -11,7 +11,7 @@ import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project } from "../types/project";
 import type { Task } from "../types/task";
-import { dateLabel, durationLabel, isOverdue, startDateLabel } from "../utils/date";
+import { dateLabel, durationLabel, isOverdue, plainDateLabel, startDateLabel } from "../utils/date";
 
 export function Reports() {
   const [copied, setCopied] = useState(false);
@@ -255,7 +255,7 @@ function FinishedProjectsCard({ completed, archived, projects }: { completed: nu
                 <h3 className="break-words font-semibold text-[var(--text)]">{project.name}</h3>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
                   {project.status === "completed" ? "Completed" : "Archived"}{" "}
-                  {dateLabel((project.completedAt ?? project.archivedAt ?? project.updatedAt).slice(0, 10))}
+                  {plainDateLabel((project.completedAt ?? project.archivedAt ?? project.updatedAt).slice(0, 10))}
                 </p>
               </div>
               <Badge tone={project.status === "completed" ? "emerald" : "slate"}>{project.status}</Badge>
