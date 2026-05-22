@@ -4,6 +4,8 @@ Align is local-first by default. Self-hosting is optional and is only needed if 
 
 If you self-host, you bring your own accounts and pay your own usage costs for Supabase, Vercel or another API host, Google Cloud, and email delivery.
 
+For a shorter step-by-step path, use `SELF_HOSTING_CHECKLIST.md`.
+
 ## Recommended Modes
 
 - `Local only`: no backend required. Data stays in browser or desktop WebView storage. Use full JSON backups.
@@ -56,6 +58,8 @@ REMINDER_EMAIL_REPLY_TO=you@example.com
 ```
 
 Never expose service-role keys, Google client secrets, Resend keys, cron secrets, OAuth refresh tokens, database passwords, or private keys in frontend variables or desktop builds.
+
+Use `.env.local.example` for local development and `.env.production.example` for hosted deployments.
 
 ## Supabase Setup
 
@@ -164,6 +168,39 @@ The current Vercel-compatible API routes live in `api/`:
 ```
 
 If you deploy somewhere other than Vercel, port these routes to your provider's serverless format.
+
+## Vercel Setup
+
+Vercel is the simplest supported hosted path because this repository already includes `vercel.json`.
+
+Use these project settings:
+
+```text
+Install command: npm install
+Build command: npm run build
+Output directory: dist
+```
+
+Add frontend-safe and server-only environment variables in Vercel Project Settings. Vercel can host both the static Vite build and the `api/` serverless routes.
+
+`vercel.json` also handles React Router fallback and rewrites for Google Todo endpoints:
+
+```text
+/api/google-todos/status
+/api/google-todos/settings
+/api/google-todos/sync
+```
+
+Vercel Hobby cron currently runs the Google Calendar cron once daily. Keep that schedule unless you move to a paid plan or another scheduler.
+
+## Netlify Or Cloudflare
+
+The frontend can run on Netlify or Cloudflare Pages, but the `api/` folder is written for Vercel-style serverless functions. To use another provider, either:
+
+- host the frontend there and keep APIs on Vercel, setting `VITE_APP_URL` to the Vercel API/app origin, or
+- port the API routes to Netlify Functions or Cloudflare Workers.
+
+Do not put server-only secrets in frontend-only hosts.
 
 ## Cron And Email
 

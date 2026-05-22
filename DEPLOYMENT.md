@@ -2,7 +2,9 @@
 
 ## Recommended Host
 
-Use Vercel, Netlify, or Cloudflare Pages. The app is a Vite static app.
+Use Vercel for the easiest full hosted deployment because this repo includes both the Vite app and Vercel-compatible `api/` routes.
+
+Netlify or Cloudflare Pages can host the static frontend, but the `api/` routes need to be ported or hosted separately.
 
 For complete bring-your-own-backend instructions, including Supabase, Google OAuth, cron, email, desktop, and cost-control notes, see `SELF_HOSTING.md`.
 
@@ -12,9 +14,17 @@ For complete bring-your-own-backend instructions, including Supabase, Google OAu
 - Build command: `npm run build`
 - Output directory: `dist`
 
+## Vercel Notes
+
+- `vercel.json` handles React Router refreshes.
+- `vercel.json` rewrites Google Todo routes to the shared API handler.
+- `vercel.json` schedules `/api/cron/sync-google-calendar` once daily.
+- Vercel Hobby cron is limited; keep the daily schedule unless you upgrade or move cron elsewhere.
+- Set server-only secrets only in Vercel environment variables, never in Vite-only variables.
+
 ## Environment Variables
 
-Add these in the hosting provider dashboard:
+Add these in the hosting provider dashboard. See `.env.production.example` for the same values in copyable form.
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
