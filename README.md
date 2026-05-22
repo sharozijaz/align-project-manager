@@ -52,6 +52,16 @@ npm run desktop:build
 
 When no Supabase environment variables are configured, Align stores data locally in browser or desktop WebView storage.
 
+### Sync Modes
+
+Align has three workspace sync modes in Settings > Data:
+
+- `Local only`: keep data on this device and block Supabase upload/download. Use this for the lowest-cost public/open-source setup.
+- `Paused`: stay signed in, but use manual upload/download only. Use this before testing a new backend or switching devices.
+- `Cloud sync`: automatically download and upload workspace changes when signed in. Use this only with your own configured Supabase project or trusted hosted deployment.
+
+Export a full workspace backup before switching modes on an important workspace.
+
 ## Optional Cloud Setup
 
 Cloud features are optional. Public users should configure their own Supabase/Vercel/Google/email services if they want hosted sync or integrations. The maintainer's private hosted deployment is not intended for public app users.

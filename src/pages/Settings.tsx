@@ -1103,6 +1103,24 @@ export function Settings() {
           <p className="mt-3 text-sm text-[var(--text-muted)]">
             Optional hosted sync for your own devices. Align stays usable in local-only mode when this is not configured.
           </p>
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
+            <p className="font-semibold text-[var(--text)]">Which mode should I use?</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                <p className="font-semibold text-[var(--text)]">Most private</p>
+                <p className="mt-1 text-[var(--text-muted)]">Use Local only when you want Align to stay on this device with manual JSON backups.</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                <p className="font-semibold text-[var(--text)]">Most controlled</p>
+                <p className="mt-1 text-[var(--text-muted)]">Use Paused when signed in, but you want to upload or download only when you choose.</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                <p className="font-semibold text-[var(--text)]">Multi-device</p>
+                <p className="mt-1 text-[var(--text-muted)]">Use Cloud sync only with your own configured Supabase project or trusted hosted deployment.</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-[var(--text-soft)]">Export a full backup before changing modes if this workspace has important active work.</p>
+          </div>
           <div className="mt-4 grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>

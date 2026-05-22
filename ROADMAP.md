@@ -34,6 +34,8 @@ Owner: Sharoz Ijaz. Executor: Codex or maintainer.
 Owner: Sharoz Ijaz. Executor: Codex or maintainer.
 
 - Add a clear Local-only mode indicator.
+- Add Local only, Paused, and Cloud sync mode controls.
+- Add in-app guidance for choosing a safe sync mode.
 - Hide or gracefully disable cloud-only features when config is missing.
 - Keep local desktop reminders and core workflows available.
 - Replace cloud setup errors with setup guidance.
