@@ -6,6 +6,8 @@
 - `VITE_ALLOWED_EMAILS` blocks non-allowed emails in the UI.
 - Supabase Row Level Security protects cloud data per signed-in user.
 
+When Supabase is not configured, Align runs in local-only mode and stores workspace data on the user's device.
+
 ## Production Hardening
 
 Frontend environment variables are visible in browser builds, so `VITE_ALLOWED_EMAILS` is only a UX guard. Use database-level allowlisting for real enforcement.
@@ -21,6 +23,7 @@ Safe to expose:
 - `VITE_GOOGLE_CLIENT_ID`
 - `VITE_GOOGLE_REDIRECT_URI`
 - `VITE_GOOGLE_CALENDAR_ID`
+- `VITE_PUBLIC_APP_URL`
 
 Never expose:
 
@@ -55,6 +58,17 @@ Desktop reminders use local device settings and Windows toast permissions. They 
 Public/client share routes must stay server-side API routes backed by service-role env vars in Vercel. They should only return read-only project/task payloads and project notes where `visibility` is `client`.
 
 Personal Hub resources and notes remain owner/member data behind Supabase Auth and RLS. They should not be exposed by public share APIs.
+
+## Open Source Release Safety
+
+The public desktop app should not silently depend on the maintainer's private hosted backend. Hosted sync, Google sync, share links, and email reminders must be explicit configuration choices.
+
+For public builds:
+
+- Leave cloud env vars empty for local-only mode.
+- Do not include service-role keys or OAuth client secrets in desktop/frontend builds.
+- Use `VITE_APP_URL` only when the build should call a hosted API owned by that deployment.
+- Use `VITE_PUBLIC_APP_URL` only when share links should point to a public web deployment.
 
 ## Manual Supabase SQL Checklist
 

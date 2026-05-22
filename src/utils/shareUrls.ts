@@ -1,7 +1,5 @@
 import { isTauriRuntime, openExternalUrl } from "../integrations/desktop/runtime";
 
-const DEFAULT_PUBLIC_APP_ORIGIN = "https://align.sharoz.dev";
-
 function normalizeOrigin(value?: string) {
   const trimmed = value?.trim();
   if (!trimmed) return "";
@@ -21,15 +19,17 @@ function getPublicAppOrigin() {
     return window.location.origin;
   }
 
-  return DEFAULT_PUBLIC_APP_ORIGIN;
+  return "";
 }
 
 export function projectShareUrl(token: string) {
-  return `${getPublicAppOrigin()}/share/${token}`;
+  const origin = getPublicAppOrigin();
+  return origin ? `${origin}/share/${token}` : "";
 }
 
 export function clientShareUrl(token: string) {
-  return `${getPublicAppOrigin()}/share/client/${token}`;
+  const origin = getPublicAppOrigin();
+  return origin ? `${origin}/share/client/${token}` : "";
 }
 
 export function openShareUrl(url: string) {

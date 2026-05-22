@@ -21,7 +21,7 @@ export function getEnv() {
   const googleRedirectUri =
     process.env.GOOGLE_REDIRECT_URI ||
     process.env.VITE_GOOGLE_REDIRECT_URI ||
-    `${appUrl}/api/google-calendar/callback`;
+    (appUrl ? `${appUrl}/api/google-calendar/callback` : "");
   const googleCalendarId = process.env.GOOGLE_CALENDAR_ID || process.env.VITE_GOOGLE_CALENDAR_ID || "primary";
   const stateSecret = process.env.GOOGLE_OAUTH_STATE_SECRET || supabaseServiceRoleKey || googleClientSecret;
   const cronSecret = process.env.CRON_SECRET || "";
@@ -1832,7 +1832,7 @@ async function sendReminderEmail(env, to, notification) {
 function reminderEmailHtml(env, notification) {
   const title = escapeHtml(notification.title);
   const message = escapeHtml(notification.message);
-  const appUrl = escapeHtml(env.appUrl || "https://align.sharoz.dev");
+  const appUrl = escapeHtml(env.appUrl || "#");
 
   return `<!doctype html>
 <html>

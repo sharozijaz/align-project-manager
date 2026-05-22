@@ -19,7 +19,7 @@ Recent work completed before the Windows reinstall prep:
 - Improved Personal Hub notes with a notes workspace, project links, JSON export/import, Markdown export/import, and safer note backups.
 - Added selectable dashboard hero backgrounds from bundled WebP assets.
 - Added more themes, removed the too-bright white theme, and added the light-theme logo asset.
-- Hardened share links so desktop share URLs point at `https://align.sharoz.dev` instead of `tauri.localhost`.
+- Hardened share links so desktop share URLs point at the configured public app URL instead of `tauri.localhost`.
 - Hardened user isolation in Supabase workspace sync by explicitly scoping project, task, calendar, resource, and note rows to `user_id`.
 - Fixed a desktop sync startup bug where a freshly updated app could appear empty until Settings > Supabase Sync > Download Now was pressed.
 - Built and saved the Windows `.exe` and `.msi` installers before cleanup.
@@ -177,7 +177,7 @@ If Vercel is connected to GitHub, pushing to `main` should deploy the web app au
 
 After deployment, check:
 
-- `https://align.sharoz.dev` opens.
+- Your configured hosted app URL opens.
 - Sign-in works.
 - Supabase data loads.
 - Google Calendar sync still redirects correctly.

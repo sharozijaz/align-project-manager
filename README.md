@@ -1,126 +1,101 @@
 # Align
 
-A focused React + TypeScript project management app for solo/freelance work, client projects, reminders, Google Calendar sync, and read-only client sharing. The production app is deployed at `https://align.sharoz.dev`.
+Align is a local-first project and life planning app for freelance web designers and developers. It brings projects, tasks, todos, calendar planning, notes, reminders, reports, and client handoff into one focused workspace.
 
-## Tech Stack
+The public open-source app is designed to work without a hosted backend. Supabase sync, Google sync, email reminders, and share links are optional cloud features for users who configure their own backend.
 
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- React Router
-- Zustand with LocalStorage persistence
-- date-fns
-- Custom monthly calendar view
+## Status
 
-## Setup
+Align is past the alpha/beta stage for personal daily use, but the public open-source release is being prepared in phases. See `ROADMAP.md`.
+
+## Core Features
+
+- Projects with tasks, subtasks, card/table/board/kanban views, and client context.
+- Personal todos and task planning across day, week, and month.
+- Calendar with Month, Week, and Agenda views.
+- Personal Hub notes and resources.
+- Reports for progress, overdue work, status mix, and upcoming deadlines.
+- Local desktop notifications and Tauri desktop packaging.
+- Optional Supabase sync, Google Calendar/Todo sync, client share links, and email reminders for configured hosted deployments.
+
+## Local-First Usage
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Run the web app locally:
+
+```bash
 npm run dev
 ```
 
-Build for production:
+Build the web app:
 
 ```bash
 npm run build
 ```
 
-After a storage cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
+Run the desktop app in development:
 
-Deployment notes live in `DEPLOYMENT.md`.
-Security notes live in `SECURITY.md`.
-Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
-Desktop app notes live in `DESKTOP.md`.
-Owner maintenance and update steps live in `MAINTENANCE.md`.
+```bash
+npm run desktop:dev
+```
 
-## Production Setup
+Build the Windows desktop app:
 
-Align is hosted on Vercel with Supabase, Google Calendar, and Resend.
+```bash
+npm run desktop:build
+```
 
-Required Vercel environment variables:
+When no Supabase environment variables are configured, Align stores data locally in browser or desktop WebView storage.
+
+## Optional Cloud Setup
+
+Cloud features are optional. Public users should configure their own Supabase/Vercel/Google/email services if they want hosted sync or integrations. The maintainer's private hosted deployment is not intended for public app users.
+
+Frontend-safe environment variables:
 
 ```bash
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
-VITE_APP_URL=https://align.sharoz.dev
 VITE_ALLOWED_EMAILS=
-APP_URL=https://align.sharoz.dev
+VITE_APP_URL=
+VITE_PUBLIC_APP_URL=
+VITE_GOOGLE_CLIENT_ID=
+VITE_GOOGLE_REDIRECT_URI=
+VITE_GOOGLE_CALENDAR_ID=primary
+```
+
+Server-only environment variables:
+
+```bash
+APP_URL=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-CRON_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=https://align.sharoz.dev/api/google-calendar/callback
+GOOGLE_REDIRECT_URI=
 GOOGLE_CALENDAR_ID=primary
+CRON_SECRET=
 RESEND_API_KEY=
 REMINDER_EMAIL_FROM=
 REMINDER_EMAIL_REPLY_TO=
 ```
 
-Never commit `.env.local`, Supabase service-role keys, Google client secrets, Resend keys, or database passwords.
+Never commit `.env.local`, Supabase service-role keys, Google client secrets, Resend keys, cron secrets, OAuth refresh tokens, database passwords, or private keys.
 
-## Project Structure
+## Supabase Setup
 
-```text
-src/
-  app/                 App shell and router
-  components/          Reusable layout, UI, dashboard, task, project, calendar components
-  integrations/        Future external service clients
-  pages/               Route-level pages
-  store/               Zustand stores and demo seed data
-  styles/              Tailwind globals
-  types/               Shared TypeScript models
-  utils/               Date and storage helpers
-```
-
-## State Model
-
-Tasks, projects, and calendar events are stored in separate Zustand stores:
-
-- `src/store/taskStore.ts`
-- `src/store/projectStore.ts`
-- `src/store/calendarStore.ts`
-
-Each store persists to LocalStorage, so the MVP works without a backend. Later, these stores can call API services instead of writing directly to browser storage.
-
-Deleted tasks are soft-deleted first. They can be restored immediately from the undo toast or later from Settings > Deleted Tasks. Settings also includes real JSON export/import for LocalStorage-backed workspace data.
-
-## Google Calendar
-
-Google Calendar OAuth and sync are implemented through Vercel API routes and Supabase-backed token storage. The cron route also supports background sync:
-
-```text
-/api/cron/sync-google-calendar
-```
-
-Vercel Cron should call this route with `CRON_SECRET`.
-
-## Google Sign-In
-
-The private sign-in screen supports `Continue with Google` through Supabase Auth. Magic links remain available as a fallback.
-
-Google sign-in is separate from Google Calendar sync: signing in proves identity, while Calendar sync still asks for calendar permissions later.
-
-Provider setup steps are documented in `GOOGLE_SIGN_IN.md`.
-
-## Hosted Sync Path
-
-LocalStorage is great for this MVP, but it only works on one device. To use the app from a subdomain, tablet, and another laptop, add:
-
-- Hosting for the Vite app, for example Vercel, Netlify, Cloudflare Pages, or a VPS.
-- A backend/database, for example Supabase, Firebase, Appwrite, or a custom Node API.
-- Auth so each user can securely load their own workspace.
-- A migration layer that replaces the Zustand LocalStorage persistence with API calls while keeping the existing stores as the UI-facing state boundary.
-
-The current architecture is ready for this because UI, stores, types, and integration code are separated.
-
-### Supabase Setup
-
-For a fresh Supabase project:
+For a fresh self-hosted Supabase project:
 
 1. Create a Supabase project.
 2. Open the Supabase SQL editor.
 3. Run `supabase/schema.sql`.
-4. Run the migration files needed by the current app features:
+4. Run the feature migration files needed for your deployment:
 
 ```text
 supabase/security-hardening.sql
@@ -138,10 +113,18 @@ supabase/project-notes.sql
 supabase/start-dates.sql
 supabase/time-and-manual-order.sql
 supabase/task-options.sql
+supabase/task-subitems.sql
 supabase/project-paused-status.sql
+supabase/project-lifecycle-trash.sql
+supabase/project-pins.sql
+supabase/planned-week-start.sql
+supabase/planned-month.sql
+supabase/hub-notes-project-links.sql
+supabase/google-todos-sync.sql
+supabase/google-tasks-bridge.sql
 ```
 
-5. Insert allowed users:
+5. Insert allowed users if your deployment uses allowlisting:
 
 ```sql
 insert into public.allowed_users (email)
@@ -149,17 +132,8 @@ values ('your-email@example.com')
 on conflict (email) do nothing;
 ```
 
-6. Copy `.env.example` to `.env.local` for local development.
-7. Add your Supabase project URL and anon key:
-
-```bash
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-8. Restart the Vite dev server.
-9. Sign in with the approved email.
-10. Use Settings sync controls if you need to upload/download a workspace manually.
+6. Add your Supabase URL and anon key to `.env.local`.
+7. Restart the dev server or rebuild the desktop app.
 
 If Supabase reports a schema-cache error after a migration, run:
 
@@ -167,26 +141,64 @@ If Supabase reports a schema-cache error after a migration, run:
 notify pgrst, 'reload schema';
 ```
 
+## Google And Hosted APIs
+
+Google Calendar/Todo sync, email reminders, and public share links require hosted API routes and server-side secrets. They should not run from frontend-only or desktop-only builds unless `VITE_APP_URL` or `VITE_PUBLIC_APP_URL` points to a deployment that owns those routes.
+
+Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
+Google Calendar setup notes live in `GOOGLE_CALENDAR.md`.
+Deployment notes live in `DEPLOYMENT.md`.
+
 ## Desktop App
 
-Align has a Tauri desktop scaffold in `src-tauri/`.
+Align uses Tauri for the Windows desktop build.
+
+Desktop notes live in `DESKTOP.md`.
+Owner maintenance and update steps live in `MAINTENANCE.md`.
+
+After a cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
+
+## Project Structure
+
+```text
+src/
+  app/                 App shell and router
+  components/          Reusable layout, UI, dashboard, task, project, calendar components
+  features/            Feature access and app-level behavior
+  integrations/        Supabase, Google, desktop, and hosted service clients
+  pages/               Route-level pages
+  store/               Zustand stores and demo seed data
+  styles/              Tailwind globals
+  types/               Shared TypeScript models
+  utils/               Date, storage, sharing, and helper utilities
+```
+
+## Checks
 
 ```bash
-npm run desktop:dev
+npm run check:unused
+npm run check:ts-unused
+npm audit --audit-level=moderate
+npm run build
+```
+
+Before a desktop release:
+
+```bash
 npm run desktop:build
 ```
 
-Install Rust before building the desktop app. Full desktop setup, installer, and Supabase redirect notes are in `DESKTOP.md`.
+## Documentation
 
-Recent desktop sync safety note:
+- `ROADMAP.md` - production and open-source roadmap.
+- `PRIVACY.md` - local-first privacy model and optional cloud behavior.
+- `SECURITY.md` - security rules and manual checks.
+- `CONTRIBUTING.md` - contribution and development rules.
+- `CHANGELOG.md` - release notes.
+- `DESKTOP.md` - Tauri desktop setup and release notes.
+- `DEPLOYMENT.md` - hosted deployment notes.
+- `MAINTENANCE.md` - owner maintenance checklist.
 
-- The desktop app uses Supabase as the recovery/source-of-truth path for signed-in workspaces.
-- If a new desktop install opens empty after an update, use Settings > Supabase Sync > Download Now.
-- The current sync startup guard keeps local data when a cloud pull comes back empty and saves a local pre-clear backup before any signed-out/account-switch clear.
+## License
 
-## Roadmap
-
-- Browser/mobile push notifications, if email reminders are not enough later
-- Optional desktop packaging with Tauri or Electron
-- Optional client collaboration upgrades: comments, approvals, uploads
-- Optional advanced reports: monthly/client summaries, PDFs, time spent
+Align is licensed under the MIT License. See `LICENSE`.

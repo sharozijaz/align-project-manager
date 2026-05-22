@@ -191,7 +191,7 @@ Supabase Auth must allow the Tauri desktop redirect origin. In Supabase, open Au
 align://auth/callback
 http://tauri.localhost/**
 http://localhost:5173/**
-https://align.sharoz.dev/**
+https://your-hosted-app.example/**
 ```
 
 The desktop Google button opens your system browser and returns to Align through the `align://auth/callback` deep link.
@@ -199,15 +199,15 @@ The desktop Google button opens your system browser and returns to Align through
 Google sign-in still uses the Supabase OAuth callback URL in Google Cloud:
 
 ```text
-https://ydzfefrgawzqqpedkweq.supabase.co/auth/v1/callback
+https://your-project.supabase.co/auth/v1/callback
 ```
 
-Google Calendar sync remains separate from sign-in and still uses the deployed Vercel API callback.
+Google Calendar sync remains separate from sign-in and still uses the deployed hosted API callback.
 
 ## Notes
 
-- The desktop app is intentionally a wrapper around the existing cloud app logic.
-- Data stays in Supabase, with LocalStorage remaining as the offline fallback.
+- The public desktop app is local-first by default.
+- If Supabase is configured, data can sync to the configured Supabase project, with LocalStorage remaining as the offline fallback.
 - Desktop notifications mirror the in-app reminder bell while Align is open or hidden to tray. Reliable reminders while Align is fully quit should still stay server/email based.
-- Desktop share links should open the public web URL, `https://align.sharoz.dev`, not `tauri.localhost`.
+- Desktop share links should open the configured public web URL from `VITE_PUBLIC_APP_URL` or `VITE_APP_URL`, not `tauri.localhost`.
 - After copying installers somewhere safe, `src-tauri/target/` can be deleted to reclaim several GB. Rebuild it later with `npm run desktop:build`.

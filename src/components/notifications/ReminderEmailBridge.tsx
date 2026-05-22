@@ -56,6 +56,10 @@ export function ReminderEmailBridge() {
 function apiEndpoint(path: string) {
   if (!isTauriRuntime()) return path;
 
-  const baseUrl = appUrl || "https://align.sharoz.dev/";
+  if (!appUrl) {
+    throw new Error("Hosted API URL is not configured. Add VITE_APP_URL before using email reminders from desktop.");
+  }
+
+  const baseUrl = appUrl;
   return new URL(path, baseUrl).toString();
 }
