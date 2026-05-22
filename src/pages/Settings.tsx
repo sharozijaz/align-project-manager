@@ -54,6 +54,9 @@ import {
 
 type SettingsSection = "account" | "appearance" | "google" | "notifications" | "data";
 
+const LAST_WORKSPACE_EXPORT_KEY = "align-last-workspace-export-v2";
+const IMPORT_SAFETY_BACKUP_KEY = "align-import-safety-backup-v2";
+
 export function Settings() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [dataMessage, setDataMessage] = useState("");
@@ -81,6 +84,9 @@ export function Settings() {
   const [desktopNotificationMessage, setDesktopNotificationMessage] = useState("");
   const [desktopReminderHeartbeat, setDesktopReminderHeartbeatState] = useState<DesktopReminderHeartbeat | null>(null);
   const [preferenceMessage, setPreferenceMessage] = useState("");
+  const [lastWorkspaceExport, setLastWorkspaceExport] = useState(() =>
+    typeof window === "undefined" ? "" : window.localStorage.getItem(LAST_WORKSPACE_EXPORT_KEY) ?? "",
+  );
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
   const { projects, replaceProjects } = useProjectStore();
@@ -197,11 +203,28 @@ export function Settings() {
     };
   }, []);
 
+  const buildWorkspaceBackup = () =>
+    createWorkspaceBackup({
+      tasks,
+      projects,
+      events,
+      resources,
+      notes,
+      preferences: {
+        theme,
+        heroImage,
+        autoCleanTasks,
+        autoCleanProjects,
+      },
+    });
+
   const exportData = () => {
-    const backup = createWorkspaceBackup({ tasks, projects, events });
+    const backup = buildWorkspaceBackup();
     const dateStamp = new Date().toISOString().slice(0, 10);
     downloadJson(`align-workspace-${dateStamp}.json`, backup);
-    setDataMessage("Workspace backup exported.");
+    window.localStorage.setItem(LAST_WORKSPACE_EXPORT_KEY, backup.exportedAt);
+    setLastWorkspaceExport(backup.exportedAt);
+    setDataMessage("Full workspace backup exported.");
   };
 
   const importData = async (file: File | undefined) => {
@@ -209,14 +232,42 @@ export function Settings() {
 
     try {
       const backup = parseWorkspaceBackup(await file.text());
-      const shouldImport = window.confirm("Importing this backup will replace current tasks, projects, and calendar events. Continue?");
+      const shouldImport = window.confirm(
+        "Importing this backup will replace local tasks, projects, calendar events, notes, resources, and supported preferences. Align will save a safety copy first. Continue?",
+      );
 
       if (!shouldImport) return;
 
+      window.localStorage.setItem(IMPORT_SAFETY_BACKUP_KEY, JSON.stringify(buildWorkspaceBackup()));
       replaceTasks(backup.tasks);
       replaceProjects(backup.projects);
       replaceEvents(backup.events);
-      setDataMessage(`Imported backup from ${plainDateLabel(backup.exportedAt.slice(0, 10))}.`);
+      replaceResources(backup.resources);
+      replaceNotes(backup.notes);
+
+      const restoredTheme = themeOptions.find((option) => option.value === backup.preferences.theme);
+      if (restoredTheme) {
+        setTheme(restoredTheme.value);
+      }
+
+      const restoredHero = heroOptions.find((option) => option.value === backup.preferences.heroImage);
+      if (restoredHero) {
+        setHeroImage(restoredHero.value);
+      }
+
+      if (typeof backup.preferences.autoCleanTasks === "boolean") {
+        setTrashCleanupPreference(AUTO_CLEANUP_DELETED_TASKS_KEY, backup.preferences.autoCleanTasks);
+        setAutoCleanTasks(backup.preferences.autoCleanTasks);
+      }
+
+      if (typeof backup.preferences.autoCleanProjects === "boolean") {
+        setTrashCleanupPreference(AUTO_CLEANUP_DELETED_PROJECTS_KEY, backup.preferences.autoCleanProjects);
+        setAutoCleanProjects(backup.preferences.autoCleanProjects);
+      }
+
+      setDataMessage(
+        `Imported backup from ${plainDateLabel(backup.exportedAt.slice(0, 10))}. Safety copy saved on this device.`,
+      );
     } catch (error) {
       setDataMessage(errorMessage(error, "Could not import this backup."));
     } finally {
@@ -861,10 +912,24 @@ export function Settings() {
         {settingsSection === "data" ? (
         <Card className="p-4 sm:p-5">
           <h2 className="font-bold text-[var(--text)]">Data</h2>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">Back up or restore tasks, projects, and local calendar events.</p>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            Back up or restore your full local workspace: tasks, projects, calendar events, notes, resources, and app preferences.
+          </p>
+          <div className="mt-4 grid gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold text-[var(--text)]">Workspace backup</span>
+              <Badge tone="slate">Version 2</Badge>
+            </div>
+            <p className="text-[var(--text-muted)]">
+              Imports automatically save a local safety copy first, so your current workspace has a recovery point before anything is replaced.
+            </p>
+            <p className="text-xs text-[var(--text-soft)]">
+              {lastWorkspaceExport ? `Last exported ${new Date(lastWorkspaceExport).toLocaleString()}` : "No full workspace export recorded on this device yet."}
+            </p>
+          </div>
           <div className="mt-4 flex gap-2">
-            <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export</Button>
-            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import</Button>
+            <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Full Backup</Button>
+            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import Backup</Button>
           </div>
           <input
             ref={importInputRef}
