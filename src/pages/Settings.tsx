@@ -105,6 +105,33 @@ export function Settings() {
   const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("google");
+  const workspaceMode = !isSupabaseConfigured
+    ? {
+        label: "Local only",
+        tone: "slate" as const,
+        title: "Your data is stored on this device.",
+        description: "Cloud sync is optional. Backups and local storage continue to work without Supabase.",
+      }
+    : !session
+      ? {
+          label: "Local, signed out",
+          tone: "amber" as const,
+          title: "Local workspace",
+          description: "Supabase is configured, but this device is using local data until you sign in.",
+        }
+      : syncState.state === "error"
+        ? {
+            label: "Sync issue",
+            tone: "red" as const,
+            title: "Cloud connected with an error",
+            description: syncState.message,
+          }
+        : {
+            label: syncState.state === "synced" ? "Cloud synced" : syncState.state === "idle" ? "Cloud connected" : "Syncing",
+            tone: syncState.state === "synced" ? ("emerald" as const) : ("blue" as const),
+            title: "Cloud workspace",
+            description: syncState.message,
+          };
   const settingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
     { id: "account", label: "Account", description: "Profile and sign-in" },
     { id: "appearance", label: "Appearance", description: "Theme and dashboard image" },
@@ -927,6 +954,18 @@ export function Settings() {
               {lastWorkspaceExport ? `Last exported ${new Date(lastWorkspaceExport).toLocaleString()}` : "No full workspace export recorded on this device yet."}
             </p>
           </div>
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold text-[var(--text)]">{workspaceMode.title}</p>
+                <p className="mt-1 text-[var(--text-muted)]">{workspaceMode.description}</p>
+              </div>
+              <Badge tone={workspaceMode.tone}>{workspaceMode.label}</Badge>
+            </div>
+            {syncState.lastSyncedAt && session ? (
+              <p className="mt-2 text-xs text-[var(--text-soft)]">Last cloud sync {new Date(syncState.lastSyncedAt).toLocaleString()}</p>
+            ) : null}
+          </div>
           <div className="mt-4 flex gap-2">
             <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Full Backup</Button>
             <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import Backup</Button>
@@ -1037,7 +1076,7 @@ export function Settings() {
             <Cloud size={18} /> Supabase Sync
           </h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Prepare multi-device sync before the subdomain is ready. LocalStorage stays active as the offline fallback.
+            Optional hosted sync for your own devices. Align stays usable in local-only mode when this is not configured.
           </p>
           {isSupabaseConfigured ? (
             <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">

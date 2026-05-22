@@ -6,9 +6,9 @@ import { useSyncStore } from "../../store/syncStore";
 
 const statusCopy = {
   idle: "Cloud ready",
-  pulling: "Downloading",
-  pushing: "Saving",
-  synced: "Synced",
+  pulling: "Cloud downloading",
+  pushing: "Cloud saving",
+  synced: "Cloud synced",
   error: "Sync issue",
 };
 
@@ -22,10 +22,10 @@ export function SyncIndicator({ className = "" }: { className?: string }) {
       <Link
         to="/settings"
         className={`inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] ${className}`}
-        title="Supabase is not configured"
+        title="Local-only mode. Cloud sync is not configured."
       >
         <CloudOff size={14} />
-        Local
+        Local only
       </Link>
     );
   }
@@ -35,10 +35,10 @@ export function SyncIndicator({ className = "" }: { className?: string }) {
       <Link
         to="/settings"
         className={`inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] ${className}`}
-        title="Sign in to enable cloud sync"
+        title="Local data is on this device until you sign in."
       >
         <Cloud size={14} />
-        Sign in
+        Local, sign in
       </Link>
     );
   }
