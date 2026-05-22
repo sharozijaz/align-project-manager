@@ -158,6 +158,7 @@ Google Calendar/Todo sync, email reminders, and public share links require hoste
 Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
 Google Calendar setup notes live in `GOOGLE_CALENDAR.md`.
 Deployment notes live in `DEPLOYMENT.md`.
+Complete self-hosting notes live in `SELF_HOSTING.md`.
 
 ## Desktop App
 
@@ -203,6 +204,7 @@ npm run desktop:build
 - `ROADMAP.md` - production and open-source roadmap.
 - `PRIVACY.md` - local-first privacy model and optional cloud behavior.
 - `SECURITY.md` - security rules and manual checks.
+- `SELF_HOSTING.md` - bring-your-own-backend setup and cost-control guide.
 - `CONTRIBUTING.md` - contribution and development rules.
 - `CHANGELOG.md` - release notes.
 - `DESKTOP.md` - Tauri desktop setup and release notes.

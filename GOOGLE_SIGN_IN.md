@@ -21,12 +21,6 @@ Align supports Supabase Google OAuth as a smoother sign-in option alongside magi
 https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 ```
 
-For the current project, that should be:
-
-```text
-https://ydzfefrgawzqqpedkweq.supabase.co/auth/v1/callback
-```
-
 ## Supabase URL Settings
 
 In **Authentication > URL Configuration**:
@@ -34,13 +28,13 @@ In **Authentication > URL Configuration**:
 - Site URL:
 
 ```text
-https://align.sharoz.dev
+https://your-app.example.com
 ```
 
 - Redirect URLs:
 
 ```text
-https://align.sharoz.dev/**
+https://your-app.example.com/**
 http://localhost:5173/**
 ```
 
@@ -52,7 +46,7 @@ For your account:
 
 ```sql
 insert into public.allowed_users (email)
-values ('sharozijaz4@gmail.com')
+values ('you@example.com')
 on conflict (email) do nothing;
 ```
 

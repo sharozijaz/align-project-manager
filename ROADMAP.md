@@ -47,6 +47,7 @@ Owner: Sharoz Ijaz. Executor: Codex or maintainer.
 - Document Supabase, Vercel/serverless APIs, Google OAuth, cron, and email setup.
 - Separate frontend-safe env vars from server-only secrets.
 - Explain that self-hosted users pay their own cloud costs.
+- Keep local-only usage as the default public path.
 
 ## Phase 5 - GitHub Release Pipeline
 

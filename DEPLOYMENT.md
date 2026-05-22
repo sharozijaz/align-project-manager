@@ -4,6 +4,8 @@
 
 Use Vercel, Netlify, or Cloudflare Pages. The app is a Vite static app.
 
+For complete bring-your-own-backend instructions, including Supabase, Google OAuth, cron, email, desktop, and cost-control notes, see `SELF_HOSTING.md`.
+
 ## Build Settings
 
 - Install command: `npm install`
