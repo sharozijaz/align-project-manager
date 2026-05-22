@@ -15,9 +15,10 @@ const statusCopy = {
 export function SyncIndicator({ className = "" }: { className?: string }) {
   const { session, loading } = useSupabaseSession();
   const syncState = useSyncStore((state) => state.state);
+  const syncMode = useSyncStore((state) => state.mode);
   const message = useSyncStore((state) => state.message);
 
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseConfigured || syncMode === "local") {
     return (
       <Link
         to="/settings"
@@ -26,6 +27,19 @@ export function SyncIndicator({ className = "" }: { className?: string }) {
       >
         <CloudOff size={14} />
         Local only
+      </Link>
+    );
+  }
+
+  if (syncMode === "paused") {
+    return (
+      <Link
+        to="/settings"
+        className={`inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] ${className}`}
+        title="Cloud auto-sync is paused. Manual sync is still available."
+      >
+        <CloudOff size={14} />
+        Sync paused
       </Link>
     );
   }

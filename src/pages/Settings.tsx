@@ -9,7 +9,7 @@ import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { useCalendarStore } from "../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
-import { useSyncStore } from "../store/syncStore";
+import { syncModeOptions, useSyncStore } from "../store/syncStore";
 import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
 import { themeOptions, useThemeStore } from "../store/themeStore";
@@ -94,6 +94,7 @@ export function Settings() {
   const { events, replaceEvents } = useCalendarStore();
   const { resources, notes, replaceResources, replaceNotes } = useStudioStore();
   const syncState = useSyncStore();
+  const syncMode = syncState.mode;
   const googleSyncState = useGoogleCalendarSyncStore();
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -105,13 +106,27 @@ export function Settings() {
   const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("google");
-  const workspaceMode = !isSupabaseConfigured
+  const workspaceMode = syncMode === "local"
     ? {
         label: "Local only",
         tone: "slate" as const,
         title: "Your data is stored on this device.",
-        description: "Cloud sync is optional. Backups and local storage continue to work without Supabase.",
+        description: "Cloud upload and download are disabled. Backups and local storage continue to work.",
       }
+    : syncMode === "paused"
+      ? {
+          label: "Sync paused",
+          tone: "amber" as const,
+          title: "Cloud sync paused",
+          description: "Automatic Supabase sync is paused. Manual upload and download remain available.",
+        }
+      : !isSupabaseConfigured
+        ? {
+            label: "Local only",
+            tone: "slate" as const,
+            title: "Your data is stored on this device.",
+            description: "Cloud sync is optional. Backups and local storage continue to work without Supabase.",
+          }
     : !session
       ? {
           label: "Local, signed out",
@@ -339,6 +354,11 @@ export function Settings() {
   };
 
   const uploadWorkspace = async () => {
+    if (syncMode === "local") {
+      setSyncMessage("Switch Sync Mode to Cloud sync or Paused before uploading to Supabase.");
+      return;
+    }
+
     setSyncing(true);
     setSyncMessage("");
     syncState.setSyncState("pushing", "Uploading local workspace...");
@@ -357,6 +377,11 @@ export function Settings() {
   };
 
   const downloadWorkspace = async () => {
+    if (syncMode === "local") {
+      setSyncMessage("Switch Sync Mode to Cloud sync or Paused before downloading from Supabase.");
+      return;
+    }
+
     const shouldReplace = window.confirm("Download from Supabase and replace local tasks, projects, and events?");
     if (!shouldReplace) return;
 
@@ -1078,6 +1103,38 @@ export function Settings() {
           <p className="mt-3 text-sm text-[var(--text-muted)]">
             Optional hosted sync for your own devices. Align stays usable in local-only mode when this is not configured.
           </p>
+          <div className="mt-4 grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold text-[var(--text)]">Sync Mode</p>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Choose whether this device auto-syncs, stays signed in for manual sync, or remains local-only.
+                </p>
+              </div>
+              <Badge tone={workspaceMode.tone}>{workspaceMode.label}</Badge>
+            </div>
+            <div className="grid gap-2 md:grid-cols-3">
+              {syncModeOptions.map((option) => {
+                const isActive = option.value === syncMode;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => syncState.setMode(option.value)}
+                    className={`rounded-[var(--radius-md)] border p-3 text-left transition ${
+                      isActive
+                        ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">{option.label}</span>
+                    <span className="mt-1 block text-xs text-[var(--text-soft)]">{option.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           {isSupabaseConfigured ? (
             <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1125,15 +1182,19 @@ export function Settings() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => void uploadWorkspace()} disabled={!session || syncing}>
+                <Button variant="secondary" onClick={() => void uploadWorkspace()} disabled={!session || syncing || syncMode === "local"}>
                   Upload Now
                 </Button>
-                <Button variant="secondary" onClick={() => void downloadWorkspace()} disabled={!session || syncing}>
+                <Button variant="secondary" onClick={() => void downloadWorkspace()} disabled={!session || syncing || syncMode === "local"}>
                   Download Now
                 </Button>
               </div>
               <p className="text-xs text-[var(--text-soft)]">
-                After sign-in, the app downloads cloud data automatically. Local edits are saved to Supabase after a short delay.
+                {syncMode === "cloud"
+                  ? "After sign-in, the app downloads cloud data automatically. Local edits are saved to Supabase after a short delay."
+                  : syncMode === "paused"
+                    ? "Automatic sync is paused. Use Upload Now or Download Now when you want to move data."
+                    : "Local-only mode blocks Supabase upload and download from this device."}
               </p>
             </div>
           )}

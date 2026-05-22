@@ -28,6 +28,7 @@ export function WorkspaceAutoSync() {
   const replaceNotes = useStudioStore((state) => state.replaceNotes);
   const setSyncState = useSyncStore((state) => state.setSyncState);
   const setSynced = useSyncStore((state) => state.setSynced);
+  const syncMode = useSyncStore((state) => state.mode);
   const sessionId = session?.user.id;
   const pulledSessionRef = useRef<string | undefined>(undefined);
   const readyToPushRef = useRef(false);
@@ -54,6 +55,20 @@ export function WorkspaceAutoSync() {
   };
 
   useEffect(() => {
+    if (syncMode !== "cloud") {
+      readyToPushRef.current = false;
+      pulledSessionRef.current = undefined;
+      applyingCloudRef.current = false;
+      clearedSignedOutRef.current = false;
+      setSyncState(
+        "idle",
+        syncMode === "paused"
+          ? "Cloud sync is paused. Manual upload and download are still available."
+          : "Local-only mode is active. Cloud upload and download are disabled.",
+      );
+      return;
+    }
+
     if (!isConfigured || !sessionId) {
       readyToPushRef.current = false;
       pulledSessionRef.current = undefined;
@@ -162,12 +177,13 @@ export function WorkspaceAutoSync() {
     sessionId,
     setSyncState,
     setSynced,
+    syncMode,
     tasks,
     notes,
   ]);
 
   useEffect(() => {
-    if (!isConfigured || !sessionId || !readyToPushRef.current || applyingCloudRef.current) return;
+    if (syncMode !== "cloud" || !isConfigured || !sessionId || !readyToPushRef.current || applyingCloudRef.current) return;
 
     setSyncState("pushing", "Saving workspace to cloud...");
     const timeout = window.setTimeout(() => {
@@ -177,7 +193,7 @@ export function WorkspaceAutoSync() {
     }, 1200);
 
     return () => window.clearTimeout(timeout);
-  }, [events, isConfigured, notes, projects, resources, sessionId, setSyncState, setSynced, tasks, workspaceSnapshot]);
+  }, [events, isConfigured, notes, projects, resources, sessionId, setSyncState, setSynced, syncMode, tasks, workspaceSnapshot]);
 
   return null;
 }
