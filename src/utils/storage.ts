@@ -77,6 +77,25 @@ export function createWorkspaceBackup({
   };
 }
 
+export function saveWorkspaceSafetyBackup(
+  reason: string,
+  workspace: Omit<WorkspaceBackup, "version" | "exportedAt" | "preferences"> & { preferences?: WorkspaceBackupPreferences },
+) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const backup = createWorkspaceBackup(workspace);
+  window.localStorage.setItem(
+    "align-workspace-safety-backup-v2",
+    JSON.stringify({
+      reason,
+      ...backup,
+    }),
+  );
+  return backup.exportedAt;
+}
+
 export function parseWorkspaceBackup(raw: string): WorkspaceBackup {
   const parsed = JSON.parse(raw) as Partial<WorkspaceBackup | WorkspaceBackupV1>;
 

@@ -5,6 +5,9 @@
 - The app is hidden behind an auth gate when Supabase is configured.
 - `VITE_ALLOWED_EMAILS` blocks non-allowed emails in the UI.
 - Supabase Row Level Security protects cloud data per signed-in user.
+- Hosted API routes enforce `public.allowed_users` before reading or writing signed-in cloud data.
+- API CORS is allowlisted with `APP_URL`, `ALLOWED_API_ORIGINS`, and local development origins.
+- Google sync tokens are encrypted server-side with `GOOGLE_TOKEN_ENCRYPTION_KEY` before storage.
 
 When Supabase is not configured, Align runs in local-only mode and stores workspace data on the user's device.
 
@@ -24,11 +27,13 @@ Safe to expose:
 - `VITE_GOOGLE_REDIRECT_URI`
 - `VITE_GOOGLE_CALENDAR_ID`
 - `VITE_PUBLIC_APP_URL`
+- `VITE_AUTH_METHOD`
 
 Never expose:
 
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_TOKEN_ENCRYPTION_KEY`
 - `RESEND_API_KEY`
 - `CRON_SECRET`
 - Any database password or OAuth refresh token
@@ -55,9 +60,9 @@ Expected results:
 
 Desktop reminders use local device settings and Windows toast permissions. They do not need Supabase service role keys, Google client secrets, Resend keys, or cron secrets in the packaged client.
 
-Public/client share routes must stay server-side API routes backed by service-role env vars in Vercel. They should only return read-only project/task payloads and project notes where `visibility` is `client`.
+Public/client share routes must stay server-side API routes backed by service-role env vars in Vercel. They should only return read-only project/task payloads and notes that are explicitly marked `client_visible`.
 
-Personal Hub resources and notes remain owner/member data behind Supabase Auth and RLS. They should not be exposed by public share APIs.
+Personal Hub resources are never exposed by public share APIs. Personal Hub notes default to private and only appear on share links when the owner marks the note client-visible and links it to a shared project.
 
 ## Open Source Release Safety
 
@@ -69,6 +74,24 @@ For public builds:
 - Do not include service-role keys or OAuth client secrets in desktop/frontend builds.
 - Use `VITE_APP_URL` only when the build should call a hosted API owned by that deployment.
 - Use `VITE_PUBLIC_APP_URL` only when share links should point to a public web deployment.
+- Run `npm run check:public-release-env` before publishing a public desktop build. It fails if local env files would silently wire the build to a configured backend.
+
+For a private configured build, use `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true npm run check:public-release-env` only when you intentionally want the build to call your own backend.
+
+## Edge Protection
+
+Use Cloudflare WAF or an equivalent edge firewall for hosted production deployments. Rate limit and method-filter `/api/*`, public share routes, Google OAuth callback, reminder routes, and cron routes before traffic reaches serverless functions.
+
+## Supabase Outage And Recovery
+
+Align treats the local workspace as the active working copy. If Supabase is unavailable, returns an error, or unexpectedly returns an empty workspace for an existing signed-in device, the app keeps local data and shows: `Cloud sync unavailable. Local data is safe on this device.`
+
+Recovery order:
+
+1. Keep using the local workspace if it is still visible.
+2. Export a full JSON backup from Settings > Data.
+3. If data is missing, restore from a JSON backup first.
+4. Reconnect Supabase after the local workspace is correct, then upload manually.
 
 ## Manual Supabase SQL Checklist
 

@@ -6,6 +6,7 @@ const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const GOOGLE_CALENDAR_API_URL = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TASKS_API_URL = "https://tasks.googleapis.com/tasks/v1";
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
+const ENCRYPTED_TOKEN_PREFIX = "enc:v1:";
 
 export const calendarScopes = ["https://www.googleapis.com/auth/calendar.events.owned"];
 export const googleTasksScopes = ["https://www.googleapis.com/auth/tasks"];
@@ -28,6 +29,8 @@ export function getEnv() {
   const resendApiKey = process.env.RESEND_API_KEY || "";
   const reminderEmailFrom = process.env.REMINDER_EMAIL_FROM || "";
   const reminderEmailReplyTo = process.env.REMINDER_EMAIL_REPLY_TO || "";
+  const allowedApiOrigins = process.env.ALLOWED_API_ORIGINS || "";
+  const googleTokenEncryptionKey = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || "";
 
   return {
     supabaseUrl,
@@ -43,6 +46,8 @@ export function getEnv() {
     resendApiKey,
     reminderEmailFrom,
     reminderEmailReplyTo,
+    allowedApiOrigins,
+    googleTokenEncryptionKey,
   };
 }
 
@@ -62,12 +67,22 @@ export function requireMethod(req, res, method) {
 }
 
 export function applyApiCors(req, res, methods = "GET,POST,OPTIONS") {
-  const origin = req.headers.origin || "*";
+  const env = getEnv();
+  const origin = String(req.headers.origin || "").replace(/\/$/u, "");
+  const allowedOrigins = allowedApiOrigins(env);
 
-  res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", methods);
   res.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
+
+  if (origin) {
+    if (!allowedOrigins.has(origin)) {
+      res.status(403).json({ error: "Origin is not allowed." });
+      return true;
+    }
+
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
 
   if (req.method !== "OPTIONS") return false;
 
@@ -116,6 +131,59 @@ export async function getSupabaseUser(req, env) {
   }
 
   return response.json();
+}
+
+export async function requireAllowedUser(req, env) {
+  const user = await getSupabaseUser(req, env);
+  const email = String(user?.email || "").trim();
+
+  if (!user?.id || !email) {
+    throw new HttpError(403, "This account is not allowed to use hosted Align APIs.");
+  }
+
+  await requireAllowedEmail(env, email);
+
+  return user;
+}
+
+export async function requireAllowedUserId(env, userId) {
+  const email = await findUserEmail(env, userId);
+
+  if (!email) {
+    throw new HttpError(403, "This account is not allowed to use hosted Align APIs.");
+  }
+
+  await requireAllowedEmail(env, email);
+
+  return { id: userId, email };
+}
+
+export async function isAllowedUserId(env, userId) {
+  try {
+    await requireAllowedUserId(env, userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function requireAllowedEmail(env, email) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/allowed_users`);
+  url.searchParams.set("email", `ilike.${email}`);
+  url.searchParams.set("select", "email");
+  url.searchParams.set("limit", "1");
+
+  let rows = [];
+  try {
+    const response = await serviceFetch(env, url);
+    rows = await response.json();
+  } catch (error) {
+    throw new HttpError(403, "Hosted API allowlist is not configured. Run supabase/security-hardening.sql and add allowed users.");
+  }
+
+  if (!rows.length) {
+    throw new HttpError(403, "This account is not allowed to use hosted Align APIs.");
+  }
 }
 
 export function createOAuthState(env, userId) {
@@ -186,8 +254,8 @@ export async function upsertGoogleConnection(env, userId, tokens) {
   const expiresAt = new Date(Date.now() + Number(tokens.expires_in || 3600) * 1000).toISOString();
   const row = {
     user_id: userId,
-    access_token: tokens.access_token,
-    ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
+    access_token: encryptGoogleToken(env, tokens.access_token),
+    ...(tokens.refresh_token ? { refresh_token: encryptGoogleToken(env, tokens.refresh_token) } : {}),
     expires_at: expiresAt,
     calendar_id: env.googleCalendarId,
     scopes: googleWorkspaceScopes,
@@ -229,7 +297,7 @@ export async function getGoogleConnection(env, userId) {
   }
 
   const rows = await response.json();
-  return rows[0] || null;
+  return rows[0] ? decryptGoogleConnection(env, rows[0]) : null;
 }
 
 export async function requireGoogleConnection(env, userId) {
@@ -1532,7 +1600,8 @@ export async function findGoogleCalendarConnections(env) {
   url.searchParams.set("select", "user_id,calendar_id,access_token,refresh_token,expires_at,updated_at,scopes");
 
   const response = await serviceFetch(env, url);
-  return response.json();
+  const rows = await response.json();
+  return rows.map((row) => decryptGoogleConnection(env, row));
 }
 
 export async function findWorkspaceUserIds(env) {
@@ -2035,6 +2104,92 @@ export class HttpError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+function allowedApiOrigins(env) {
+  const origins = [
+    env.appUrl,
+    ...String(env.allowedApiOrigins || "")
+      .split(",")
+      .map((origin) => normalizeOrigin(origin))
+      .filter(Boolean),
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:1420",
+    "http://127.0.0.1:1420",
+    "http://tauri.localhost",
+    "tauri://localhost",
+  ];
+
+  return new Set(origins.filter(Boolean).map((origin) => origin.replace(/\/$/u, "")));
+}
+
+function normalizeOrigin(value = "") {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.includes("://")) return trimmed.replace(/\/$/u, "");
+  return normalizeUrl(trimmed);
+}
+
+function encryptGoogleToken(env, token) {
+  if (!token) return token;
+  if (String(token).startsWith(ENCRYPTED_TOKEN_PREFIX)) return token;
+
+  const key = googleTokenKey(env);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(token), "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return `${ENCRYPTED_TOKEN_PREFIX}${iv.toString("base64url")}.${tag.toString("base64url")}.${encrypted.toString("base64url")}`;
+}
+
+function decryptGoogleToken(env, token) {
+  if (!token || !String(token).startsWith(ENCRYPTED_TOKEN_PREFIX)) return token || "";
+
+  const [, encoded] = String(token).split(ENCRYPTED_TOKEN_PREFIX);
+  const [ivValue, tagValue, encryptedValue] = encoded.split(".");
+
+  if (!ivValue || !tagValue || !encryptedValue) {
+    throw new HttpError(500, "Saved Google token is malformed.");
+  }
+
+  const key = googleTokenKey(env);
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivValue, "base64url"));
+  decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
+
+  return Buffer.concat([
+    decipher.update(Buffer.from(encryptedValue, "base64url")),
+    decipher.final(),
+  ]).toString("utf8");
+}
+
+function decryptGoogleConnection(env, connection) {
+  return {
+    ...connection,
+    access_token: decryptGoogleToken(env, connection.access_token),
+    refresh_token: decryptGoogleToken(env, connection.refresh_token),
+  };
+}
+
+function googleTokenKey(env) {
+  const configured = String(env.googleTokenEncryptionKey || "").trim();
+  if (!configured) {
+    throw new HttpError(500, "Missing server configuration: googleTokenEncryptionKey.");
+  }
+
+  if (/^[A-Za-z0-9_-]{43,44}$/u.test(configured)) {
+    const decoded = Buffer.from(configured, "base64url");
+    if (decoded.length === 32) return decoded;
+  }
+
+  if (/^[a-f0-9]{64}$/iu.test(configured)) {
+    return Buffer.from(configured, "hex");
+  }
+
+  return crypto.createHash("sha256").update(configured).digest();
 }
 
 function normalizeTaskPriority(priority) {

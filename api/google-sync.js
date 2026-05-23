@@ -5,12 +5,12 @@ import {
   getGoogleConnection,
   getGoogleTaskLists,
   getGoogleTodoSyncSettings,
-  getSupabaseUser,
   googleCalendarRequest,
   googleEventToCalendarEvent,
   googleTasksScopes,
   handleApiError,
   refreshGoogleAccessTokenIfNeeded,
+  requireAllowedUser,
   requireMethod,
   syncGoogleTodosForUser,
   syncTasksToGoogleCalendarForUser,
@@ -65,6 +65,7 @@ async function handleStatus(req, res) {
       "supabaseServiceRoleKey",
       "googleClientId",
       "googleClientSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
@@ -72,7 +73,7 @@ async function handleStatus(req, res) {
 
   try {
     const includeLists = req.query?.includeLists === "true" || req.query?.includeLists === "1";
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const connection = await getGoogleConnection(env, user.id);
     const settings = await getGoogleTodoSyncSettings(env, user.id);
     const scopes = connection?.scopes ?? [];
@@ -117,7 +118,7 @@ async function handleSettings(req, res) {
   if (ensureEnv(res, env, ["supabaseUrl", "supabaseAnonKey", "supabaseServiceRoleKey"])) return;
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const settings = await upsertGoogleTodoSyncSettings(env, user.id, sanitizeGoogleTodoSettings(req.body));
 
     res.status(200).json({ settings });
@@ -139,13 +140,14 @@ async function handleSync(req, res) {
       "supabaseServiceRoleKey",
       "googleClientId",
       "googleClientSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
   }
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const tasks = sanitizeTaskSyncPayload(req.body?.tasks);
     const result = {};
 

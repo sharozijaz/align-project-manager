@@ -96,6 +96,7 @@ create table if not exists public.hub_notes (
   body text not null,
   tags text,
   favorite boolean not null default false,
+  client_visible boolean not null default false,
   project_ids text[] not null default '{}',
   created_at timestamptz not null,
   updated_at timestamptz not null
@@ -104,6 +105,9 @@ create table if not exists public.hub_notes (
 alter table public.hub_notes
 add column if not exists project_ids text[] not null default '{}';
 
+alter table public.hub_notes
+add column if not exists client_visible boolean not null default false;
+
 create table if not exists public.project_shares (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -111,7 +115,7 @@ create table if not exists public.project_shares (
   token text not null unique,
   enabled boolean not null default true,
   password_hash text,
-  expires_at timestamptz,
+  expires_at timestamptz default (now() + interval '30 days'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -125,6 +129,7 @@ create table if not exists public.client_share_links (
   project_tokens text[] not null default '{}',
   enabled boolean not null default true,
   password_hash text,
+  expires_at timestamptz default (now() + interval '30 days'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

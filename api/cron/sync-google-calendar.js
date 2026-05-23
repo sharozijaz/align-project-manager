@@ -6,6 +6,7 @@ import {
   findWorkspaceUserIds,
   getEnv,
   handleApiError,
+  isAllowedUserId,
   requireCronAuthorization,
   requireMethod,
   sendReminderEmailsForUser,
@@ -25,6 +26,7 @@ export default async function handler(req, res) {
       "googleClientId",
       "googleClientSecret",
       "cronSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
@@ -41,6 +43,11 @@ export default async function handler(req, res) {
       const hasGoogleConnection = connectionsByUserId.has(userId);
 
       try {
+        if (!(await isAllowedUserId(env, userId))) {
+          results.push({ userId, ok: true, skipped: 0, allowedSkipped: true });
+          continue;
+        }
+
         const tasks = await findTasksForUser(env, userId);
         const googleResult = hasGoogleConnection
           ? await syncTasksToGoogleCalendarForUser(env, userId, tasks)

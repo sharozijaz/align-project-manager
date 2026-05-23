@@ -20,6 +20,7 @@ export interface HubNote {
   body: string;
   tags?: string;
   favorite?: boolean;
+  clientVisible?: boolean;
   projectIds: string[];
   createdAt: string;
   updatedAt: string;

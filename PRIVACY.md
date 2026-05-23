@@ -28,15 +28,23 @@ Google Calendar and Google Todo sync require a hosted API and Google OAuth confi
 
 Google sync should only be enabled when you understand and control the configured backend.
 
+Hosted API code encrypts saved Google access and refresh tokens with `GOOGLE_TOKEN_ENCRYPTION_KEY`. If that key is lost, reconnect Google instead of trying to recover old encrypted tokens.
+
 ## Optional Share Links
 
 Client share links require hosted API routes. Shared pages are read-only and should expose only selected project data and client-visible notes.
 
-Personal Hub notes should remain private unless intentionally linked and exposed through a share workflow.
+Personal Hub notes remain private by default. A note only appears on a share link when it is linked to a shared project and explicitly marked client-visible. Personal Hub resources are not exposed by share links.
+
+New share links are password-protected and expire by default. Review or disable older links that were created before password/expiry defaults.
 
 ## Backups
 
 Align supports export/import workflows. Backup files are controlled by the user. Treat backup files as private because they can contain project details, notes, links, and client context.
+
+Before manual cloud download, import, or sign-out cleanup, Align saves a local safety snapshot on the same device. If Supabase is down, slow, errors, or unexpectedly returns an empty existing workspace, Align should keep the local workspace visible and warn that local data is safe.
+
+For disaster recovery, restore from your latest JSON backup first, confirm the local workspace is correct, then reconnect or upload to Supabase.
 
 ## Secrets
 

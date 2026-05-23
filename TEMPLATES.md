@@ -6,7 +6,7 @@ Align templates are importable workspace packs for repeatable project and planni
 
 - The open-source app stays free and fully usable.
 - Free samples can live in this repository.
-- Paid packs should be sold separately, for example through Gumroad.
+- Paid packs should be sold separately from the source repository.
 - Template packs use Align's existing full workspace backup format.
 - Importing a template currently replaces the local workspace after saving a safety copy.
 
@@ -29,9 +29,9 @@ It includes:
 - a reusable discovery note
 - a small resource list
 
-## Paid Product Line
+## Optional Paid Packs
 
-Recommended paid packs:
+Examples of optional packs that could be distributed outside this repository:
 
 - `Web Designer Starter Pack`
 - `Figma to WordPress Project Pack`
@@ -46,11 +46,6 @@ Each paid pack should include:
 - example projects, tasks, subtasks, notes, and planning structure
 - optional client handoff notes and checklists
 - a changelog for pack updates
-
-Suggested first pricing:
-
-- single pack: `$9-$19`
-- bundle: `$29-$49`
 
 ## How To Import A Template
 

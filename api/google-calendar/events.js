@@ -2,10 +2,10 @@ import {
   applyApiCors,
   ensureEnv,
   getEnv,
-  getSupabaseUser,
   googleCalendarRequest,
   googleEventToCalendarEvent,
   handleApiError,
+  requireAllowedUser,
   requireGoogleConnection,
   requireMethod,
 } from "../_googleCalendar.js";
@@ -24,13 +24,14 @@ export default async function handler(req, res) {
       "supabaseServiceRoleKey",
       "googleClientId",
       "googleClientSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
   }
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const connection = await requireGoogleConnection(env, user.id);
     const params = new URLSearchParams({
       singleEvents: "true",

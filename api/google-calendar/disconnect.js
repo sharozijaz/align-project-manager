@@ -4,8 +4,8 @@ import {
   ensureEnv,
   getEnv,
   getGoogleConnection,
-  getSupabaseUser,
   handleApiError,
+  requireAllowedUser,
   requireMethod,
   revokeGoogleToken,
 } from "../_googleCalendar.js";
@@ -25,13 +25,14 @@ export default async function handler(req, res) {
       "supabaseServiceRoleKey",
       "googleClientId",
       "googleClientSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
   }
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const connection = await getGoogleConnection(env, user.id);
 
     if (connection) {

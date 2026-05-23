@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
+import { applyApiCors, getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
 import {
   applyRateLimit,
   readJsonBody,
@@ -11,6 +11,7 @@ import {
 const SHARE_PASSWORD_MAX_BYTES = 4 * 1024;
 
 export default async function handler(req, res) {
+  if (applyApiCors(req, res, "GET,POST,OPTIONS")) return;
   if (!["GET", "POST"].includes(req.method)) {
     if (requireMethod(req, res, "GET")) return;
   }
@@ -135,7 +136,8 @@ async function findLinkedHubNotes(env, userId, projectId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/hub_notes`);
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("project_ids", `cs.{${projectId}}`);
-  url.searchParams.set("select", "id,title,body,tags,favorite,project_ids,created_at,updated_at");
+  url.searchParams.set("client_visible", "eq.true");
+  url.searchParams.set("select", "id,title,body,tags,favorite,client_visible,project_ids,created_at,updated_at");
   url.searchParams.set("order", "updated_at.desc");
 
   const response = await serviceFetch(env, url);

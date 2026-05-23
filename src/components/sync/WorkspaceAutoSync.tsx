@@ -7,15 +7,14 @@ import { useStudioStore } from "../../store/studioStore";
 import { useSyncStore } from "../../store/syncStore";
 import { useTaskStore } from "../../store/taskStore";
 import { errorMessage } from "../../utils/errors";
+import { saveWorkspaceSafetyBackup } from "../../utils/storage";
+import { clearWorkspaceOwnerId, getWorkspaceOwnerId, setWorkspaceOwnerId } from "../../utils/workspaceIdentity";
 
 const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[] }) =>
   workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
 
-const WORKSPACE_SESSION_KEY = "align-workspace-session-user-v1";
-const WORKSPACE_BACKUP_KEY = "align-workspace-pre-clear-backup-v1";
-
 export function WorkspaceAutoSync() {
-  const { session, isConfigured } = useSupabaseSession();
+  const { session, loading, isConfigured } = useSupabaseSession();
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useProjectStore((state) => state.projects);
   const events = useCalendarStore((state) => state.events);
@@ -34,27 +33,76 @@ export function WorkspaceAutoSync() {
   const readyToPushRef = useRef(false);
   const applyingCloudRef = useRef(false);
   const clearedSignedOutRef = useRef(false);
+  const isolatedAccountRef = useRef<string | undefined>(undefined);
   const workspaceSnapshot = useMemo(
     () => JSON.stringify({ tasks, projects, events, resources, notes }),
     [events, notes, projects, resources, tasks],
   );
 
-  const backupWorkspaceBeforeClear = (reason: string) => {
-    window.localStorage.setItem(
-      WORKSPACE_BACKUP_KEY,
-      JSON.stringify({
-        reason,
-        backedUpAt: new Date().toISOString(),
-        tasks,
-        projects,
-        events,
-        resources,
-        notes,
-      }),
-    );
-  };
+  const saveSafetyBackup = (reason: string) =>
+    saveWorkspaceSafetyBackup(reason, { tasks, projects, events, resources, notes });
 
   useEffect(() => {
+    if (isConfigured && loading) {
+      return;
+    }
+
+    const currentWorkspace = { tasks, projects, events, resources, notes };
+    const hasLocalData = hasWorkspaceData(currentWorkspace);
+
+    if (isConfigured && !sessionId) {
+      readyToPushRef.current = false;
+      pulledSessionRef.current = undefined;
+      if (!clearedSignedOutRef.current) {
+        if (hasLocalData) saveSafetyBackup("signed-out");
+        applyingCloudRef.current = true;
+        replaceTasks([]);
+        replaceProjects([]);
+        replaceEvents([]);
+        replaceResources([]);
+        replaceNotes([]);
+        clearWorkspaceOwnerId();
+        isolatedAccountRef.current = undefined;
+        setSyncState("idle", "Signed out. Local workspace cleared after a safety backup was saved on this device.");
+        window.setTimeout(() => {
+          applyingCloudRef.current = false;
+        }, 0);
+        clearedSignedOutRef.current = true;
+      }
+      return;
+    }
+
+    if (isConfigured && sessionId) {
+      const previousSessionId = getWorkspaceOwnerId();
+      const isUnownedLocalWorkspace = !previousSessionId && hasLocalData;
+      const isDifferentAccount = previousSessionId !== "" && previousSessionId !== sessionId;
+      const mustIsolateWorkspace = (isDifferentAccount || isUnownedLocalWorkspace) && isolatedAccountRef.current !== sessionId;
+
+      if (mustIsolateWorkspace) {
+        if (hasLocalData) saveSafetyBackup("account-switch");
+        applyingCloudRef.current = true;
+        readyToPushRef.current = false;
+        pulledSessionRef.current = undefined;
+        replaceTasks([]);
+        replaceProjects([]);
+        replaceEvents([]);
+        replaceResources([]);
+        replaceNotes([]);
+        setWorkspaceOwnerId(sessionId);
+        isolatedAccountRef.current = sessionId;
+        setSyncState("idle", "Account switched. Local workspace isolated after a safety backup was saved on this device.");
+        window.setTimeout(() => {
+          applyingCloudRef.current = false;
+        }, 0);
+        return;
+      }
+
+      if (!previousSessionId) {
+        setWorkspaceOwnerId(sessionId);
+      }
+      clearedSignedOutRef.current = false;
+    }
+
     if (syncMode !== "cloud") {
       readyToPushRef.current = false;
       pulledSessionRef.current = undefined;
@@ -72,19 +120,9 @@ export function WorkspaceAutoSync() {
     if (!isConfigured || !sessionId) {
       readyToPushRef.current = false;
       pulledSessionRef.current = undefined;
-      if (isConfigured && !clearedSignedOutRef.current) {
-        backupWorkspaceBeforeClear("signed-out");
-        applyingCloudRef.current = true;
-        replaceTasks([]);
-        replaceProjects([]);
-        replaceEvents([]);
-        replaceResources([]);
-        replaceNotes([]);
-        window.localStorage.removeItem(WORKSPACE_SESSION_KEY);
-        window.setTimeout(() => {
-          applyingCloudRef.current = false;
-        }, 0);
-        clearedSignedOutRef.current = true;
+      if (!isConfigured) {
+        setSyncState("error", "Cloud sync unavailable. Local data is safe on this device.");
+        return;
       }
       return;
     }
@@ -96,26 +134,8 @@ export function WorkspaceAutoSync() {
     readyToPushRef.current = false;
     clearedSignedOutRef.current = false;
 
-    const previousSessionId = window.localStorage.getItem(WORKSPACE_SESSION_KEY);
-    const localWorkspaceAtPullStart = { tasks, projects, events, resources, notes };
-    const hadLocalDataAtPullStart = hasWorkspaceData(localWorkspaceAtPullStart);
-    const isNewSignedInWorkspace = previousSessionId !== sessionId;
-
-    if (isNewSignedInWorkspace) {
-      if (hadLocalDataAtPullStart) {
-        backupWorkspaceBeforeClear(previousSessionId ? "account-switch" : "first-signed-in-workspace");
-      }
-      applyingCloudRef.current = true;
-      replaceTasks([]);
-      replaceProjects([]);
-      replaceEvents([]);
-      replaceResources([]);
-      replaceNotes([]);
-      window.localStorage.setItem(WORKSPACE_SESSION_KEY, sessionId);
-      window.setTimeout(() => {
-        applyingCloudRef.current = false;
-      }, 0);
-    }
+    const hadLocalDataAtPullStart = hasWorkspaceData({ tasks, projects, events, resources, notes });
+    const wasIsolatedForThisSession = isolatedAccountRef.current === sessionId;
 
     setSyncState("pulling", "Downloading cloud workspace...");
 
@@ -135,30 +155,27 @@ export function WorkspaceAutoSync() {
             readyToPushRef.current = true;
           }, 0);
 
+          setWorkspaceOwnerId(sessionId);
+          isolatedAccountRef.current = undefined;
           setSynced("Cloud workspace downloaded.");
           return;
         }
 
-        if (hadLocalDataAtPullStart && !isNewSignedInWorkspace) {
-          backupWorkspaceBeforeClear("empty-cloud-replaced-local");
+        if (!wasIsolatedForThisSession && hadLocalDataAtPullStart) {
+          readyToPushRef.current = true;
+          setSyncState("error", "Cloud sync unavailable. Local data is safe on this device.");
+          return;
         }
 
-        applyingCloudRef.current = true;
-        replaceTasks([]);
-        replaceProjects([]);
-        replaceEvents([]);
-        replaceResources([]);
-        replaceNotes([]);
-        window.setTimeout(() => {
-          applyingCloudRef.current = false;
-          readyToPushRef.current = true;
-        }, 0);
+        setWorkspaceOwnerId(sessionId);
+        isolatedAccountRef.current = undefined;
+        readyToPushRef.current = true;
         setSynced("Cloud workspace is empty. Fresh workspace ready.");
       })
       .catch((error) => {
         if (cancelled) return;
         readyToPushRef.current = false;
-        setSyncState("error", errorMessage(error, "Could not sync workspace."));
+        setSyncState("error", `${errorMessage(error, "Cloud sync unavailable.")} Local data is safe on this device.`);
       });
 
     return () => {
@@ -167,6 +184,7 @@ export function WorkspaceAutoSync() {
   }, [
     events,
     isConfigured,
+    loading,
     projects,
     replaceEvents,
     replaceNotes,
@@ -184,6 +202,13 @@ export function WorkspaceAutoSync() {
 
   useEffect(() => {
     if (syncMode !== "cloud" || !isConfigured || !sessionId || !readyToPushRef.current || applyingCloudRef.current) return;
+
+    const ownerId = getWorkspaceOwnerId();
+    if (ownerId && ownerId !== sessionId) {
+      readyToPushRef.current = false;
+      setSyncState("error", "Cloud upload blocked because this local workspace belongs to another account.");
+      return;
+    }
 
     setSyncState("pushing", "Saving workspace to cloud...");
     const timeout = window.setTimeout(() => {

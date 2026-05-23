@@ -108,12 +108,18 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       setMessage("Select at least one project to create a client overview link.");
       return;
     }
+    const sharePassword = window.prompt("Set a password for this client overview link. New links expire automatically after 30 days.");
+    if (sharePassword === null) return;
+    if (!sharePassword.trim()) {
+      setMessage("A password is required for new client overview links.");
+      return;
+    }
 
     setWorking(true);
     setMessage("");
 
     try {
-      const link = await createClientShareLink({ name: clientName, projects: selectedProjects });
+      const link = await createClientShareLink({ name: clientName, projects: selectedProjects, password: sharePassword });
       setLinks((current) => [link, ...current]);
       setActiveLinkId(link.id);
       setEditingLinkId("");
@@ -135,11 +141,29 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       return;
     }
 
+    let sharePassword: string | undefined;
+    if (editingLink.passwordProtected) {
+      const enteredPassword = window.prompt(
+        "Re-enter this client overview password so newly included project detail links stay protected.",
+      );
+      if (enteredPassword === null) return;
+      if (!enteredPassword.trim()) {
+        setMessage("Password is required to update protected client overview projects.");
+        return;
+      }
+      sharePassword = enteredPassword;
+    }
+
     setWorking(true);
     setMessage("");
 
     try {
-      const link = await updateClientShareLinkProjects({ link: editingLink, name: clientName, projects: selectedProjects });
+      const link = await updateClientShareLinkProjects({
+        link: editingLink,
+        name: clientName,
+        projects: selectedProjects,
+        password: sharePassword,
+      });
       setLinks((current) => current.map((item) => (item.id === link.id ? link : item)));
       setActiveLinkId(link.id);
       setEditingLinkId("");
@@ -439,7 +463,10 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-bold text-[var(--text)]">Optional password</p>
-                  <p className="mt-1 text-xs text-[var(--text-soft)]">Use this for private agency or client overview links.</p>
+                  <p className="mt-1 text-xs text-[var(--text-soft)]">
+                    New overview links require a password and expire after 30 days by default.
+                    {shareModalLink.expiresAt ? ` Expires ${plainDateLabel(shareModalLink.expiresAt.slice(0, 10))}.` : ""}
+                  </p>
                 </div>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-bold ${

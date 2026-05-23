@@ -17,6 +17,7 @@ export interface ClientShareLink {
   projectTokens: string[];
   enabled: boolean;
   passwordProtected: boolean;
+  expiresAt?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -12,6 +12,8 @@ const requireClient = () => {
   return supabase;
 };
 
+const DEFAULT_SHARE_EXPIRY_DAYS = 30;
+
 const rowToProjectShare = (row: {
   id: string;
   project_id: string;
@@ -40,6 +42,7 @@ const rowToClientShareLink = (row: {
   project_tokens: string[];
   enabled: boolean;
   password_hash?: string | null;
+  expires_at?: string | null;
   created_at: string;
   updated_at: string;
 }): ClientShareLink => ({
@@ -50,6 +53,7 @@ const rowToClientShareLink = (row: {
   projectTokens: row.project_tokens ?? [],
   enabled: row.enabled,
   passwordProtected: Boolean(row.password_hash),
+  expiresAt: row.expires_at || undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -74,7 +78,7 @@ export async function getProjectShare(projectId: string) {
   return data ? rowToProjectShare(data) : null;
 }
 
-export async function createProjectShare(project: Project) {
+export async function createProjectShare(project: Project, options: { password?: string; expiresAt?: string } = {}) {
   const client = requireClient();
   const {
     data: { user },
@@ -88,15 +92,21 @@ export async function createProjectShare(project: Project) {
   if (projectError) throw new Error(errorMessage(projectError, "Could not prepare project for sharing."));
 
   const existing = await getProjectShare(project.id);
-  if (existing) return existing;
+  if (existing) {
+    return options.password?.trim() || options.expiresAt ? updateProjectShareControls(existing, options) : existing;
+  }
+  const token = createShareToken();
+  const passwordHash = options.password?.trim() ? await hashSharePassword(token, options.password) : null;
 
   const { data, error } = await client
     .from("project_shares")
     .insert({
       user_id: user.id,
       project_id: project.id,
-      token: createShareToken(),
+      token,
       enabled: true,
+      password_hash: passwordHash,
+      expires_at: options.expiresAt || defaultShareExpiresAt(),
       updated_at: new Date().toISOString(),
     })
     .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
@@ -132,11 +142,32 @@ export async function updateProjectSharePassword(share: ProjectShare, password: 
   return rowToProjectShare(data);
 }
 
+async function updateProjectShareControls(share: ProjectShare, options: { password?: string; expiresAt?: string }) {
+  const client = requireClient();
+  const updates: { password_hash?: string | null; expires_at?: string; updated_at: string } = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (options.password?.trim()) updates.password_hash = await hashSharePassword(share.token, options.password);
+  if (options.expiresAt) updates.expires_at = options.expiresAt;
+
+  const { data, error } = await client
+    .from("project_shares")
+    .update(updates)
+    .eq("id", share.id)
+    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
+    .single();
+
+  if (error) throw new Error(errorMessage(error, "Could not update project share protection."));
+
+  return rowToProjectShare(data);
+}
+
 export async function listClientShareLinks() {
   const client = requireClient();
   const { data, error } = await client
     .from("client_share_links")
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
     .eq("enabled", true)
     .order("created_at", { ascending: false });
 
@@ -153,10 +184,12 @@ export async function createClientShareLink({
   name,
   projects,
   password,
+  expiresAt,
 }: {
   name?: string;
   projects: Project[];
   password?: string;
+  expiresAt?: string;
 }) {
   const client = requireClient();
   const {
@@ -167,31 +200,31 @@ export async function createClientShareLink({
   if (userError) throw new Error(errorMessage(userError, "Could not read Supabase user."));
   if (!user) throw new Error("Sign in before creating a client overview link.");
 
-  const shares = await Promise.all(projects.map((project) => createProjectShare(project)));
+  const shareExpiresAt = expiresAt || defaultShareExpiresAt();
+  const shares = await Promise.all(projects.map((project) => createProjectShare(project, { password, expiresAt: shareExpiresAt })));
   const now = new Date().toISOString();
+  const token = createShareToken();
+  const passwordHash = password?.trim() ? await hashSharePassword(token, password) : null;
   const { data, error } = await client
     .from("client_share_links")
     .insert({
       user_id: user.id,
       name: name?.trim() || null,
-      token: createShareToken(),
+      token,
       project_ids: projects.map((project) => project.id),
       project_tokens: shares.map((share) => share.token),
       enabled: true,
+      password_hash: passwordHash,
+      expires_at: shareExpiresAt,
       created_at: now,
       updated_at: now,
     })
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
     .single();
 
   if (error) throw new Error(errorMessage(error, "Could not save client overview link."));
 
-  let link = rowToClientShareLink(data);
-  if (password?.trim()) {
-    link = await updateClientShareLinkPassword(link, password);
-  }
-
-  return link;
+  return rowToClientShareLink(data);
 }
 
 export async function revokeClientShareLink(linkId: string) {
@@ -207,11 +240,14 @@ export async function revokeClientShareLink(linkId: string) {
 export async function updateClientShareLinkPassword(link: ClientShareLink, password: string) {
   const client = requireClient();
   const passwordHash = password.trim() ? await hashSharePassword(link.token, password) : null;
+
+  await updateProjectSharePasswordsByToken(client, link.projectTokens, password);
+
   const { data, error } = await client
     .from("client_share_links")
     .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
     .eq("id", link.id)
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
     .single();
 
   if (error) throw new Error(errorMessage(error, "Could not update client link password."));
@@ -223,30 +259,64 @@ export async function updateClientShareLinkProjects({
   link,
   name,
   projects,
+  password,
 }: {
   link: ClientShareLink;
   name?: string;
   projects: Project[];
+  password?: string;
 }) {
   const client = requireClient();
   if (!projects.length) throw new Error("Select at least one project for this client overview link.");
 
-  const shares = await Promise.all(projects.map((project) => createProjectShare(project)));
+  const sharePassword = password?.trim();
+  if (link.passwordProtected && !sharePassword) {
+    throw new Error("Re-enter the client overview password before changing protected project details.");
+  }
+
+  const shareExpiresAt = link.expiresAt || defaultShareExpiresAt();
+  const shares = await Promise.all(
+    projects.map((project) => createProjectShare(project, { password: sharePassword, expiresAt: shareExpiresAt })),
+  );
+  const updates: {
+    name: string | null;
+    project_ids: string[];
+    project_tokens: string[];
+    password_hash?: string | null;
+    updated_at: string;
+  } = {
+    name: name?.trim() || null,
+    project_ids: projects.map((project) => project.id),
+    project_tokens: shares.map((share) => share.token),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (sharePassword) updates.password_hash = await hashSharePassword(link.token, sharePassword);
+
   const { data, error } = await client
     .from("client_share_links")
-    .update({
-      name: name?.trim() || null,
-      project_ids: projects.map((project) => project.id),
-      project_tokens: shares.map((share) => share.token),
-      updated_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq("id", link.id)
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at")
+    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
     .single();
 
   if (error) throw new Error(errorMessage(error, "Could not update client overview projects."));
 
   return rowToClientShareLink(data);
+}
+
+async function updateProjectSharePasswordsByToken(client: ReturnType<typeof requireClient>, tokens: string[], password: string) {
+  await Promise.all(
+    tokens.map(async (token) => {
+      const passwordHash = password.trim() ? await hashSharePassword(token, password) : null;
+      const { error } = await client
+        .from("project_shares")
+        .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
+        .eq("token", token);
+
+      if (error) throw new Error(errorMessage(error, "Could not update project detail link password."));
+    }),
+  );
 }
 
 function createShareToken() {
@@ -259,4 +329,8 @@ async function hashSharePassword(token: string, password: string) {
   const data = new TextEncoder().encode(`${token}:${password.trim()}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function defaultShareExpiresAt() {
+  return new Date(Date.now() + DEFAULT_SHARE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }

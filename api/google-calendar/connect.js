@@ -3,8 +3,8 @@ import {
   buildGoogleAuthUrl,
   ensureEnv,
   getEnv,
-  getSupabaseUser,
   handleApiError,
+  requireAllowedUser,
   requireMethod,
 } from "../_googleCalendar.js";
 import { applyRateLimit, rejectOversizedPayload } from "../_security.js";
@@ -26,13 +26,14 @@ export default async function handler(req, res) {
       "googleClientSecret",
       "googleRedirectUri",
       "stateSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
   }
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     res.status(200).json({ url: buildGoogleAuthUrl(env, user.id) });
   } catch (error) {
     handleApiError(res, error);

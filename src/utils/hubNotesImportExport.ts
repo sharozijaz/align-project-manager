@@ -42,6 +42,7 @@ export function exportHubNotesMarkdown(notes: HubNote[]) {
       const metadata = [
         normalized.tags ? `Tags: ${normalized.tags}` : "",
         normalized.favorite ? "Favorite: yes" : "",
+        normalized.clientVisible ? "Client-visible: yes" : "",
         normalized.projectIds.length ? `Linked project IDs: ${normalized.projectIds.join(", ")}` : "",
         `Created: ${normalized.createdAt}`,
         `Updated: ${normalized.updatedAt}`,
@@ -52,6 +53,7 @@ export function exportHubNotesMarkdown(notes: HubNote[]) {
         `<!-- align-note-id: ${normalized.id} -->`,
         `<!-- align-note-tags: ${escapeMetadata(normalized.tags ?? "")} -->`,
         `<!-- align-note-favorite: ${normalized.favorite ? "true" : "false"} -->`,
+        `<!-- align-note-client-visible: ${normalized.clientVisible ? "true" : "false"} -->`,
         `<!-- align-note-project-ids: ${normalized.projectIds.join(",")} -->`,
         `<!-- align-note-created-at: ${normalized.createdAt} -->`,
         `<!-- align-note-updated-at: ${normalized.updatedAt} -->`,
@@ -179,6 +181,7 @@ function parseMarkdownNotes(content: string): HubNote[] {
       body,
       tags: metadata.tags || undefined,
       favorite: metadata.favorite === "true",
+      clientVisible: metadata["client-visible"] === "true",
       projectIds: splitCsv(metadata["project-ids"]),
       createdAt: metadata["created-at"],
       updatedAt: metadata["updated-at"],
@@ -212,6 +215,7 @@ function parseReadableMarkdownNotes(content: string): HubNote[] {
       body,
       tags: comments["align-note-tags"] || undefined,
       favorite: comments["align-note-favorite"] === "true",
+      clientVisible: comments["align-note-client-visible"] === "true",
       projectIds: splitCsv(comments["align-note-project-ids"]),
       createdAt: comments["align-note-created-at"],
       updatedAt: comments["align-note-updated-at"],
@@ -227,6 +231,7 @@ function normalizeImportedNote(note: Partial<HubNote>): HubNote {
     body: String(note.body ?? "").trim(),
     tags: note.tags?.trim() || undefined,
     favorite: Boolean(note.favorite),
+    clientVisible: Boolean(note.clientVisible),
     projectIds: Array.isArray(note.projectIds) ? note.projectIds.filter(Boolean) : [],
     createdAt: validDate(note.createdAt) || now,
     updatedAt: validDate(note.updatedAt) || now,
@@ -234,7 +239,7 @@ function normalizeImportedNote(note: Partial<HubNote>): HubNote {
 }
 
 function normalizeNote(note: HubNote): HubNote {
-  return { ...note, projectIds: note.projectIds ?? [] };
+  return { ...note, clientVisible: Boolean(note.clientVisible), projectIds: note.projectIds ?? [] };
 }
 
 function parseMetadata(value: string) {

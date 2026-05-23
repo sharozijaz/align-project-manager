@@ -3,7 +3,7 @@ import { LockKeyhole } from "lucide-react";
 import { FeatureAccessProvider } from "../../features/access/FeatureAccessProvider";
 import { initDesktopAuthHandler } from "../../integrations/desktop/auth";
 import { isTauriRuntime, openExternalUrl } from "../../integrations/desktop/runtime";
-import { getAuthRedirectUrl, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
+import { canUseGoogleAuth, canUseMagicLinkAuth, getAuthRedirectUrl, isSupabaseConfigured, supabase } from "../../integrations/supabase/client";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../../hooks/useMagicLinkCooldown";
 import { useThemeStore } from "../../store/themeStore";
@@ -104,38 +104,44 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <div>
             <p className="font-semibold text-[var(--text)]">Sign in required</p>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Your workspace is private. Sign in with an invited Google account, or use a secure magic link.
+              Your workspace is private. Sign in with an invited account to continue.
             </p>
           </div>
         </div>
       </div>
-      <Button
-        type="button"
-        variant="secondary"
-        className="mt-6 w-full border-[var(--border-strong)] bg-[var(--surface)] py-3 text-[var(--text)] hover:bg-[var(--surface-hover)]"
-        disabled={googleSending}
-        onClick={() => void signInWithGoogle()}
-      >
-        <span className="grid h-5 w-5 place-items-center rounded-full bg-white font-display text-sm font-bold text-[#4285f4]">G</span>
-        {googleSending ? "Opening Google..." : "Continue with Google"}
-      </Button>
-      <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">
-        <span className="h-px flex-1 bg-[var(--border)]" />
-        Magic link backup
-        <span className="h-px flex-1 bg-[var(--border)]" />
-      </div>
-      <form
-        className="grid gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void sendMagicLink();
-        }}
-      >
-        <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-        <Button type="submit" disabled={sending || magicLinkCooldown.isCoolingDown || !email.trim()}>
-          {sending ? "Sending..." : magicLinkCooldown.label}
+      {canUseGoogleAuth ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-6 w-full border-[var(--border-strong)] bg-[var(--surface)] py-3 text-[var(--text)] hover:bg-[var(--surface-hover)]"
+          disabled={googleSending}
+          onClick={() => void signInWithGoogle()}
+        >
+          <span className="grid h-5 w-5 place-items-center rounded-full bg-white font-display text-sm font-bold text-[#4285f4]">G</span>
+          {googleSending ? "Opening Google..." : "Continue with Google"}
         </Button>
-      </form>
+      ) : null}
+      {canUseGoogleAuth && canUseMagicLinkAuth ? (
+        <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">
+          <span className="h-px flex-1 bg-[var(--border)]" />
+          Magic link backup
+          <span className="h-px flex-1 bg-[var(--border)]" />
+        </div>
+      ) : null}
+      {canUseMagicLinkAuth ? (
+        <form
+          className={canUseGoogleAuth ? "grid gap-3" : "mt-6 grid gap-3"}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void sendMagicLink();
+          }}
+        >
+          <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
+          <Button type="submit" disabled={sending || magicLinkCooldown.isCoolingDown || !email.trim()}>
+            {sending ? "Sending..." : magicLinkCooldown.label}
+          </Button>
+        </form>
+      ) : null}
       {message ? <p className="mt-4 text-sm text-[var(--text-muted)]">{message}</p> : null}
     </AuthShell>
   );

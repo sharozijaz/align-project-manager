@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
+import { applyApiCors, getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
 import {
   applyRateLimit,
   readJsonBody,
@@ -11,6 +11,7 @@ import {
 const SHARE_PASSWORD_MAX_BYTES = 4 * 1024;
 
 export default async function handler(req, res) {
+  if (applyApiCors(req, res, "GET,POST,OPTIONS")) return;
   if (!["GET", "POST"].includes(req.method)) {
     if (requireMethod(req, res, "GET")) return;
   }
@@ -70,12 +71,17 @@ async function findClientLink(env, token) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/client_share_links`);
   url.searchParams.set("token", `eq.${token}`);
   url.searchParams.set("enabled", "eq.true");
-  url.searchParams.set("select", "name,project_tokens,password_hash");
+  url.searchParams.set("select", "name,project_tokens,password_hash,expires_at");
   url.searchParams.set("limit", "1");
 
   const response = await serviceFetch(env, url);
   const rows = await response.json();
-  return rows[0] || null;
+  const link = rows[0];
+
+  if (!link) return null;
+  if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) return null;
+
+  return link;
 }
 
 async function fetchProjectShare(env, token) {
@@ -141,7 +147,8 @@ async function findLinkedHubNotes(env, userId, projectId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/hub_notes`);
   url.searchParams.set("user_id", `eq.${userId}`);
   url.searchParams.set("project_ids", `cs.{${projectId}}`);
-  url.searchParams.set("select", "id,title,body,tags,favorite,project_ids,created_at,updated_at");
+  url.searchParams.set("client_visible", "eq.true");
+  url.searchParams.set("select", "id,title,body,tags,favorite,client_visible,project_ids,created_at,updated_at");
   url.searchParams.set("order", "updated_at.desc");
 
   const response = await serviceFetch(env, url);

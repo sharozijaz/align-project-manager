@@ -33,6 +33,7 @@ Frontend-safe variables can be used in `.env.local` and public hosting dashboard
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 VITE_ALLOWED_EMAILS=you@example.com
+VITE_AUTH_METHOD=google
 VITE_APP_URL=https://your-app.example.com
 VITE_PUBLIC_APP_URL=https://your-app.example.com
 VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id
@@ -47,10 +48,12 @@ APP_URL=https://your-app.example.com
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-supabase-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+ALLOWED_API_ORIGINS=https://your-app.example.com,http://localhost:5173,http://localhost:1420,http://tauri.localhost,tauri://localhost
 GOOGLE_CLIENT_ID=your-google-oauth-client-id
 GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 GOOGLE_REDIRECT_URI=https://your-app.example.com/api/google-calendar/callback
 GOOGLE_CALENDAR_ID=primary
+GOOGLE_TOKEN_ENCRYPTION_KEY=generate-a-long-random-secret
 CRON_SECRET=generate-a-long-random-secret
 RESEND_API_KEY=your-resend-api-key
 REMINDER_EMAIL_FROM=Align <reminders@your-domain.example>
@@ -146,7 +149,7 @@ Use only the scopes you need:
 - Google Calendar: `https://www.googleapis.com/auth/calendar.events.owned`
 - Google Tasks: `https://www.googleapis.com/auth/tasks`
 
-Calendar/Todo sync requires server-only token handling. Do not put the Google client secret in Vite variables.
+Calendar/Todo sync requires server-only token handling. Do not put the Google client secret in Vite variables. `GOOGLE_TOKEN_ENCRYPTION_KEY` encrypts saved Google access and refresh tokens before storage; legacy plaintext tokens remain readable during migration, then rewrite encrypted on reconnect or refresh.
 
 ## Hosted API Routes
 
@@ -168,6 +171,8 @@ The current Vercel-compatible API routes live in `api/`:
 ```
 
 If you deploy somewhere other than Vercel, port these routes to your provider's serverless format.
+
+Authenticated hosted API routes check `public.allowed_users` in addition to Supabase RLS. Add trusted emails before testing Google sync, reminders, or other signed-in hosted APIs.
 
 ## Vercel Setup
 
@@ -201,6 +206,15 @@ The frontend can run on Netlify or Cloudflare Pages, but the `api/` folder is wr
 - port the API routes to Netlify Functions or Cloudflare Workers.
 
 Do not put server-only secrets in frontend-only hosts.
+
+## Cloudflare WAF
+
+For a public hosted domain, put production behind Cloudflare or an equivalent edge firewall. Starter rules:
+
+- challenge or rate limit `/api/*`;
+- allow only expected methods on share routes, Google sync routes, OAuth callback, reminders, and cron endpoints;
+- block obvious bot traffic and oversized request bodies;
+- keep cron endpoints protected with `CRON_SECRET` even behind WAF.
 
 ## Cron And Email
 

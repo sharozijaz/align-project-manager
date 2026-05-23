@@ -30,7 +30,7 @@ function createItem<T extends object>(input: T): T & { id: string; createdAt: st
 }
 
 function normalizeNote(note: HubNote): HubNote {
-  return { ...note, projectIds: note.projectIds ?? [] };
+  return { ...note, clientVisible: Boolean(note.clientVisible), projectIds: note.projectIds ?? [] };
 }
 
 function legacyProjectNoteId(projectId: string, noteId: string) {
@@ -102,6 +102,7 @@ export const useStudioStore = create<StudioState>()(
                 body: legacyNoteBody(note.content, note.url),
                 tags: note.visibility === "client" ? undefined : projectTag(project.name),
                 favorite: false,
+                clientVisible: note.visibility === "client",
                 projectIds: note.visibility === "client" ? [project.id] : [],
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt,

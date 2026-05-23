@@ -6,6 +6,7 @@ const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const rawAllowedEmails = import.meta.env.VITE_ALLOWED_EMAILS;
 const rawAppUrl = import.meta.env.VITE_APP_URL;
+const rawAuthMethod = import.meta.env.VITE_AUTH_METHOD;
 
 const normalizeSupabaseUrl = (value?: string) => {
   if (!value) return "";
@@ -44,6 +45,16 @@ const normalizeAppUrl = (value?: string) => {
 };
 
 export const appUrl = normalizeAppUrl(rawAppUrl);
+type AuthMethod = "google" | "magic_link" | "both";
+
+const normalizeAuthMethod = (value?: string): AuthMethod => {
+  if (value === "google" || value === "magic_link" || value === "both") return value;
+  return import.meta.env.PROD ? "google" : "both";
+};
+
+const authMethod = normalizeAuthMethod(rawAuthMethod);
+export const canUseGoogleAuth = authMethod === "google" || authMethod === "both";
+export const canUseMagicLinkAuth = authMethod === "magic_link" || authMethod === "both";
 const getRuntimeRedirectUrl = () => {
   if (typeof window === "undefined") return "";
 

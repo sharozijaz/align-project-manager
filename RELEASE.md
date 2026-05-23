@@ -44,7 +44,10 @@ Run the release check:
 
 ```powershell
 npm run check:release
+npm run check:public-release-env
 ```
+
+For a private hosted or desktop build that intentionally points at your backend, set `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true` only for the public release guard command. Do not publish that build as the local-first public release.
 
 This runs:
 
@@ -58,9 +61,12 @@ Then run these additional checks:
 ```powershell
 git diff --check
 rg -n "(service_role|client_secret|api[_-]?key|password|token|Bearer\\s+[A-Za-z0-9._-]+)" --glob "!node_modules/**" --glob "!dist/**" --glob "!src-tauri/target/**" --glob "!package-lock.json"
+rg -n "(gmail|@gmail|internal-only|CONTEXT HANDOFF|NEXT CHAT HANDOFF|Gumroad|\\$[0-9]|client secret|service role|refresh token)" -g "*.md" -g "!RELEASE.md"
 ```
 
 The secret scan can show placeholder names in docs or env examples. Investigate every match and only proceed when there are no real secrets.
+
+Before pushing public docs, review Markdown for private client details, personal emails, private monetization experiments, internal handoff notes, and sensitive architecture notes. Keep public monetization docs high-level: paid templates, optional customization services, and possible future cloud hosting only. Confirm `GOOGLE_TOKEN_ENCRYPTION_KEY`, `ALLOWED_API_ORIGINS`, and `public.allowed_users` are configured before testing private hosted Google sync. Put production hosted domains behind Cloudflare WAF or an equivalent edge firewall for `/api/*`, share routes, OAuth callback, reminders, and cron endpoints.
 
 ## Desktop Build
 

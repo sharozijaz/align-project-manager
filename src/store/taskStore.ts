@@ -1,9 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addDays, addMonths, addWeeks, addYears, differenceInCalendarDays, formatISO, parseISO } from "date-fns";
-import { demoTasks } from "./demoData";
 import { isTerminalTaskStatus, normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../config/taskOptions";
-import { isSupabaseConfigured } from "../integrations/supabase/client";
 import type { Task, TaskInput, TaskStatus } from "../types/task";
 import { isDeletedBeyondRetention } from "../utils/trash";
 
@@ -30,7 +28,7 @@ const id = () => crypto.randomUUID();
 export const useTaskStore = create<TaskState>()(
   persist(
     (set) => ({
-      tasks: isSupabaseConfigured ? [] : demoTasks,
+      tasks: [],
       lastDeletedTaskId: undefined,
       addTask: (input) =>
         set((state) => {

@@ -4,6 +4,7 @@ import {
   getEnv,
   handleApiError,
   parseOAuthState,
+  requireAllowedUserId,
   upsertGoogleConnection,
 } from "../_googleCalendar.js";
 import { applyRateLimit, sanitizeQueryString } from "../_security.js";
@@ -21,6 +22,7 @@ export default async function handler(req, res) {
       "googleClientSecret",
       "googleRedirectUri",
       "stateSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
@@ -43,6 +45,7 @@ export default async function handler(req, res) {
 
     const payload = parseOAuthState(env, state);
     const tokens = await exchangeCodeForTokens(env, code);
+    await requireAllowedUserId(env, payload.userId);
     await upsertGoogleConnection(env, payload.userId, tokens);
 
     res.redirect(`${env.appUrl}/settings?googleCalendar=connected`);

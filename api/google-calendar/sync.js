@@ -2,8 +2,8 @@ import {
   applyApiCors,
   ensureEnv,
   getEnv,
-  getSupabaseUser,
   handleApiError,
+  requireAllowedUser,
   requireMethod,
   syncTasksToGoogleCalendarForUser,
 } from "../_googleCalendar.js";
@@ -32,13 +32,14 @@ export default async function handler(req, res) {
       "supabaseServiceRoleKey",
       "googleClientId",
       "googleClientSecret",
+      "googleTokenEncryptionKey",
     ])
   ) {
     return;
   }
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const tasks = sanitizeTaskSyncPayload(req.body?.tasks);
     const forceTaskIds = sanitizeIdArray(req.body?.forceTaskIds);
     const result = await syncTasksToGoogleCalendarForUser(env, user.id, tasks, { forceTaskIds });

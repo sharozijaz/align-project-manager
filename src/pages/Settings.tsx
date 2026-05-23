@@ -14,7 +14,7 @@ import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
 import { themeOptions, useThemeStore } from "../store/themeStore";
 import { getHeroOption, heroOptions, useHeroStore } from "../store/heroStore";
-import { getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
+import { canUseMagicLinkAuth, getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
 import {
   canUseDesktopNotifications,
@@ -41,7 +41,8 @@ import type { GoogleTodoSyncSettings, GoogleTodoSyncStatus } from "../integratio
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { plainDateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
-import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup } from "../utils/storage";
+import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup, saveWorkspaceSafetyBackup } from "../utils/storage";
+import { getWorkspaceOwnerId, setWorkspaceOwnerId } from "../utils/workspaceIdentity";
 import { appBuild, appVersion } from "../utils/appVersion";
 import {
   AUTO_CLEANUP_DELETED_PROJECTS_KEY,
@@ -56,6 +57,9 @@ type SettingsSection = "account" | "appearance" | "google" | "notifications" | "
 
 const LAST_WORKSPACE_EXPORT_KEY = "align-last-workspace-export-v2";
 const IMPORT_SAFETY_BACKUP_KEY = "align-import-safety-backup-v2";
+
+const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[] }) =>
+  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
 
 function getSessionDisplayName(session: ReturnType<typeof useSupabaseSession>["session"]) {
   const metadata = session?.user.user_metadata as Record<string, unknown> | undefined;
@@ -270,6 +274,21 @@ export function Settings() {
       },
     });
 
+  const saveSafetyBackup = (reason: string) =>
+    saveWorkspaceSafetyBackup(reason, {
+      tasks,
+      projects,
+      events,
+      resources,
+      notes,
+      preferences: {
+        theme,
+        heroImage,
+        autoCleanTasks,
+        autoCleanProjects,
+      },
+    });
+
   const exportData = () => {
     const backup = buildWorkspaceBackup();
     const dateStamp = new Date().toISOString().slice(0, 10);
@@ -359,8 +378,14 @@ export function Settings() {
 
   const signOut = async () => {
     if (!supabase) return;
+    const shouldSignOut = window.confirm(
+      "Sign out of cloud sync? Align will save a local safety backup first, then isolate this device from the signed-in cloud workspace.",
+    );
+    if (!shouldSignOut) return;
+
+    saveSafetyBackup("manual-sign-out");
     await supabase.auth.signOut();
-    setSyncMessage("Signed out.");
+    setSyncMessage("Signed out. Local safety backup saved on this device.");
   };
 
   const uploadWorkspace = async () => {
@@ -369,11 +394,21 @@ export function Settings() {
       return;
     }
 
+    const ownerId = getWorkspaceOwnerId();
+    if (session?.user.id && ownerId && ownerId !== session.user.id) {
+      saveSafetyBackup("blocked-cross-account-upload");
+      const message = "Upload blocked because this local workspace belongs to another account. A safety backup was saved.";
+      syncState.setSyncState("error", message);
+      setSyncMessage(message);
+      return;
+    }
+
     setSyncing(true);
     setSyncMessage("");
     syncState.setSyncState("pushing", "Uploading local workspace...");
 
     try {
+      saveSafetyBackup("manual-cloud-upload");
       await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes });
       syncState.setSynced("Local workspace uploaded to cloud.");
       setSyncMessage("Local workspace uploaded to Supabase.");
@@ -392,7 +427,9 @@ export function Settings() {
       return;
     }
 
-    const shouldReplace = window.confirm("Download from Supabase and replace local tasks, projects, and events?");
+    const shouldReplace = window.confirm(
+      "Download from Supabase and replace this local workspace? Align will save a local safety backup first.",
+    );
     if (!shouldReplace) return;
 
     setSyncing(true);
@@ -400,12 +437,23 @@ export function Settings() {
     syncState.setSyncState("pulling", "Downloading cloud workspace...");
 
     try {
+      saveSafetyBackup("manual-cloud-download");
       const workspace = await pullWorkspaceFromSupabase();
+      const ownerId = getWorkspaceOwnerId();
+      const isSameAccountWorkspace = Boolean(session?.user.id && ownerId === session.user.id);
+      if (!hasWorkspaceData(workspace) && isSameAccountWorkspace && hasWorkspaceData({ tasks, projects, events, resources, notes })) {
+        const message = "Cloud sync unavailable. Local data is safe on this device.";
+        syncState.setSyncState("error", message);
+        setSyncMessage(`${message} Supabase returned an empty workspace, so Align did not replace your local data.`);
+        return;
+      }
+
       replaceTasks(workspace.tasks);
       replaceProjects(workspace.projects);
       replaceEvents(workspace.events);
       replaceResources(workspace.resources);
       replaceNotes(workspace.notes);
+      if (session?.user.id) setWorkspaceOwnerId(session.user.id);
       syncState.setSynced("Workspace downloaded from cloud.");
       setSyncMessage("Workspace downloaded from Supabase.");
     } catch (error) {
@@ -978,7 +1026,7 @@ export function Settings() {
         <Card className="p-4 sm:p-5">
           <h2 className="font-bold text-[var(--text)]">Data</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Back up or restore your full local workspace: tasks, projects, calendar events, notes, resources, and app preferences.
+            Back up or restore your full local workspace. Cloud sync is convenient, but this device copy and your JSON backups are the recovery path.
           </p>
           <div className="mt-4 grid gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
             <div className="flex items-center justify-between gap-3">
@@ -986,7 +1034,8 @@ export function Settings() {
               <Badge tone="slate">Version 2</Badge>
             </div>
             <p className="text-[var(--text-muted)]">
-              Imports automatically save a local safety copy first, so your current workspace has a recovery point before anything is replaced.
+              Exports include tasks, projects, calendar events, notes, resources, and supported preferences. Imports and cloud downloads save a local
+              safety copy before anything is replaced.
             </p>
             <p className="text-xs text-[var(--text-soft)]">
               {lastWorkspaceExport ? `Last exported ${new Date(lastWorkspaceExport).toLocaleString()}` : "No full workspace export recorded on this device yet."}
@@ -1003,6 +1052,13 @@ export function Settings() {
             {syncState.lastSyncedAt && session ? (
               <p className="mt-2 text-xs text-[var(--text-soft)]">Last cloud sync {new Date(syncState.lastSyncedAt).toLocaleString()}</p>
             ) : null}
+          </div>
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">
+            <p className="font-semibold text-[var(--text)]">Recovery rule</p>
+            <p className="mt-1">
+              If Supabase is unavailable or returns an unexpected empty workspace, Align keeps local data on this device. Restore from a full JSON
+              backup first, then reconnect or upload to Supabase after the backend is healthy.
+            </p>
           </div>
           <div className="mt-4 flex gap-2">
             <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Full Backup</Button>
@@ -1198,7 +1254,7 @@ export function Settings() {
                   </div>
                   <Button variant="secondary" onClick={() => void signOut()}>Sign Out</Button>
                 </div>
-              ) : (
+              ) : canUseMagicLinkAuth ? (
                 <div className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 md:grid-cols-[1fr_auto]">
                   <input
                     className="min-h-11 w-full rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)] placeholder:text-[var(--input-placeholder)]"
@@ -1210,6 +1266,10 @@ export function Settings() {
                   <Button onClick={() => void signIn()} disabled={syncing || sessionLoading || magicLinkCooldown.isCoolingDown || !email.trim()}>
                     {magicLinkCooldown.label}
                   </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--text-muted)]">
+                  Sign in from the secure access screen with Google to use hosted sync.
                 </div>
               )}
               <div className="flex flex-wrap gap-2">

@@ -52,6 +52,8 @@ npm run desktop:build
 
 When no Supabase environment variables are configured, Align stores data locally in browser or desktop WebView storage.
 
+Fresh installs start with a blank workspace. Import a backup or template pack if you want starter content.
+
 ### Sync Modes
 
 Align has three workspace sync modes in Settings > Data:
@@ -61,6 +63,8 @@ Align has three workspace sync modes in Settings > Data:
 - `Cloud sync`: automatically download and upload workspace changes when signed in. Use this only with your own configured Supabase project or trusted hosted deployment.
 
 Export a full workspace backup before switching modes on an important workspace.
+
+If Supabase is unavailable or returns an unexpected empty existing workspace, Align keeps the local workspace visible and warns that local data is safe on this device. Restore from a JSON backup first, then reconnect cloud sync.
 
 ## Optional Cloud Setup
 
@@ -72,6 +76,7 @@ Frontend-safe environment variables:
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 VITE_ALLOWED_EMAILS=
+VITE_AUTH_METHOD=google
 VITE_APP_URL=
 VITE_PUBLIC_APP_URL=
 VITE_GOOGLE_CLIENT_ID=
@@ -86,10 +91,12 @@ APP_URL=
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+ALLOWED_API_ORIGINS=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 GOOGLE_CALENDAR_ID=primary
+GOOGLE_TOKEN_ENCRYPTION_KEY=
 CRON_SECRET=
 RESEND_API_KEY=
 REMINDER_EMAIL_FROM=
@@ -155,6 +162,8 @@ notify pgrst, 'reload schema';
 
 Google Calendar/Todo sync, email reminders, and public share links require hosted API routes and server-side secrets. They should not run from frontend-only or desktop-only builds unless `VITE_APP_URL` or `VITE_PUBLIC_APP_URL` points to a deployment that owns those routes.
 
+Private hosted deployments should use Google-only auth (`VITE_AUTH_METHOD=google`), run `supabase/security-hardening.sql`, add trusted emails to `public.allowed_users`, set `ALLOWED_API_ORIGINS`, and set `GOOGLE_TOKEN_ENCRYPTION_KEY` before enabling Google sync. Public open-source builds should stay local-first unless the user self-hosts these services.
+
 Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
 Google Calendar setup notes live in `GOOGLE_CALENDAR.md`.
 Deployment notes live in `DEPLOYMENT.md`.
@@ -179,7 +188,7 @@ src/
   features/            Feature access and app-level behavior
   integrations/        Supabase, Google, desktop, and hosted service clients
   pages/               Route-level pages
-  store/               Zustand stores and demo seed data
+  store/               Zustand stores and local workspace state
   styles/              Tailwind globals
   types/               Shared TypeScript models
   utils/               Date, storage, sharing, and helper utilities
@@ -211,6 +220,8 @@ npm run release:desktop
 - `ROADMAP.md` - production and open-source roadmap.
 - `PRIVACY.md` - local-first privacy model and optional cloud behavior.
 - `SECURITY.md` - security rules and manual checks.
+- `THREAT_MODEL.md` - repository-grounded threat model.
+- `SECURITY_AUDIT.md` - current hardening audit and remaining risks.
 - `SELF_HOSTING.md` - bring-your-own-backend setup and cost-control guide.
 - `SELF_HOSTING_CHECKLIST.md` - short self-hosting checklist.
 - `CONTRIBUTING.md` - contribution and development rules.

@@ -63,7 +63,7 @@ create table public.project_shares (
   token text not null unique,
   enabled boolean not null default true,
   password_hash text,
-  expires_at timestamptz,
+  expires_at timestamptz default (now() + interval '30 days'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -77,6 +77,7 @@ create table public.client_share_links (
   project_tokens text[] not null default '{}',
   enabled boolean not null default true,
   password_hash text,
+  expires_at timestamptz default (now() + interval '30 days'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

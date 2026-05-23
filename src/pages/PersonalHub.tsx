@@ -4,6 +4,7 @@ import {
   Copy,
   Download,
   Edit3,
+  Eye,
   ExternalLink,
   FileText,
   Bold,
@@ -74,6 +75,7 @@ type NoteFormState = {
   title: string;
   body: string;
   tags: string;
+  clientVisible: boolean;
   projectIds: string[];
 };
 
@@ -90,6 +92,7 @@ const emptyNoteForm: NoteFormState = {
   title: "",
   body: "",
   tags: "",
+  clientVisible: false,
   projectIds: [],
 };
 
@@ -145,6 +148,7 @@ function normalizeNoteFormForSave(form: NoteFormState): NoteFormState {
     title: form.title.trim() || "Untitled note",
     body: form.body,
     tags: form.tags.trim() || "",
+    clientVisible: Boolean(form.clientVisible),
     projectIds: form.projectIds,
   };
 }
@@ -323,7 +327,13 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   const startEditingNote = (note: HubNote) => {
     setEditingNoteId(note.id);
     setNoteAutosaveStatus("");
-    setEditNoteForm({ title: note.title, body: note.body, tags: note.tags ?? "", projectIds: note.projectIds ?? [] });
+    setEditNoteForm({
+      title: note.title,
+      body: note.body,
+      tags: note.tags ?? "",
+      clientVisible: Boolean(note.clientVisible),
+      projectIds: note.projectIds ?? [],
+    });
   };
 
   const saveEditingNote = () => {
@@ -703,6 +713,32 @@ function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[
         })}
       </div>
     </div>
+  );
+}
+
+function ClientVisibilityToggle({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`flex items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-left text-sm transition ${
+        checked
+          ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)] text-[var(--text)]"
+          : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+      }`}
+    >
+      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--brand-primary)]">
+        <Eye size={16} />
+      </span>
+      <span>
+        <span className="block font-bold text-[var(--text)]">{checked ? "Client-visible note" : "Private note"}</span>
+        <span className="mt-1 block text-xs">
+          {checked
+            ? "This note can appear on password-protected client share links for linked projects."
+            : "This note stays private even when linked projects are shared."}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -1214,6 +1250,10 @@ function NotesWorkspace({
                 <Input value={noteForm.tags} onChange={(event) => onNoteFormChange({ ...noteForm, tags: event.target.value })} placeholder="Tags, comma separated" />
               </div>
               <ProjectPicker projects={projects} selectedIds={noteForm.projectIds} onChange={(projectIds) => onNoteFormChange({ ...noteForm, projectIds })} />
+              <ClientVisibilityToggle
+                checked={noteForm.clientVisible}
+                onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
+              />
               <MarkdownEditor value={noteForm.body} onChange={(body) => onNoteFormChange({ ...noteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
             </div>
           </div>
@@ -1230,6 +1270,7 @@ function NotesWorkspace({
                   {isEditing && autosaveStatus ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{autosaveStatus}</p> : null}
                   {selectedProjects?.length ? (
                     <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedNote.clientVisible ? <Badge tone="emerald">Client-visible</Badge> : null}
                       {selectedProjects.map((project) => (
                         <Badge key={project.id} tone="blue">{project.name}</Badge>
                       ))}
@@ -1270,6 +1311,10 @@ function NotesWorkspace({
                   <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Tags" />
                 </div>
                 <ProjectPicker projects={projects} selectedIds={editNoteForm.projectIds} onChange={(projectIds) => onEditFormChange({ ...editNoteForm, projectIds })} />
+                <ClientVisibilityToggle
+                  checked={editNoteForm.clientVisible}
+                  onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
+                />
                 <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
               </div>
             ) : (

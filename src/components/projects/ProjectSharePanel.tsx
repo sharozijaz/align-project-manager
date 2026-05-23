@@ -46,10 +46,17 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   }, [project.id]);
 
   const handleCreate = async () => {
+    const sharePassword = window.prompt("Set a password for this client share link. New links expire automatically after 30 days.");
+    if (sharePassword === null) return;
+    if (!sharePassword.trim()) {
+      setError("A password is required for new client share links.");
+      return;
+    }
+
     setWorking(true);
     setError("");
     try {
-      const nextShare = await createProjectShare(project);
+      const nextShare = await createProjectShare(project, { password: sharePassword });
       setShare(nextShare);
       setShareModalOpen(true);
     } catch (createError) {
@@ -151,8 +158,11 @@ export function ProjectSharePanel({ project }: { project: Project }) {
             <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-bold text-[var(--text)]">Optional password</p>
-                  <p className="mt-1 text-xs text-[var(--text-soft)]">Use this when a client wants the link to stay private.</p>
+                  <p className="text-sm font-bold text-[var(--text)]">Password protection</p>
+                  <p className="mt-1 text-xs text-[var(--text-soft)]">
+                    New links require a password and expire after 30 days by default.
+                    {share.expiresAt ? ` Expires ${new Date(share.expiresAt).toLocaleDateString()}.` : ""}
+                  </p>
                 </div>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-bold ${

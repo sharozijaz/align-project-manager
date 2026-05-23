@@ -199,7 +199,7 @@ function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">Project Context</h2>
-          <p className="text-sm text-[var(--text-muted)]">Notes linked from Personal Hub. Linked notes appear on client share links.</p>
+          <p className="text-sm text-[var(--text-muted)]">Notes linked from Personal Hub. Only notes marked client-visible appear on client share links.</p>
         </div>
         <Badge tone="slate">{notes.length} linked</Badge>
       </div>
@@ -220,7 +220,10 @@ function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
           >
             <div className="flex items-start justify-between gap-3">
               <h3 className="min-w-0 truncate font-bold text-[var(--text)]">{note.title}</h3>
-              {note.favorite ? <Badge tone="purple">Favorite</Badge> : null}
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {note.clientVisible ? <Badge tone="emerald">Client-visible</Badge> : null}
+                {note.favorite ? <Badge tone="purple">Favorite</Badge> : null}
+              </div>
             </div>
             <p className="mt-2 text-xs font-bold text-[var(--text-brand)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">
               Open note

@@ -4,7 +4,8 @@ create table if not exists public.project_shares (
   project_id text not null references public.projects(id) on delete cascade,
   token text not null unique,
   enabled boolean not null default true,
-  expires_at timestamptz,
+  password_hash text,
+  expires_at timestamptz default (now() + interval '30 days'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

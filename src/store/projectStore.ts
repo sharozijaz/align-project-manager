@@ -1,7 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { demoProjects } from "./demoData";
-import { isSupabaseConfigured } from "../integrations/supabase/client";
 import type { Project, ProjectInput, ProjectStatus } from "../types/project";
 import { isDeletedBeyondRetention } from "../utils/trash";
 
@@ -27,7 +25,7 @@ const id = () => crypto.randomUUID();
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set) => ({
-      projects: isSupabaseConfigured ? [] : demoProjects,
+      projects: [],
       addProject: (input) =>
         set((state) => ({
           projects: [

@@ -3,8 +3,8 @@ import {
   ensureEnv,
   getEnv,
   getGoogleConnection,
-  getSupabaseUser,
   handleApiError,
+  requireAllowedUser,
   requireMethod,
 } from "../_googleCalendar.js";
 import { applyRateLimit } from "../_security.js";
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   if (ensureEnv(res, env, ["supabaseUrl", "supabaseAnonKey", "supabaseServiceRoleKey"])) return;
 
   try {
-    const user = await getSupabaseUser(req, env);
+    const user = await requireAllowedUser(req, env);
     const connection = await getGoogleConnection(env, user.id);
 
     res.status(200).json({

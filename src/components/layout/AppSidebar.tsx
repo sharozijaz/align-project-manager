@@ -8,6 +8,7 @@ import {
   Keyboard,
   LibraryBig,
   ListTodo,
+  LogOut,
   Menu,
   Pin,
   StickyNote,
@@ -28,9 +29,14 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 import type { FeatureKey } from "../../features/access/featureRegistry";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
+import { supabase } from "../../integrations/supabase/client";
+import { useCalendarStore } from "../../store/calendarStore";
 import { useProjectStore } from "../../store/projectStore";
+import { useStudioStore } from "../../store/studioStore";
+import { useTaskStore } from "../../store/taskStore";
 import { isLightThemeMode, useThemeStore } from "../../store/themeStore";
 import type { Project } from "../../types/project";
+import { saveWorkspaceSafetyBackup } from "../../utils/storage";
 
 interface NavItem {
   to: string;
@@ -71,6 +77,10 @@ export function AppSidebar() {
   const { session } = useSupabaseSession();
   const theme = useThemeStore((state) => state.theme);
   const projects = useProjectStore((state) => state.projects);
+  const tasks = useTaskStore((state) => state.tasks);
+  const events = useCalendarStore((state) => state.events);
+  const resources = useStudioStore((state) => state.resources);
+  const notes = useStudioStore((state) => state.notes);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [railHovered, setRailHovered] = useState(false);
   const [railPinned, setRailPinned] = useState(false);
@@ -84,6 +94,20 @@ export function AppSidebar() {
   const pinnedProjects = projects
     .filter((project) => project.pinnedAt && !project.deletedAt && (project.status === "active" || project.status === "paused"))
     .sort((a, b) => (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
+
+  const handleSignOut = async () => {
+    if (!supabase || !session) return;
+    const shouldSignOut = window.confirm(
+      "Sign out of cloud sync? Align will save a local safety backup first, then isolate this device from the signed-in cloud workspace.",
+    );
+    if (!shouldSignOut) return;
+
+    saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes });
+    await supabase.auth.signOut();
+    setOpenMenu(null);
+    setRailHovered(false);
+    setRailPinned(false);
+  };
 
   const links = {
     primary: primaryLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
@@ -157,6 +181,8 @@ export function AppSidebar() {
             setOpenMenu={setOpenMenu}
             collapsed={!desktopExpanded}
             pinnedProjects={pinnedProjects}
+            canSignOut={Boolean(session && supabase)}
+            onSignOut={() => void handleSignOut()}
           />
         </motion.div>
       </aside>
@@ -197,6 +223,8 @@ export function AppSidebar() {
                 collapsed={false}
                 pinnedProjects={pinnedProjects}
                 onNavigate={() => setMobileOpen(false)}
+                canSignOut={Boolean(session && supabase)}
+                onSignOut={() => void handleSignOut()}
               />
             </motion.aside>
           </motion.div>
@@ -216,6 +244,8 @@ function SidebarContent({
   collapsed,
   pinnedProjects,
   onNavigate,
+  canSignOut,
+  onSignOut,
 }: {
   links: { primary: NavItem[]; workspace: NavItem[]; profile: NavItem[] };
   profileName: string;
@@ -226,6 +256,8 @@ function SidebarContent({
   collapsed: boolean;
   pinnedProjects: Project[];
   onNavigate?: () => void;
+  canSignOut?: boolean;
+  onSignOut?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -363,6 +395,16 @@ function SidebarContent({
                       </NavLink>
                     ))}
                     <InstallAppButton className="w-full" />
+                    {canSignOut ? (
+                      <button
+                        type="button"
+                        onClick={onSignOut}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--danger-bg)]"
+                      >
+                        <LogOut size={15} />
+                        Sign Out
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </motion.div>

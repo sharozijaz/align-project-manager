@@ -12,3 +12,7 @@ coverage/
 vite-dev.log
 
 .vercel
+
+PRIVATE*.md
+*.private.md
+docs/private/

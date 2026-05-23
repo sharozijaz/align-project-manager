@@ -237,6 +237,7 @@ export interface Database {
           project_tokens: string[];
           enabled: boolean;
           password_hash: string | null;
+          expires_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -249,6 +250,7 @@ export interface Database {
           project_tokens: string[];
           enabled?: boolean;
           password_hash?: string | null;
+          expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -309,6 +311,7 @@ export interface Database {
           body: string;
           tags: string | null;
           favorite: boolean;
+          client_visible: boolean;
           project_ids: string[] | null;
           created_at: string;
           updated_at: string;
@@ -320,6 +323,7 @@ export interface Database {
           body: string;
           tags?: string | null;
           favorite?: boolean;
+          client_visible?: boolean;
           project_ids?: string[] | null;
           created_at: string;
           updated_at: string;
