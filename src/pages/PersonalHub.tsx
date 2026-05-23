@@ -163,7 +163,7 @@ function ExportMenuButton({ title, description, onClick }: { title: string; desc
 }
 
 export function PersonalHub({ initialView = "resources" }: { initialView?: HubView }) {
-  const { resources, notes, importSeedResources, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote, replaceNotes } = useStudioStore();
+  const { resources, notes, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote, replaceNotes } = useStudioStore();
   const projects = useProjectStore((state) => state.projects);
   const [view, setView] = useState<HubView>(initialView);
   const [query, setQuery] = useState("");
@@ -183,10 +183,6 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   const [notePreviewOpen, setNotePreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    importSeedResources();
-  }, [importSeedResources]);
 
   useEffect(() => {
     setView(initialView);

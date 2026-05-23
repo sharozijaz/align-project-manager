@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { RESOURCE_SEED_VERSION, resourceSeeds } from "../data/resourceSeeds";
 import type { Project } from "../types/project";
 import type { HubNote, HubResource } from "../types/studio";
 
@@ -10,9 +9,7 @@ type NoteInput = Omit<HubNote, "id" | "createdAt" | "updatedAt">;
 interface StudioState {
   resources: HubResource[];
   notes: HubNote[];
-  resourceSeedVersion?: string;
   migratedLegacyProjectNoteIds?: string[];
-  importSeedResources: () => void;
   replaceResources: (resources: HubResource[]) => void;
   replaceNotes: (notes: HubNote[]) => void;
   addResource: (input: ResourceInput) => void;
@@ -60,30 +57,11 @@ function updateItems<T extends { id: string; updatedAt: string }>(items: T[], it
   return items.map((item) => (item.id === itemId ? { ...item, ...updates, updatedAt: stamp() } : item));
 }
 
-function resourceKey(resource: Pick<HubResource, "collection" | "title" | "url">) {
-  return [resource.collection ?? "", resource.title, resource.url ?? ""].map((value) => value.trim().toLowerCase()).join("|");
-}
-
 export const useStudioStore = create<StudioState>()(
   persist(
     (set) => ({
       resources: [],
       notes: [],
-      resourceSeedVersion: undefined,
-      importSeedResources: () =>
-        set((state) => {
-          if (state.resourceSeedVersion === RESOURCE_SEED_VERSION) return {};
-
-          const existing = new Set(state.resources.map(resourceKey));
-          const seededResources = resourceSeeds
-            .filter((resource) => !existing.has(resourceKey(resource)))
-            .map((resource) => createItem({ ...resource, favorite: resource.favorite ?? false }));
-
-          return {
-            resources: [...seededResources, ...state.resources],
-            resourceSeedVersion: RESOURCE_SEED_VERSION,
-          };
-        }),
       replaceResources: (resources) => set({ resources }),
       replaceNotes: (notes) =>
         set((state) => ({

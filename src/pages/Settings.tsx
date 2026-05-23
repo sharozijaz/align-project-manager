@@ -57,6 +57,15 @@ type SettingsSection = "account" | "appearance" | "google" | "notifications" | "
 const LAST_WORKSPACE_EXPORT_KEY = "align-last-workspace-export-v2";
 const IMPORT_SAFETY_BACKUP_KEY = "align-import-safety-backup-v2";
 
+function getSessionDisplayName(session: ReturnType<typeof useSupabaseSession>["session"]) {
+  const metadata = session?.user.user_metadata as Record<string, unknown> | undefined;
+  const metadataName = [metadata?.full_name, metadata?.name, metadata?.user_name]
+    .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+    ?.trim();
+
+  return metadataName || session?.user.email?.split("@")[0] || "Local user";
+}
+
 export function Settings() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [dataMessage, setDataMessage] = useState("");
@@ -89,6 +98,7 @@ export function Settings() {
   );
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
+  const profileDisplayName = getSessionDisplayName(session);
   const { projects, replaceProjects } = useProjectStore();
   const { tasks, replaceTasks, upsertTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
@@ -688,7 +698,10 @@ export function Settings() {
         <Card className="p-4 sm:p-5">
           <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">User name</p>
-          <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text)]">Sharoz</div>
+          <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text)]">
+            {sessionLoading ? "Checking session..." : profileDisplayName}
+          </div>
+          {session?.user.email ? <p className="mt-2 text-xs text-[var(--text-soft)]">{session.user.email}</p> : null}
         </Card>
         ) : null}
         {settingsSection === "appearance" ? (
