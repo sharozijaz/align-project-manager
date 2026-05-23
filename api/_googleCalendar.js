@@ -108,8 +108,27 @@ export function ensureEnv(res, env, keys) {
 
   if (!missing.length) return false;
 
-  res.status(500).json({ error: `Missing server configuration: ${missing.join(", ")}.` });
+  res.status(500).json({ error: `Missing server configuration: ${missing.map(envKeyLabel).join(", ")}.` });
   return true;
+}
+
+function envKeyLabel(key) {
+  const labels = {
+    appUrl: "APP_URL",
+    supabaseUrl: "SUPABASE_URL",
+    supabaseAnonKey: "SUPABASE_ANON_KEY",
+    supabaseServiceRoleKey: "SUPABASE_SERVICE_ROLE_KEY",
+    googleClientId: "GOOGLE_CLIENT_ID",
+    googleClientSecret: "GOOGLE_CLIENT_SECRET",
+    googleRedirectUri: "GOOGLE_REDIRECT_URI",
+    googleCalendarId: "GOOGLE_CALENDAR_ID",
+    googleTokenEncryptionKey: "GOOGLE_TOKEN_ENCRYPTION_KEY",
+    cronSecret: "CRON_SECRET",
+    resendApiKey: "RESEND_API_KEY",
+    reminderEmailFrom: "REMINDER_EMAIL_FROM",
+  };
+
+  return labels[key] ?? key;
 }
 
 export async function getSupabaseUser(req, env) {
