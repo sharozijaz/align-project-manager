@@ -8,6 +8,7 @@ All notable public release changes will be documented here.
 - Clarified that public users should not depend on the maintainer's private hosted backend.
 - Added open-source release, contribution, privacy, and roadmap documentation.
 - Added the GitHub release checklist, CI checks, and issue/PR templates for public release prep.
+- Added the template-pack monetization plan and a free Figma-to-WordPress starter template.
 
 ## 0.3.0
 

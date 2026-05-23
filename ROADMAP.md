@@ -67,9 +67,12 @@ Owner: Sharoz Ijaz. Executor: Codex or maintainer.
 Owner: Sharoz Ijaz. Executor: Sharoz Ijaz with Codex support.
 
 - Keep the local app free and open source.
+- Start with paid workflow/template packs for web designers and freelancers.
+- Keep one free sample template pack in the public repo.
+- Sell paid packs separately, with Gumroad as the first low-friction option.
+- Offer paid workflow customization as a service after template demand is proven.
 - Consider paid hosted Align Cloud later for sync, share links, Google sync, reminders, and backup history.
-- Consider paid workflow/template packs for web designers and freelancers.
-- Consider paid support, customization, and signed convenience builds.
+- Consider signed convenience builds later.
 
 ## Phase 7 - Marketing And Positioning
 

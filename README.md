@@ -215,6 +215,8 @@ npm run release:desktop
 - `SELF_HOSTING_CHECKLIST.md` - short self-hosting checklist.
 - `CONTRIBUTING.md` - contribution and development rules.
 - `RELEASE.md` - GitHub release pipeline and desktop installer checklist.
+- `TEMPLATES.md` - free and paid workflow template pack model.
+- `BUSINESS_MODEL.md` - monetization path for templates, customization, and future cloud services.
 - `CHANGELOG.md` - release notes.
 - `DESKTOP.md` - Tauri desktop setup and release notes.
 - `DEPLOYMENT.md` - hosted deployment notes.

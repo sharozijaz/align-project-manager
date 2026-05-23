@@ -1,0 +1,325 @@
+{
+  "version": 2,
+  "exportedAt": "2026-05-23T00:00:00.000Z",
+  "projects": [
+    {
+      "id": "template-project-figma-wordpress",
+      "name": "Sample Local Business Website",
+      "description": "A sample Figma-to-WordPress redesign workflow for a five-page business website.",
+      "area": "business",
+      "status": "active",
+      "priority": "high",
+      "sortOrder": 0,
+      "notes": [
+        {
+          "id": "template-project-note-brief",
+          "title": "Project brief",
+          "content": "Goal: redesign an existing local business website and rebuild it in WordPress. Replace this sample context with the real client brief, sitemap, brand notes, and content status.",
+          "visibility": "private",
+          "createdAt": "2026-05-23T00:00:00.000Z",
+          "updatedAt": "2026-05-23T00:00:00.000Z"
+        },
+        {
+          "id": "template-project-note-handoff",
+          "title": "Client handoff checklist",
+          "content": "- Confirm all pages are approved\n- Send staging link\n- Record login handoff notes\n- Confirm forms and analytics\n- Schedule post-launch follow-up",
+          "visibility": "client",
+          "createdAt": "2026-05-23T00:00:00.000Z",
+          "updatedAt": "2026-05-23T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "template-task-discovery",
+      "title": "Discovery and content audit",
+      "description": "Collect goals, current website links, page list, brand assets, competitor references, and missing content.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "high",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "plannedWeekStart": "2026-05-25",
+      "sortOrder": 0,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-discovery-questions",
+      "title": "Prepare discovery questions",
+      "description": "Ask about audience, offer, pages, deadline, hosting, brand assets, and decision maker.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "medium",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-discovery",
+      "sortOrder": 1,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-content-audit",
+      "title": "Audit current pages and assets",
+      "description": "List pages, screenshots, content gaps, broken links, forms, and SEO basics.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "medium",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-discovery",
+      "sortOrder": 2,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-task-home-design",
+      "title": "Home page design in Figma",
+      "description": "Design the home page first so the client can approve direction before inner pages.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "high",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "plannedWeekStart": "2026-06-01",
+      "sortOrder": 3,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-hero-inspo",
+      "title": "Hero section inspiration",
+      "description": "Collect three relevant hero examples and decide layout direction.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "medium",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-home-design",
+      "sortOrder": 4,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-home-mobile",
+      "title": "Home page mobile pass",
+      "description": "Check spacing, section order, buttons, and sticky/header behavior on mobile.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "medium",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-home-design",
+      "sortOrder": 5,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-task-inner-pages",
+      "title": "Design inner page templates",
+      "description": "Create reusable page patterns for About, Services, Contact, and a flexible content page.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "medium",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "plannedWeekStart": "2026-06-08",
+      "sortOrder": 6,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-task-wordpress-build",
+      "title": "Build approved design in WordPress",
+      "description": "Set up staging, theme/builder structure, global styles, pages, forms, and responsive behavior.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "high",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "plannedWeekStart": "2026-06-15",
+      "sortOrder": 7,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-staging",
+      "title": "Set up staging and global styles",
+      "description": "Install WordPress, configure theme/builder, typography, colors, header, footer, and reusable sections.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "medium",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-wordpress-build",
+      "sortOrder": 8,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-build-pages",
+      "title": "Build pages and forms",
+      "description": "Build Home, About, Services, Contact, and form confirmation states.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "high",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-wordpress-build",
+      "sortOrder": 9,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-task-qa-launch",
+      "title": "QA, launch, and handoff",
+      "description": "Check responsive issues, forms, speed basics, redirects, backups, and client handoff notes.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "high",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "plannedWeekStart": "2026-06-22",
+      "sortOrder": 10,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-subtask-prelaunch-qa",
+      "title": "Pre-launch QA checklist",
+      "description": "Check mobile, forms, links, images, page titles, backups, SSL, analytics, and client approval.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "project",
+      "priority": "high",
+      "status": "not_started",
+      "reminder": "none",
+      "recurrence": "none",
+      "parentTaskId": "template-task-qa-launch",
+      "sortOrder": 11,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-task-weekly-admin",
+      "title": "Friday client update",
+      "description": "Send progress summary, blockers, and next-week plan.",
+      "projectId": "template-project-figma-wordpress",
+      "category": "meeting",
+      "priority": "medium",
+      "status": "not_started",
+      "dueDate": "2026-05-29",
+      "reminder": "day-before",
+      "recurrence": "weekly",
+      "sortOrder": 12,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "events": [
+    {
+      "id": "template-event-discovery",
+      "title": "Discovery call",
+      "description": "Use the discovery note and collect missing client assets.",
+      "startDate": "2026-05-26",
+      "source": "local"
+    },
+    {
+      "id": "template-event-design-review",
+      "title": "Home page design review",
+      "description": "Review the Figma home page direction with the client.",
+      "startDate": "2026-06-05",
+      "source": "local"
+    },
+    {
+      "id": "template-event-launch-window",
+      "title": "Launch window",
+      "description": "Target launch and final checks.",
+      "startDate": "2026-06-26",
+      "source": "local"
+    }
+  ],
+  "resources": [
+    {
+      "id": "template-resource-figma",
+      "title": "Figma project file",
+      "url": "https://example.com/replace-with-figma-file",
+      "type": "tools",
+      "collection": "Project setup",
+      "tags": "figma,design",
+      "notes": "Replace with the real Figma link.",
+      "favorite": false,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-resource-staging",
+      "title": "WordPress staging site",
+      "url": "https://example.com/replace-with-staging-site",
+      "type": "tools",
+      "collection": "Project setup",
+      "tags": "wordpress,staging",
+      "notes": "Replace with staging URL. Do not store passwords unless your setup is private and secure.",
+      "favorite": false,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-resource-page-speed",
+      "title": "PageSpeed Insights",
+      "url": "https://pagespeed.web.dev/",
+      "type": "tools",
+      "collection": "QA",
+      "tags": "qa,performance",
+      "notes": "Use during launch QA.",
+      "favorite": false,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "notes": [
+    {
+      "id": "template-note-discovery",
+      "title": "Website discovery questions",
+      "body": "# Website discovery questions\n\n## Business\n- What is the main offer?\n- Who is the best-fit customer?\n- What action should visitors take?\n\n## Website\n- Which pages are required?\n- What content is ready?\n- What content is missing?\n- Are there competitor or inspiration links?\n\n## Technical\n- Where is the domain hosted?\n- Where is WordPress hosted?\n- Are forms, analytics, SEO, or redirects required?\n\n## Approval\n- Who gives final approval?\n- What is the preferred review schedule?",
+      "tags": "template,discovery,web-design",
+      "favorite": true,
+      "projectIds": [
+        "template-project-figma-wordpress"
+      ],
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "template-note-qa",
+      "title": "Pre-launch QA checklist",
+      "body": "# Pre-launch QA checklist\n\n- [ ] Mobile layout checked\n- [ ] Tablet layout checked\n- [ ] Desktop layout checked\n- [ ] Forms tested\n- [ ] Broken links checked\n- [ ] Images optimized\n- [ ] Page titles and meta descriptions reviewed\n- [ ] SSL active\n- [ ] Backups configured\n- [ ] Client approved launch",
+      "tags": "template,qa,wordpress",
+      "favorite": false,
+      "projectIds": [
+        "template-project-figma-wordpress"
+      ],
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "theme": "dark",
+    "heroImage": "midnight-mountain",
+    "autoCleanTasks": true,
+    "autoCleanProjects": true
+  }
+}
