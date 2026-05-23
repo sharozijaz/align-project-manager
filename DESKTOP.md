@@ -1,6 +1,6 @@
 # Align Desktop
 
-Align now has a Tauri desktop scaffold. The desktop app uses the same React/Vite frontend and keeps Supabase, Google sign-in, Google Calendar sync, reminders, and cloud data as the source of truth.
+Align has a Tauri desktop scaffold. The desktop app uses the same React/Vite frontend and is local-first by default. Supabase, Google sign-in, Google Calendar sync, Google Todo sync, reminders, and share links are optional cloud features for users who configure their own backend.
 
 ## One-Time Setup
 
@@ -36,8 +36,8 @@ npm run desktop:build
 The Windows installer output is created under `src-tauri/target/release/bundle/`:
 
 ```text
-src-tauri/target/release/bundle/nsis/Align_0.2.2_x64-setup.exe
-src-tauri/target/release/bundle/msi/Align_0.2.2_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/Align_VERSION_x64-setup.exe
+src-tauri/target/release/bundle/msi/Align_VERSION_x64_en-US.msi
 ```
 
 Use the NSIS `.exe` installer for the easiest local install.
@@ -95,22 +95,25 @@ For fully closed/offline delivery, keep server/email reminders enabled. A true a
 
 ## Reinstall and Update
 
-Align Desktop is a client shell for the same Supabase-backed workspace.
+Align Desktop is a local-first client shell for the same app workspace.
 
 1. Download or build the latest installer.
 2. Quit Align from the tray menu if it is running.
 3. Run the new NSIS `.exe` installer over the existing install.
-4. Open Align and sign in with the same Supabase account.
-5. Confirm Settings > Supabase Sync shows the workspace as synced.
+4. Open Align.
+5. Confirm your local workspace is still present.
+6. If you use cloud sync, sign in with the same Supabase account and confirm Settings > Supabase Sync shows the workspace as synced.
 
-Your tasks, projects, resources, notes, share links, and preferences should come back through Supabase sync. Manual JSON restore is only needed if cloud sync was disabled or the workspace was never uploaded.
+Your tasks, projects, resources, notes, share links, and preferences stay local unless cloud sync is enabled. Keep a JSON backup before installing public builds or switching machines.
 
-If the desktop app opens with an empty dashboard after a reinstall or update:
+If the desktop app opens with an empty dashboard after a reinstall or update and you use cloud sync:
 
 1. Do not add replacement projects/tasks yet.
 2. Open Settings > Supabase Sync.
 3. Press **Download Now**.
 4. Confirm the workspace returns from Supabase.
+
+If you use local-only mode, restore from your latest full workspace JSON backup instead.
 
 The current desktop sync guard is designed to avoid overwriting cloud data with an empty local startup state. It keeps local data if a normal cloud pull returns empty, only clears automatically on a known account switch, and writes a local pre-clear backup before signed-out/account-switch clears.
 
@@ -125,7 +128,7 @@ npm run desktop:build
 
 Then run the new installer from `src-tauri/target/release/bundle/`.
 
-For the full owner maintenance workflow, including monthly security checks, dependency updates, cleanup, and release tagging, see `MAINTENANCE.md`.
+For the full owner maintenance workflow, including monthly security checks, dependency updates, cleanup, and release tagging, see `MAINTENANCE.md`. For the public GitHub release pipeline, see `RELEASE.md`.
 
 ## Ubuntu GNOME Build
 

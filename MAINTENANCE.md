@@ -5,7 +5,8 @@ This guide is for maintaining Align after the project is finished. It covers saf
 ## Source Of Truth
 
 - GitHub `main` is the source of truth for app code and documentation.
-- Supabase is the source of truth for live user data.
+- Align is local-first by default. User data lives on the device unless the user enables cloud sync.
+- Supabase is the source of truth only for users who enable Cloud sync against a configured Supabase project.
 - Vercel deploys the web app from the repo.
 - The desktop app is rebuilt from the same source code with Tauri.
 - `.env.local` is private local configuration and must never be committed.
@@ -25,7 +26,7 @@ Recent work completed before the Windows reinstall prep:
 - Built and saved the Windows `.exe` and `.msi` installers before cleanup.
 - Cleaned generated folders so the backup copy is small.
 
-Important recovery note: if an installed desktop app opens empty after an update or reinstall, go to Settings > Supabase Sync and press **Download Now**. The cloud workspace is the source of truth.
+Important recovery note: if an installed desktop app opens empty after an update or reinstall, do not recreate replacement projects. Local-only users should restore a full workspace JSON backup. Cloud-sync users can go to Settings > Supabase Sync and press **Download Now**.
 
 ## After Folder Cleanup
 
@@ -212,6 +213,8 @@ Recommended release steps:
 
 The desktop app is a client shell. Data should come back through Supabase after sign-in. Manual JSON restore is only needed if cloud sync was disabled or the workspace was never uploaded.
 
+For public GitHub releases, follow `RELEASE.md` before creating tags or uploading installers.
+
 ## Cleanup After Release
 
 After a release is tested, these generated folders can be deleted to save space:
@@ -322,8 +325,8 @@ Desktop opens but projects/tasks are missing:
 After a tested release, you can tag the version:
 
 ```powershell
-git tag v0.2.1
-git push origin v0.2.1
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 Only tag after the web app and desktop installer are tested.

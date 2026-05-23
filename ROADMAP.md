@@ -59,6 +59,8 @@ Owner: Sharoz Ijaz. Executor: Codex or maintainer.
 - Keep package and Tauri versions aligned.
 - Run checks before release: unused code, TypeScript, audit, build, desktop build, secret scan, and smoke tests.
 - First public release can be unsigned, with a documented Windows SmartScreen warning.
+- Add GitHub issue templates, PR template, and CI checks for safer public contributions.
+- Keep desktop release builds manual until signing and updater automation are ready.
 
 ## Phase 6 - Monetization Path
 

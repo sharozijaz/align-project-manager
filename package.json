@@ -8,8 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "check:unused": "knip --exclude files",
     "check:ts-unused": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "check:release": "npm run check:unused && npm run check:ts-unused && npm audit --audit-level=moderate && npm run build",
     "preview": "vite preview",
     "desktop:dev": "tauri dev",
+    "release:desktop": "npm run check:release && npm run desktop:build",
     "desktop:build": "tauri build"
   },
   "dependencies": {

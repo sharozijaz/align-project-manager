@@ -194,10 +194,16 @@ npm audit --audit-level=moderate
 npm run build
 ```
 
+Or run the combined release check:
+
+```bash
+npm run check:release
+```
+
 Before a desktop release:
 
 ```bash
-npm run desktop:build
+npm run release:desktop
 ```
 
 ## Documentation
@@ -208,6 +214,7 @@ npm run desktop:build
 - `SELF_HOSTING.md` - bring-your-own-backend setup and cost-control guide.
 - `SELF_HOSTING_CHECKLIST.md` - short self-hosting checklist.
 - `CONTRIBUTING.md` - contribution and development rules.
+- `RELEASE.md` - GitHub release pipeline and desktop installer checklist.
 - `CHANGELOG.md` - release notes.
 - `DESKTOP.md` - Tauri desktop setup and release notes.
 - `DEPLOYMENT.md` - hosted deployment notes.
