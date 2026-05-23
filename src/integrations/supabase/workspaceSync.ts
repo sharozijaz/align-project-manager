@@ -103,6 +103,27 @@ export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace) {
   await replaceHubNotes(workspace.notes.map((note) => hubNoteToRow(note, userId)), userId);
 }
 
+export async function clearWorkspaceInSupabase() {
+  const client = requireClient();
+  const userId = await requireUserId(client);
+
+  await Promise.all([
+    deleteOwnedRows("tasks", userId),
+    deleteOwnedRows("calendar_events", userId),
+    deleteOwnedRows("hub_resources", userId),
+    deleteOwnedRows("hub_notes", userId),
+    deleteOwnedRows("projects", userId),
+  ]);
+}
+
+async function deleteOwnedRows(table: "projects" | "tasks" | "calendar_events" | "hub_resources" | "hub_notes", userId: string) {
+  const client = requireClient();
+  const { error } = await client.from(table).delete().eq("user_id", userId);
+
+  if (isMissingRelation(error)) return;
+  if (error) throw new Error(errorMessage(error, `Could not clear ${table}.`));
+}
+
 async function upsertProjects(rows: ReturnType<typeof projectToRow>[]) {
   const client = requireClient();
 

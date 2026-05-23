@@ -26,7 +26,7 @@ import {
   type DesktopReminderHeartbeat,
 } from "../integrations/desktop/notifications";
 import { canUseDesktopAutostart, getDesktopAutostartEnabled, setDesktopAutostartEnabled } from "../integrations/desktop/autostart";
-import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
+import { clearWorkspaceInSupabase, pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import {
   connectGoogleCalendar,
@@ -395,12 +395,26 @@ export function Settings() {
     }
 
     const ownerId = getWorkspaceOwnerId();
+    const currentWorkspaceHasData = hasWorkspaceData({ tasks, projects, events, resources, notes });
     if (session?.user.id && ownerId && ownerId !== session.user.id) {
       saveSafetyBackup("blocked-cross-account-upload");
       const message = "Upload blocked because this local workspace belongs to another account. A safety backup was saved.";
       syncState.setSyncState("error", message);
       setSyncMessage(message);
       return;
+    }
+    if (session?.user.id && !ownerId && currentWorkspaceHasData) {
+      const shouldClaimWorkspace = window.confirm(
+        "This local workspace is not linked to the signed-in account yet. Uploading will attach this device data to this account. Continue only if this is your workspace.",
+      );
+      if (!shouldClaimWorkspace) {
+        saveSafetyBackup("blocked-unowned-upload");
+        const message = "Upload cancelled. A safety backup was saved and no cloud data was changed.";
+        syncState.setSyncState("idle", message);
+        setSyncMessage(message);
+        return;
+      }
+      setWorkspaceOwnerId(session.user.id);
     }
 
     setSyncing(true);
@@ -458,6 +472,51 @@ export function Settings() {
       setSyncMessage("Workspace downloaded from Supabase.");
     } catch (error) {
       const message = errorMessage(error, "Could not download workspace.");
+      syncState.setSyncState("error", message);
+      setSyncMessage(message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const resetCurrentCloudWorkspace = async () => {
+    if (!session) {
+      setSyncMessage("Sign in before resetting cloud workspace data.");
+      return;
+    }
+
+    const shouldReset = window.confirm(
+      `Reset cloud workspace for ${session.user.email ?? "this signed-in account"}? Align will save a local safety backup first. This only clears this account's cloud workspace.`,
+    );
+    if (!shouldReset) return;
+
+    const shouldAlsoClearLocal = window.confirm("Also clear this device's local workspace after the cloud reset?");
+
+    setSyncing(true);
+    setSyncMessage("");
+    syncState.setSyncState("pushing", "Resetting current cloud workspace...");
+
+    try {
+      saveSafetyBackup("reset-current-cloud-workspace");
+      await clearWorkspaceInSupabase();
+
+      if (shouldAlsoClearLocal) {
+        replaceTasks([]);
+        replaceProjects([]);
+        replaceEvents([]);
+        replaceResources([]);
+        replaceNotes([]);
+        setWorkspaceOwnerId(session.user.id);
+      }
+
+      syncState.setSynced("Current account cloud workspace reset.");
+      setSyncMessage(
+        shouldAlsoClearLocal
+          ? "Cloud and local workspace reset for the signed-in account."
+          : "Cloud workspace reset for the signed-in account. Local data stayed on this device.",
+      );
+    } catch (error) {
+      const message = errorMessage(error, "Could not reset cloud workspace.");
       syncState.setSyncState("error", message);
       setSyncMessage(message);
     } finally {
@@ -1063,6 +1122,21 @@ export function Settings() {
           <div className="mt-4 flex gap-2">
             <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Full Backup</Button>
             <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import Backup</Button>
+          </div>
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-bg)] p-3 text-sm sm:p-4">
+            <p className="font-semibold text-[var(--danger-text)]">Reset current account cloud workspace</p>
+            <p className="mt-1 text-[var(--text-muted)]">
+              Use this if a test account accidentally received copied data. Align saves a local safety backup first and only clears the signed-in
+              account's cloud rows.
+            </p>
+            <Button
+              className="mt-3"
+              variant="danger"
+              onClick={() => void resetCurrentCloudWorkspace()}
+              disabled={!session || syncing || syncMode === "local"}
+            >
+              Reset Current Cloud Workspace
+            </Button>
           </div>
           <input
             ref={importInputRef}
