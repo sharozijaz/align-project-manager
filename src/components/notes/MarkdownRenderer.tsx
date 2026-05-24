@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function MarkdownRenderer({ body, className = "" }: { body: string; className?: string }) {
@@ -127,8 +128,8 @@ export function MarkdownRenderer({ body, className = "" }: { body: string; class
         <ul key={`checklist-${index}`} className="space-y-2 pl-1">
           {items.map((item, itemNumber) => (
             <li key={itemNumber} className="flex gap-3 text-[var(--text-muted)]">
-              <span className={`mt-1 grid h-4 w-4 shrink-0 place-items-center rounded border text-[10px] ${item.checked ? "border-[var(--status-completed-text)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]" : "border-[var(--border-strong)]"}`}>
-                {item.checked ? "✓" : ""}
+              <span className={`mt-1 grid h-4 w-4 shrink-0 place-items-center rounded border leading-none ${item.checked ? "border-[var(--status-completed-text)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]" : "border-[var(--border-strong)]"}`}>
+                {item.checked ? <Check size={11} strokeWidth={3} /> : ""}
               </span>
               <span>{renderInlineMarkdown(item.text)}</span>
             </li>

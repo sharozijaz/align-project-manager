@@ -1,4 +1,5 @@
 import {
+  Check,
   CheckSquare,
   Code2,
   Copy,
@@ -1810,14 +1811,14 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
                 type="button"
                 disabled={!onToggleChecklistLine}
                 onClick={() => onToggleChecklistLine?.(item.lineIndex)}
-                className={`mt-1 grid h-5 w-5 shrink-0 place-items-center rounded border text-[11px] transition ${
+                className={`mt-1 grid h-5 w-5 shrink-0 place-items-center rounded border leading-none transition ${
                   item.checked
                     ? "border-[var(--status-completed-text)] bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]"
                     : "border-[var(--border-strong)] bg-[var(--surface)] hover:border-[var(--brand-primary)]"
                 } ${onToggleChecklistLine ? "cursor-pointer" : "cursor-default"}`}
                 aria-label={item.checked ? "Mark checklist item incomplete" : "Mark checklist item complete"}
               >
-                {item.checked ? "✓" : ""}
+                {item.checked ? <Check size={13} strokeWidth={3} /> : ""}
               </button>
               <span>{renderInlineMarkdown(item.text)}</span>
             </li>
