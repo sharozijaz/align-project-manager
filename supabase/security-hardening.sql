@@ -14,6 +14,7 @@ alter table public.allowed_users enable row level security;
 
 revoke all on public.allowed_users from anon;
 revoke all on public.allowed_users from authenticated;
+grant select on public.allowed_users to service_role;
 
 create or replace function public.is_allowed_user()
 returns boolean

@@ -40,6 +40,8 @@ alter table public.feature_access enable row level security;
 
 grant select, insert, update, delete on public.app_profiles to authenticated;
 grant select, insert, update, delete on public.feature_access to authenticated;
+grant select on public.app_profiles to service_role;
+grant select on public.feature_access to service_role;
 revoke all on public.app_profiles from anon;
 revoke all on public.feature_access from anon;
 
