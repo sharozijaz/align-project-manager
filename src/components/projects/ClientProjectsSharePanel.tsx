@@ -26,6 +26,9 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   const [activeLinkId, setActiveLinkId] = useState("");
   const [editingLinkId, setEditingLinkId] = useState("");
   const [shareModalLinkId, setShareModalLinkId] = useState("");
+  const [passwordAction, setPasswordAction] = useState<"create" | "update" | "">("");
+  const [passwordDraft, setPasswordDraft] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [working, setWorking] = useState(false);
@@ -103,20 +106,25 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     setMessage("");
   };
 
-  const createClientLink = async () => {
+  const requestCreateClientLink = () => {
     if (!selectedProjects.length) {
       setMessage("Select at least one project to create a client overview link.");
       return;
     }
-    const sharePassword = window.prompt("Set a password for this client overview link. New links expire automatically after 30 days.");
-    if (sharePassword === null) return;
+    setPasswordAction("create");
+    setPasswordDraft("");
+    setPasswordError("");
+  };
+
+  const createClientLink = async (sharePassword: string) => {
     if (!sharePassword.trim()) {
-      setMessage("A password is required for new client overview links.");
+      setPasswordError("Add a password before creating the overview link.");
       return;
     }
 
     setWorking(true);
     setMessage("");
+    setPasswordError("");
 
     try {
       const link = await createClientShareLink({ name: clientName, projects: selectedProjects, password: sharePassword });
@@ -124,38 +132,49 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       setActiveLinkId(link.id);
       setEditingLinkId("");
       setShareModalLinkId(link.id);
+      setPasswordAction("");
+      setPasswordDraft("");
       setClientName("");
       setSelectedIds([]);
       setMessage(`${link.name || "Client overview"} is saved and ready to share.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not create client overview link.");
+      setPasswordError(error instanceof Error ? error.message : "Could not create client overview link.");
     } finally {
       setWorking(false);
     }
   };
 
-  const updateClientLink = async () => {
+  const requestUpdateClientLink = () => {
+    if (!editingLink) return;
+    if (!selectedProjects.length) {
+      setMessage("Keep at least one project in this client overview link.");
+      return;
+    }
+    if (!editingLink.passwordProtected) {
+      void updateClientLink();
+      return;
+    }
+
+    setPasswordAction("update");
+    setPasswordDraft("");
+    setPasswordError("");
+  };
+
+  const updateClientLink = async (sharePassword?: string) => {
     if (!editingLink) return;
     if (!selectedProjects.length) {
       setMessage("Keep at least one project in this client overview link.");
       return;
     }
 
-    let sharePassword: string | undefined;
-    if (editingLink.passwordProtected) {
-      const enteredPassword = window.prompt(
-        "Re-enter this client overview password so newly included project detail links stay protected.",
-      );
-      if (enteredPassword === null) return;
-      if (!enteredPassword.trim()) {
-        setMessage("Password is required to update protected client overview projects.");
-        return;
-      }
-      sharePassword = enteredPassword;
+    if (editingLink.passwordProtected && !sharePassword?.trim()) {
+      setPasswordError("Re-enter the client overview password before saving changes.");
+      return;
     }
 
     setWorking(true);
     setMessage("");
+    setPasswordError("");
 
     try {
       const link = await updateClientShareLinkProjects({
@@ -167,13 +186,37 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
       setLinks((current) => current.map((item) => (item.id === link.id ? link : item)));
       setActiveLinkId(link.id);
       setEditingLinkId("");
+      setPasswordAction("");
+      setPasswordDraft("");
       setClientName("");
       setSelectedIds([]);
       setMessage(`${link.name || "Client overview"} updated without changing the URL.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not update client overview link.");
+      const fallback = "Could not update client overview link.";
+      if (editingLink.passwordProtected) {
+        setPasswordError(error instanceof Error ? error.message : fallback);
+      } else {
+        setMessage(error instanceof Error ? error.message : fallback);
+      }
     } finally {
       setWorking(false);
+    }
+  };
+
+  const closePasswordAction = () => {
+    if (working) return;
+    setPasswordAction("");
+    setPasswordDraft("");
+    setPasswordError("");
+  };
+
+  const submitPasswordAction = async () => {
+    if (passwordAction === "create") {
+      await createClientLink(passwordDraft);
+      return;
+    }
+    if (passwordAction === "update") {
+      await updateClientLink(passwordDraft);
     }
   };
 
@@ -288,7 +331,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
             <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
               <Button
                 icon={<Link2 size={16} />}
-                onClick={() => void (editingLink ? updateClientLink() : createClientLink())}
+                onClick={() => void (editingLink ? requestUpdateClientLink() : requestCreateClientLink())}
                 disabled={working || !isSupabaseConfigured || !selectableProjects.length}
               >
                 {working ? "Saving..." : editingLink ? "Update Share Link" : "Create Share Link"}
@@ -439,6 +482,51 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
           </motion.div>
         ) : null}
       </AnimatePresence>
+      <Modal
+        title={passwordAction === "update" ? "Confirm client password" : "Protect overview link"}
+        open={Boolean(passwordAction)}
+        onClose={closePasswordAction}
+      >
+        <div className="space-y-4">
+          <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-4">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]">
+                <KeyRound size={18} />
+              </span>
+              <div>
+                <p className="font-bold text-[var(--text)]">{clientName.trim() || "Client overview"}</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  {passwordAction === "update"
+                    ? "Re-enter the overview password so newly included project detail links stay protected."
+                    : "New overview links are read-only, password protected, and expire after 30 days."}
+                </p>
+              </div>
+            </div>
+          </div>
+          <label className="grid gap-2 text-sm font-bold text-[var(--text)]">
+            Password
+            <Input
+              type="password"
+              value={passwordDraft}
+              onChange={(event) => {
+                setPasswordDraft(event.target.value);
+                setPasswordError("");
+              }}
+              placeholder="Enter the client password"
+              autoFocus
+            />
+          </label>
+          {passwordError ? <p className="text-sm font-semibold text-[var(--button-danger-text)]">{passwordError}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={closePasswordAction} disabled={working}>
+              Cancel
+            </Button>
+            <Button type="button" icon={<Link2 size={16} />} onClick={() => void submitPasswordAction()} disabled={working}>
+              {working ? "Saving..." : passwordAction === "update" ? "Save Changes" : "Create Link"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
       {shareModalLink ? (
         <Modal title="Share client overview" open={Boolean(shareModalLink)} onClose={() => setShareModalLinkId("")}>
           <div className="space-y-4">

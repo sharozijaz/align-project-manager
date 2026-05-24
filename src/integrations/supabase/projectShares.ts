@@ -13,6 +13,10 @@ const requireClient = () => {
 };
 
 const DEFAULT_SHARE_EXPIRY_DAYS = 30;
+const PROJECT_SHARE_SELECT = "id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at";
+const PROJECT_SHARE_SELECT_LEGACY = "id,project_id,token,enabled,password_hash,created_at,updated_at";
+const CLIENT_SHARE_SELECT = "id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at";
+const CLIENT_SHARE_SELECT_LEGACY = "id,name,token,project_ids,project_tokens,enabled,password_hash,created_at,updated_at";
 
 const rowToProjectShare = (row: {
   id: string;
@@ -62,7 +66,7 @@ export async function getProjectShare(projectId: string) {
   const client = requireClient();
   const { data, error } = await client
     .from("project_shares")
-    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
+    .select(PROJECT_SHARE_SELECT)
     .eq("project_id", projectId)
     .eq("enabled", true)
     .order("created_at", { ascending: false })
@@ -98,21 +102,30 @@ export async function createProjectShare(project: Project, options: { password?:
   const token = createShareToken();
   const passwordHash = options.password?.trim() ? await hashSharePassword(token, options.password) : null;
 
-  const { data, error } = await client
+  const payload = {
+    user_id: user.id,
+    project_id: project.id,
+    token,
+    enabled: true,
+    password_hash: passwordHash,
+    expires_at: options.expiresAt || defaultShareExpiresAt(),
+    updated_at: new Date().toISOString(),
+  };
+  let { data, error } = await client
     .from("project_shares")
-    .insert({
-      user_id: user.id,
-      project_id: project.id,
-      token,
-      enabled: true,
-      password_hash: passwordHash,
-      expires_at: options.expiresAt || defaultShareExpiresAt(),
-      updated_at: new Date().toISOString(),
-    })
-    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
+    .insert(payload)
+    .select(PROJECT_SHARE_SELECT)
     .single();
 
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const { expires_at: _expiresAt, ...legacyPayload } = payload;
+    const retry = await client.from("project_shares").insert(legacyPayload).select(PROJECT_SHARE_SELECT_LEGACY).single();
+    data = retry.data ? { ...retry.data, expires_at: null } : null;
+    error = retry.error;
+  }
+
   if (error) throw new Error(errorMessage(error, "Could not create project share link."));
+  if (!data) throw new Error("Could not create project share link.");
 
   return rowToProjectShare(data);
 }
@@ -130,14 +143,26 @@ export async function revokeProjectShare(shareId: string) {
 export async function updateProjectSharePassword(share: ProjectShare, password: string) {
   const client = requireClient();
   const passwordHash = password.trim() ? await hashSharePassword(share.token, password) : null;
-  const { data, error } = await client
+  let { data, error } = await client
     .from("project_shares")
     .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
     .eq("id", share.id)
-    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
+    .select(PROJECT_SHARE_SELECT)
     .single();
 
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const retry = await client
+      .from("project_shares")
+      .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
+      .eq("id", share.id)
+      .select(PROJECT_SHARE_SELECT_LEGACY)
+      .single();
+    data = retry.data ? { ...retry.data, expires_at: null } : null;
+    error = retry.error;
+  }
+
   if (error) throw new Error(errorMessage(error, "Could not update share password."));
+  if (!data) throw new Error("Could not update share password.");
 
   return rowToProjectShare(data);
 }
@@ -151,25 +176,43 @@ async function updateProjectShareControls(share: ProjectShare, options: { passwo
   if (options.password?.trim()) updates.password_hash = await hashSharePassword(share.token, options.password);
   if (options.expiresAt) updates.expires_at = options.expiresAt;
 
-  const { data, error } = await client
+  let { data, error } = await client
     .from("project_shares")
     .update(updates)
     .eq("id", share.id)
-    .select("id,project_id,token,enabled,password_hash,expires_at,created_at,updated_at")
+    .select(PROJECT_SHARE_SELECT)
     .single();
 
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const { expires_at: _expiresAt, ...legacyUpdates } = updates;
+    const retry = await client.from("project_shares").update(legacyUpdates).eq("id", share.id).select(PROJECT_SHARE_SELECT_LEGACY).single();
+    data = retry.data ? { ...retry.data, expires_at: null } : null;
+    error = retry.error;
+  }
+
   if (error) throw new Error(errorMessage(error, "Could not update project share protection."));
+  if (!data) throw new Error("Could not update project share protection.");
 
   return rowToProjectShare(data);
 }
 
 export async function listClientShareLinks() {
   const client = requireClient();
-  const { data, error } = await client
+  let { data, error } = await client
     .from("client_share_links")
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
+    .select(CLIENT_SHARE_SELECT)
     .eq("enabled", true)
     .order("created_at", { ascending: false });
+
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const retry = await client
+      .from("client_share_links")
+      .select(CLIENT_SHARE_SELECT_LEGACY)
+      .eq("enabled", true)
+      .order("created_at", { ascending: false });
+    data = retry.data?.map((row) => ({ ...row, expires_at: null })) ?? null;
+    error = retry.error;
+  }
 
   if (error) {
     const message = errorMessage(error, "Could not load client overview links.");
@@ -205,24 +248,33 @@ export async function createClientShareLink({
   const now = new Date().toISOString();
   const token = createShareToken();
   const passwordHash = password?.trim() ? await hashSharePassword(token, password) : null;
-  const { data, error } = await client
+  const payload = {
+    user_id: user.id,
+    name: name?.trim() || null,
+    token,
+    project_ids: projects.map((project) => project.id),
+    project_tokens: shares.map((share) => share.token),
+    enabled: true,
+    password_hash: passwordHash,
+    expires_at: shareExpiresAt,
+    created_at: now,
+    updated_at: now,
+  };
+  let { data, error } = await client
     .from("client_share_links")
-    .insert({
-      user_id: user.id,
-      name: name?.trim() || null,
-      token,
-      project_ids: projects.map((project) => project.id),
-      project_tokens: shares.map((share) => share.token),
-      enabled: true,
-      password_hash: passwordHash,
-      expires_at: shareExpiresAt,
-      created_at: now,
-      updated_at: now,
-    })
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
+    .insert(payload)
+    .select(CLIENT_SHARE_SELECT)
     .single();
 
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const { expires_at: _expiresAt, ...legacyPayload } = payload;
+    const retry = await client.from("client_share_links").insert(legacyPayload).select(CLIENT_SHARE_SELECT_LEGACY).single();
+    data = retry.data ? { ...retry.data, expires_at: null } : null;
+    error = retry.error;
+  }
+
   if (error) throw new Error(errorMessage(error, "Could not save client overview link."));
+  if (!data) throw new Error("Could not save client overview link.");
 
   return rowToClientShareLink(data);
 }
@@ -243,14 +295,26 @@ export async function updateClientShareLinkPassword(link: ClientShareLink, passw
 
   await updateProjectSharePasswordsByToken(client, link.projectTokens, password);
 
-  const { data, error } = await client
+  let { data, error } = await client
     .from("client_share_links")
     .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
     .eq("id", link.id)
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
+    .select(CLIENT_SHARE_SELECT)
     .single();
 
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const retry = await client
+      .from("client_share_links")
+      .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
+      .eq("id", link.id)
+      .select(CLIENT_SHARE_SELECT_LEGACY)
+      .single();
+    data = retry.data ? { ...retry.data, expires_at: null } : null;
+    error = retry.error;
+  }
+
   if (error) throw new Error(errorMessage(error, "Could not update client link password."));
+  if (!data) throw new Error("Could not update client link password.");
 
   return rowToClientShareLink(data);
 }
@@ -293,14 +357,21 @@ export async function updateClientShareLinkProjects({
 
   if (sharePassword) updates.password_hash = await hashSharePassword(link.token, sharePassword);
 
-  const { data, error } = await client
+  let { data, error } = await client
     .from("client_share_links")
     .update(updates)
     .eq("id", link.id)
-    .select("id,name,token,project_ids,project_tokens,enabled,password_hash,expires_at,created_at,updated_at")
+    .select(CLIENT_SHARE_SELECT)
     .single();
 
+  if (error && isMissingColumnError(error, "expires_at")) {
+    const retry = await client.from("client_share_links").update(updates).eq("id", link.id).select(CLIENT_SHARE_SELECT_LEGACY).single();
+    data = retry.data ? { ...retry.data, expires_at: null } : null;
+    error = retry.error;
+  }
+
   if (error) throw new Error(errorMessage(error, "Could not update client overview projects."));
+  if (!data) throw new Error("Could not update client overview projects.");
 
   return rowToClientShareLink(data);
 }
@@ -333,4 +404,13 @@ async function hashSharePassword(token: string, password: string) {
 
 function defaultShareExpiresAt() {
   return new Date(Date.now() + DEFAULT_SHARE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function isMissingColumnError(error: unknown, columnName: string) {
+  const message = errorMessage(error, "").toLowerCase();
+  const column = columnName.toLowerCase();
+  return (
+    message.includes(column) &&
+    (message.includes("pgrst204") || message.includes("42703") || message.includes("schema cache") || message.includes("does not exist"))
+  );
 }

@@ -104,7 +104,9 @@ supabase/project-notes.sql
 supabase/project-shares.sql
 supabase/client-share-links.sql
 supabase/share-passwords.sql
+supabase/share-link-schema-repair.sql
 supabase/personal-hub.sql
+supabase/hub-notes-project-links.sql
 supabase/feature-access.sql
 supabase/security-hardening.sql
 ```

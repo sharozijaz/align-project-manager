@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { applyApiCors, getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
+import { HttpError, applyApiCors, getEnv, handleApiError, requireMethod, serviceFetch } from "./_googleCalendar.js";
 import {
   applyRateLimit,
   readJsonBody,
@@ -73,20 +73,33 @@ export default async function handler(req, res) {
 }
 
 async function findShare(env, token) {
-  const url = new URL(`${env.supabaseUrl}/rest/v1/project_shares`);
-  url.searchParams.set("token", `eq.${token}`);
-  url.searchParams.set("enabled", "eq.true");
-  url.searchParams.set("select", "user_id,project_id,expires_at,password_hash");
-  url.searchParams.set("limit", "1");
+  const selectWithExpiry = "user_id,project_id,expires_at,password_hash";
+  const selectWithoutExpiry = "user_id,project_id,password_hash";
+  let share = null;
 
-  const response = await serviceFetch(env, url);
-  const rows = await response.json();
-  const share = rows[0];
+  try {
+    share = await fetchShareRow(env, token, selectWithExpiry);
+  } catch (error) {
+    if (!isMissingColumnError(error, "expires_at")) throw error;
+    share = await fetchShareRow(env, token, selectWithoutExpiry);
+  }
 
   if (!share) return null;
   if (share.expires_at && new Date(share.expires_at).getTime() < Date.now()) return null;
 
   return share;
+}
+
+async function fetchShareRow(env, token, select) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/project_shares`);
+  url.searchParams.set("token", `eq.${token}`);
+  url.searchParams.set("enabled", "eq.true");
+  url.searchParams.set("select", select);
+  url.searchParams.set("limit", "1");
+
+  const response = await serviceFetch(env, url);
+  const rows = await response.json();
+  return rows[0] || null;
 }
 
 async function readSharePassword(req) {
@@ -140,8 +153,23 @@ async function findLinkedHubNotes(env, userId, projectId) {
   url.searchParams.set("select", "id,title,body,tags,favorite,client_visible,project_ids,created_at,updated_at");
   url.searchParams.set("order", "updated_at.desc");
 
-  const response = await serviceFetch(env, url);
-  return response.json();
+  try {
+    const response = await serviceFetch(env, url);
+    return response.json();
+  } catch (error) {
+    if (isMissingColumnError(error, "client_visible")) return [];
+    throw error;
+  }
+}
+
+function isMissingColumnError(error, columnName) {
+  if (!(error instanceof HttpError)) return false;
+  const message = String(error.message || "").toLowerCase();
+  const column = columnName.toLowerCase();
+  return (
+    message.includes(column) &&
+    (message.includes("pgrst204") || message.includes("42703") || message.includes("schema cache") || message.includes("does not exist"))
+  );
 }
 
 function rowToProject(row) {

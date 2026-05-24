@@ -16,6 +16,9 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   const [working, setWorking] = useState(false);
   const [passwordWorking, setPasswordWorking] = useState(false);
   const [password, setPassword] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createPasswordOpen, setCreatePasswordOpen] = useState(false);
+  const [createPasswordError, setCreatePasswordError] = useState("");
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
@@ -46,21 +49,22 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   }, [project.id]);
 
   const handleCreate = async () => {
-    const sharePassword = window.prompt("Set a password for this client share link. New links expire automatically after 30 days.");
-    if (sharePassword === null) return;
-    if (!sharePassword.trim()) {
-      setError("A password is required for new client share links.");
+    if (!createPassword.trim()) {
+      setCreatePasswordError("Add a password before creating the client link.");
       return;
     }
 
     setWorking(true);
     setError("");
+    setCreatePasswordError("");
     try {
-      const nextShare = await createProjectShare(project, { password: sharePassword });
+      const nextShare = await createProjectShare(project, { password: createPassword });
       setShare(nextShare);
+      setCreatePassword("");
+      setCreatePasswordOpen(false);
       setShareModalOpen(true);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Could not create share link.");
+      setCreatePasswordError(createError instanceof Error ? createError.message : "Could not create share link.");
     } finally {
       setWorking(false);
     }
@@ -134,11 +138,76 @@ export function ProjectSharePanel({ project }: { project: Project }) {
             </div>
           </div>
         ) : (
-          <Button icon={<Link2 size={16} />} onClick={handleCreate} disabled={working || !isSupabaseConfigured}>
+          <Button
+            icon={<Link2 size={16} />}
+            onClick={() => {
+              setCreatePassword("");
+              setCreatePasswordError("");
+              setCreatePasswordOpen(true);
+            }}
+            disabled={working || !isSupabaseConfigured}
+          >
             {working ? "Creating..." : "Create Link"}
           </Button>
         )}
       </div>
+      <Modal
+        title="Protect client link"
+        open={createPasswordOpen}
+        onClose={() => {
+          if (working) return;
+          setCreatePasswordOpen(false);
+          setCreatePassword("");
+          setCreatePasswordError("");
+        }}
+      >
+        <div className="space-y-4">
+          <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-4">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]">
+                <KeyRound size={18} />
+              </span>
+              <div>
+                <p className="font-bold text-[var(--text)]">{project.name}</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  Client links are read-only, password protected, and expire after 30 days.
+                </p>
+              </div>
+            </div>
+          </div>
+          <label className="grid gap-2 text-sm font-bold text-[var(--text)]">
+            Link password
+            <Input
+              type="password"
+              value={createPassword}
+              onChange={(event) => {
+                setCreatePassword(event.target.value);
+                setCreatePasswordError("");
+              }}
+              placeholder="Enter a client password"
+              autoFocus
+            />
+          </label>
+          {createPasswordError ? <p className="text-sm font-semibold text-[var(--button-danger-text)]">{createPasswordError}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setCreatePasswordOpen(false);
+                setCreatePassword("");
+                setCreatePasswordError("");
+              }}
+              disabled={working}
+            >
+              Cancel
+            </Button>
+            <Button type="button" icon={<Link2 size={16} />} onClick={() => void handleCreate()} disabled={working}>
+              {working ? "Creating..." : "Create Link"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
       {share ? (
         <Modal title="Share project" open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
           <div className="space-y-4">
