@@ -13,7 +13,7 @@ Align is past the alpha/beta stage for personal daily use, but the public open-s
 - Projects with tasks, subtasks, card/table/board/kanban views, and client context.
 - Personal todos and task planning across day, week, and month.
 - Calendar with Month, Week, and Agenda views.
-- Personal Hub notes and resources.
+- Notes and Resources as separate private workspaces.
 - Reports for progress, overdue work, status mix, and upcoming deadlines.
 - Local desktop notifications and Tauri desktop packaging.
 - Optional Supabase sync, Google Calendar/Todo sync, client share links, and email reminders for configured hosted deployments.

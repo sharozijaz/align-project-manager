@@ -199,7 +199,7 @@ function LinkedHubNotes({ notes }: { notes: HubNote[] }) {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">Project Context</h2>
-          <p className="text-sm text-[var(--text-muted)]">Notes linked from Personal Hub. Only notes marked client-visible appear on client share links.</p>
+          <p className="text-sm text-[var(--text-muted)]">Linked notes stay private unless they are marked client-visible for share links.</p>
         </div>
         <Badge tone="slate">{notes.length} linked</Badge>
       </div>

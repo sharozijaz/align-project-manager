@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { App } from "./App";
 import { AdminOnly, RequireFeature } from "../features/access/FeatureAccessProvider";
 
@@ -85,17 +85,21 @@ export const router = createBrowserRouter([
         },
       },
       {
-        path: "hub",
+        path: "resources",
         lazy: async () => {
-          const { PersonalHub } = await import("../pages/PersonalHub");
-          return { Component: () => <RequireFeature feature="personal_hub"><PersonalHub /></RequireFeature> };
+          const { ResourcesWorkspace } = await import("../pages/Resources");
+          return { Component: () => <RequireFeature feature="personal_hub"><ResourcesWorkspace /></RequireFeature> };
         },
+      },
+      {
+        path: "hub",
+        element: <Navigate to="/resources" replace />,
       },
       {
         path: "notes",
         lazy: async () => {
-          const { PersonalHub } = await import("../pages/PersonalHub");
-          return { Component: () => <RequireFeature feature="personal_hub"><PersonalHub initialView="notes" /></RequireFeature> };
+          const { ResourcesWorkspace } = await import("../pages/Resources");
+          return { Component: () => <RequireFeature feature="personal_hub"><ResourcesWorkspace initialView="notes" /></RequireFeature> };
         },
       },
       {

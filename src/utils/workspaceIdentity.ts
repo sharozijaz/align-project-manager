@@ -1,4 +1,4 @@
-export const WORKSPACE_SESSION_KEY = "align-workspace-session-user-v1";
+const WORKSPACE_SESSION_KEY = "align-workspace-session-user-v1";
 
 export function getWorkspaceOwnerId() {
   if (typeof window === "undefined") return "";

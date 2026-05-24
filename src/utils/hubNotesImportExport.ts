@@ -28,7 +28,7 @@ export function exportHubNotesJson(notes: HubNote[]) {
 
 export function exportHubNotesMarkdown(notes: HubNote[]) {
   const header = [
-    "# Align Personal Hub Notes",
+    "# Align Notes",
     "",
     `Exported: ${new Date().toLocaleString()}`,
     "",
@@ -147,7 +147,7 @@ export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[]) 
 function parseJsonNotes(content: string): HubNote[] {
   const parsed = JSON.parse(content) as Partial<HubNotesExportFile> | HubNote[];
   const notes = Array.isArray(parsed) ? parsed : parsed.notes;
-  if (!Array.isArray(notes)) throw new Error("JSON file does not contain Personal Hub notes.");
+  if (!Array.isArray(notes)) throw new Error("JSON file does not contain Align notes.");
   return notes.map((note) => normalizeImportedNote(note));
 }
 

@@ -18,7 +18,6 @@ create table if not exists public.feature_access (
   feature_key text not null check (
     feature_key in (
       'project_management',
-      'resource_vault',
       'prompt_library',
       'client_pipeline',
       'documents',

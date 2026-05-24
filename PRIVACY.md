@@ -11,7 +11,7 @@ Local-only data can include:
 - projects
 - tasks and todos
 - calendar events
-- Personal Hub notes and resources
+- notes and resources
 - app preferences
 
 Local-only data is not sent to the maintainer's server.
@@ -34,7 +34,7 @@ Hosted API code encrypts saved Google access and refresh tokens with `GOOGLE_TOK
 
 Client share links require hosted API routes. Shared pages are read-only and should expose only selected project data and client-visible notes.
 
-Personal Hub notes remain private by default. A note only appears on a share link when it is linked to a shared project and explicitly marked client-visible. Personal Hub resources are not exposed by share links.
+Notes remain private by default. A note only appears on a share link when it is linked to a shared project and explicitly marked client-visible. Resources are not exposed by share links.
 
 New share links are password-protected and expire by default. Review or disable older links that were created before password/expiry defaults.
 

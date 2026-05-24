@@ -58,7 +58,7 @@ const primaryLinks: NavItem[] = [
 
 const workspaceLinks: NavItem[] = [
   { to: "/notes", label: "Notes", hint: "G N", icon: StickyNote, feature: "personal_hub" },
-  { to: "/hub", label: "Personal Hub", hint: "G U", icon: LibraryBig, feature: "personal_hub" },
+  { to: "/resources", label: "Resources", hint: "G U", icon: LibraryBig, feature: "personal_hub" },
 ];
 
 const profileLinks: NavItem[] = [

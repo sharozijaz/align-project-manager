@@ -1,5 +1,5 @@
--- Personal Hub resources and markdown notes.
--- Run this in the Supabase SQL editor before relying on cross-device Personal Hub sync.
+-- Resources and markdown notes.
+-- Run this in the Supabase SQL editor before relying on cross-device Resources/Notes sync.
 
 create table if not exists public.hub_resources (
   id text primary key,

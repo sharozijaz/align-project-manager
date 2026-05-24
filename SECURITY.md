@@ -62,7 +62,7 @@ Desktop reminders use local device settings and Windows toast permissions. They 
 
 Public/client share routes must stay server-side API routes backed by service-role env vars in Vercel. They should only return read-only project/task payloads and notes that are explicitly marked `client_visible`.
 
-Personal Hub resources are never exposed by public share APIs. Personal Hub notes default to private and only appear on share links when the owner marks the note client-visible and links it to a shared project.
+Resources are never exposed by public share APIs. Notes default to private and only appear on share links when the owner marks the note client-visible and links it to a shared project.
 
 ## Open Source Release Safety
 

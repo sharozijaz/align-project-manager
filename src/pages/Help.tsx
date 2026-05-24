@@ -19,19 +19,19 @@ const sections = [
   {
     icon: Link2,
     title: "Client Share Links",
-    body: "Share links are read-only and separate from app accounts. Personal Hub notes linked to a project appear there; unlinked notes stay private.",
+    body: "Share links are read-only and separate from app accounts. Notes linked to a project appear there only when marked client-visible; unlinked notes stay private.",
     example: "Use password protection for agency/client links when a linked note contains sensitive project context.",
   },
   {
     icon: ShieldCheck,
     title: "Feature Access",
     body: "Owner accounts can see every module. Members only see modules enabled from Admin, so future studio tools can stay private.",
-    example: "A future teammate can get Project Management only, while you keep Resource Vault and Personal Hub private.",
+    example: "A future teammate can get Project Management only, while you keep Notes and Resources private.",
   },
   {
     icon: Sparkles,
     title: "Studio Modules",
-    body: "Resource Vault, Prompt Library, Client Pipeline, Documents, and Personal Hub are local-first modules for organizing the rest of your freelance workflow.",
+    body: "Resources, Prompt Library, Client Pipeline, and Documents are local-first modules for organizing the rest of your freelance workflow.",
     example: "Save inspiration sites, copy prompts, invoice links, proposal status, and private ideas without crowding project tasks.",
   },
 ];

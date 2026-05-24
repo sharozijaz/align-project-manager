@@ -166,10 +166,12 @@ function ExportMenuButton({ title, description, onClick }: { title: string; desc
   );
 }
 
-export function PersonalHub({ initialView = "resources" }: { initialView?: HubView }) {
+export function ResourcesWorkspace({ initialView = "resources" }: { initialView?: HubView }) {
   const { resources, notes, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote, replaceNotes } = useStudioStore();
   const projects = useProjectStore((state) => state.projects);
-  const [view, setView] = useState<HubView>(initialView);
+  const workspaceView = initialView === "notes" ? "notes" : "resources";
+  const isNotesWorkspace = workspaceView === "notes";
+  const [view, setView] = useState<HubView>(workspaceView);
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ResourceFilter>("all");
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
@@ -189,8 +191,8 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setView(initialView);
-  }, [initialView]);
+    setView(workspaceView);
+  }, [workspaceView]);
 
   useEffect(() => {
     if (!exportMenuOpen) return;
@@ -349,7 +351,7 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
     const filenameBase =
       scope === "current" && selectedNote
         ? `align-note-${slugifyFilename(selectedNote.title)}`
-        : "align-personal-hub-notes";
+        : "align-notes";
 
     if (format === "json") {
       downloadTextFile(`${filenameBase}-${stamp}.json`, exportHubNotesJson(exportNotes), "application/json");
@@ -411,66 +413,75 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Personal Hub"
-        description="A private resource and notes workspace for inspiration, tools, links, snippets, and working context."
+        title={isNotesWorkspace ? "Notes" : "Resources"}
+        description={
+          isNotesWorkspace
+            ? "A private writing space for decisions, snippets, project context, and reusable notes."
+            : "A private library for inspiration, tools, links, assets, snippets, and working references."
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <input ref={fileInputRef} className="hidden" type="file" accept=".json,.md,.markdown,application/json,text/markdown,text/plain" onChange={(event) => void importNotes(event)} />
-            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileInputRef.current?.click()}>
-              Import
-            </Button>
-            <div ref={exportMenuRef} className="relative">
-              <Button variant="secondary" icon={<Download size={16} />} onClick={() => setExportMenuOpen((open) => !open)} disabled={!notes.length}>
-                Export
-              </Button>
-              {exportMenuOpen ? (
-                <div className="absolute right-0 z-20 mt-2 w-72 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
-                  {selectedNote ? (
-                    <>
-                      <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Current note</p>
+            {isNotesWorkspace ? (
+              <>
+                <input ref={fileInputRef} className="hidden" type="file" accept=".json,.md,.markdown,application/json,text/markdown,text/plain" onChange={(event) => void importNotes(event)} />
+                <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileInputRef.current?.click()}>
+                  Import
+                </Button>
+                <div ref={exportMenuRef} className="relative">
+                  <Button variant="secondary" icon={<Download size={16} />} onClick={() => setExportMenuOpen((open) => !open)} disabled={!notes.length}>
+                    Export
+                  </Button>
+                  {exportMenuOpen ? (
+                    <div className="absolute right-0 z-20 mt-2 w-72 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
+                      {selectedNote ? (
+                        <>
+                          <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Current note</p>
+                          <ExportMenuButton
+                            title="Download Markdown"
+                            description={selectedNote.title}
+                            onClick={() => exportNotes("markdown", "current")}
+                          />
+                          <ExportMenuButton
+                            title="Download JSON"
+                            description="Single-note backup"
+                            onClick={() => exportNotes("json", "current")}
+                          />
+                          <div className="my-2 border-t border-[var(--border)]" />
+                        </>
+                      ) : null}
+                      <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">All notes</p>
                       <ExportMenuButton
-                        title="Download Markdown"
-                        description={selectedNote.title}
-                        onClick={() => exportNotes("markdown", "current")}
+                        title="Backup JSON"
+                        description="Best for restoring every note later."
+                        onClick={() => exportNotes("json", "all")}
                       />
                       <ExportMenuButton
-                        title="Download JSON"
-                        description="Single-note backup"
-                        onClick={() => exportNotes("json", "current")}
+                        title="Markdown Bundle"
+                        description="Readable archive containing every note."
+                        onClick={() => exportNotes("markdown", "all")}
                       />
-                      <div className="my-2 border-t border-[var(--border)]" />
-                    </>
+                    </div>
                   ) : null}
-                  <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">All notes</p>
-                  <ExportMenuButton
-                    title="Backup JSON"
-                    description="Best for restoring every note later."
-                    onClick={() => exportNotes("json", "all")}
-                  />
-                  <ExportMenuButton
-                    title="Markdown Bundle"
-                    description="Readable archive containing every note."
-                    onClick={() => exportNotes("markdown", "all")}
-                  />
                 </div>
-              ) : null}
-            </div>
-            <Button
-              variant="secondary"
-              icon={<StickyNote size={16} />}
-              onClick={() => {
-                setShowForm("note");
-                setView("notes");
-              }}
-            >
-              New Note
-            </Button>
-            <Button icon={<Plus size={16} />} onClick={() => {
-              setShowForm("resource");
-              setView("resources");
-            }}>
-              Add Resource
-            </Button>
+                <Button
+                  variant="secondary"
+                  icon={<StickyNote size={16} />}
+                  onClick={() => {
+                    setShowForm("note");
+                    setView("notes");
+                  }}
+                >
+                  New Note
+                </Button>
+              </>
+            ) : (
+              <Button icon={<Plus size={16} />} onClick={() => {
+                setShowForm("resource");
+                setView("resources");
+              }}>
+                Add Resource
+              </Button>
+            )}
           </div>
         }
       />
@@ -485,19 +496,16 @@ export function PersonalHub({ initialView = "resources" }: { initialView?: HubVi
       ) : null}
 
       <Card className="p-3">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid gap-3">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={17} />
-            <Input className="align-field-quiet pl-10 sm:min-h-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes, resources, tags, collections..." />
+            <Input
+              className="align-field-quiet pl-10 sm:min-h-10"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={isNotesWorkspace ? "Search notes, tags, linked projects..." : "Search resources, tags, collections..."}
+            />
           </label>
-          <div className="align-tab-list">
-            <button type="button" className="align-tab" data-active={view === "resources"} onClick={() => setView("resources")}>
-              Resources
-            </button>
-            <button type="button" className="align-tab" data-active={view === "notes"} onClick={() => setView("notes")}>
-              Notes
-            </button>
-          </div>
         </div>
         {view === "resources" ? (
           <div className="mt-3 flex flex-wrap gap-2">

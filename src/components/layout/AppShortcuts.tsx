@@ -220,7 +220,7 @@ function routeFromGoKey(key: string) {
   if (key === "n") return "/notes";
   if (key === "c") return "/calendar";
   if (key === "r") return "/reports";
-  if (key === "u") return "/hub";
+  if (key === "u") return "/resources";
   return "";
 }
 

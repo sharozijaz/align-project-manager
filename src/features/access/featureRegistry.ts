@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   BriefcaseBusiness,
   FileText,
   FolderKanban,
@@ -11,7 +10,6 @@ import {
 
 export const featureKeys = [
   "project_management",
-  "resource_vault",
   "prompt_library",
   "client_pipeline",
   "documents",
@@ -39,13 +37,6 @@ export const featureRegistry: FeatureDefinition[] = [
     planned: false,
   },
   {
-    key: "resource_vault",
-    label: "Resource Vault",
-    description: "Saved inspiration, tools, links, references, and reusable resources.",
-    icon: LibraryBig,
-    planned: true,
-  },
-  {
     key: "prompt_library",
     label: "Prompt Library",
     description: "Reusable prompts for websites, copy, mockups, brands, and AI workflows.",
@@ -68,9 +59,9 @@ export const featureRegistry: FeatureDefinition[] = [
   },
   {
     key: "personal_hub",
-    label: "Personal Hub",
-    description: "Owner-only command center for private tools and personal workspace modules.",
-    icon: BarChart3,
+    label: "Resources",
+    description: "Saved inspiration, tools, links, references, and reusable resources.",
+    icon: LibraryBig,
     planned: false,
   },
   {

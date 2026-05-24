@@ -1,4 +1,24 @@
-import { BellRing, CalendarDays, Cloud, Download, ImageIcon, ListTodo, Mail, Palette, RefreshCw, Smartphone, Trash2, Upload, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  BellRing,
+  CalendarDays,
+  CheckCircle2,
+  Cloud,
+  DatabaseBackup,
+  Download,
+  HardDrive,
+  ImageIcon,
+  ListTodo,
+  LogOut,
+  Mail,
+  Palette,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+  Trash2,
+  Upload,
+  UserRound,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -97,6 +117,7 @@ export function Settings() {
   const [desktopNotificationMessage, setDesktopNotificationMessage] = useState("");
   const [desktopReminderHeartbeat, setDesktopReminderHeartbeatState] = useState<DesktopReminderHeartbeat | null>(null);
   const [preferenceMessage, setPreferenceMessage] = useState("");
+  const [showCloudResetControls, setShowCloudResetControls] = useState(false);
   const [lastWorkspaceExport, setLastWorkspaceExport] = useState(() =>
     typeof window === "undefined" ? "" : window.localStorage.getItem(LAST_WORKSPACE_EXPORT_KEY) ?? "",
   );
@@ -802,14 +823,87 @@ export function Settings() {
       </Card>
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         {settingsSection === "account" ? (
+        <>
         <Card className="p-4 sm:p-5">
-          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">User name</p>
-          <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><UserRound size={18} /> Profile</h2>
+              <p className="mt-2 text-sm text-[var(--text-muted)]">Your local display name and signed-in identity.</p>
+            </div>
+            <Badge tone={session ? "emerald" : "slate"}>{sessionLoading ? "Checking" : session ? "Signed in" : "Local only"}</Badge>
+          </div>
+          <label className="mt-4 block text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Display name</label>
+          <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-sm font-semibold text-[var(--text)]">
             {sessionLoading ? "Checking session..." : profileDisplayName}
           </div>
-          {session?.user.email ? <p className="mt-2 text-xs text-[var(--text-soft)]">{session.user.email}</p> : null}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Account email</p>
+              <p className="mt-2 break-all text-sm font-semibold text-[var(--text)]">
+                {session?.user.email ?? "No cloud account connected"}
+              </p>
+            </div>
+            <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Workspace mode</p>
+              <p className="mt-2 text-sm font-semibold text-[var(--text)]">{workspaceMode.label}</p>
+            </div>
+          </div>
         </Card>
+        <Card className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><ShieldCheck size={18} /> Workspace Safety</h2>
+              <p className="mt-2 text-sm text-[var(--text-muted)]">{workspaceMode.description}</p>
+            </div>
+            <Badge tone={workspaceMode.tone}>{workspaceMode.label}</Badge>
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+              <HardDrive className="mt-0.5 text-[var(--brand-primary)]" size={18} />
+              <div>
+                <p className="font-semibold text-[var(--text)]">Local copy is primary</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Backups and safety snapshots protect this device if cloud sync has trouble.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+              <Cloud className="mt-0.5 text-[var(--brand-primary)]" size={18} />
+              <div>
+                <p className="font-semibold text-[var(--text)]">Cloud status</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  {session && syncState.lastSyncedAt
+                    ? `Last synced ${new Date(syncState.lastSyncedAt).toLocaleString()}`
+                    : session
+                      ? syncState.message
+                      : "Sign in only when you want hosted sync."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4 sm:p-5 lg:col-span-2">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="font-bold text-[var(--text)]">Account actions</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Quick access to the things that protect or disconnect this workspace.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Backup</Button>
+              <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import Backup</Button>
+              {session ? (
+                <Button variant="ghost" icon={<LogOut size={16} />} onClick={() => void signOut()}>Sign Out</Button>
+              ) : null}
+            </div>
+          </div>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => void importData(event.target.files?.[0])}
+          />
+          {dataMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{dataMessage}</p> : null}
+        </Card>
+        </>
         ) : null}
         {settingsSection === "appearance" ? (
         <>
@@ -1082,29 +1176,57 @@ export function Settings() {
         </>
         ) : null}
         {settingsSection === "data" ? (
-        <Card className="p-4 sm:p-5">
-          <h2 className="font-bold text-[var(--text)]">Data</h2>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Back up or restore your full local workspace. Cloud sync is convenient, but this device copy and your JSON backups are the recovery path.
-          </p>
-          <div className="mt-4 grid gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-semibold text-[var(--text)]">Workspace backup</span>
-              <Badge tone="slate">Version 2</Badge>
+        <Card className="p-4 sm:p-5 lg:col-span-2">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
+                <DatabaseBackup size={18} /> Data Protection
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm text-[var(--text-muted)]">
+                Back up, restore, and recover your full local workspace. Cloud sync is convenient, but this device copy and your JSON backups are the recovery path.
+              </p>
             </div>
-            <p className="text-[var(--text-muted)]">
-              Exports include tasks, projects, calendar events, notes, resources, and supported preferences. Imports and cloud downloads save a local
-              safety copy before anything is replaced.
-            </p>
-            <p className="text-xs text-[var(--text-soft)]">
-              {lastWorkspaceExport ? `Last exported ${new Date(lastWorkspaceExport).toLocaleString()}` : "No full workspace export recorded on this device yet."}
-            </p>
+            <Badge tone={workspaceMode.tone}>{workspaceMode.label}</Badge>
           </div>
-          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
+          <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)]">
+            <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-semibold text-[var(--text)]">Workspace backup</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    Exports include tasks, projects, calendar events, notes, resources, and supported preferences.
+                  </p>
+                </div>
+                <Badge tone="slate">Backup v2</Badge>
+              </div>
+              <p className="mt-3 text-xs text-[var(--text-soft)]">
+                {lastWorkspaceExport ? `Last exported ${new Date(lastWorkspaceExport).toLocaleString()}` : "No full workspace export recorded on this device yet."}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Full Backup</Button>
+                <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import Backup</Button>
+              </div>
+            </div>
+            <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 text-[var(--success)]" size={18} />
+                <div>
+                  <p className="font-semibold text-[var(--text)]">Recovery rule</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    If Supabase is unavailable or returns an unexpected empty workspace, Align keeps local data on this device.
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-[var(--text-soft)]">
+                Restore from a full JSON backup first, then reconnect or upload to Supabase after the backend is healthy.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="font-semibold text-[var(--text)]">{workspaceMode.title}</p>
-                <p className="mt-1 text-[var(--text-muted)]">{workspaceMode.description}</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">{workspaceMode.description}</p>
               </div>
               <Badge tone={workspaceMode.tone}>{workspaceMode.label}</Badge>
             </div>
@@ -1112,31 +1234,40 @@ export function Settings() {
               <p className="mt-2 text-xs text-[var(--text-soft)]">Last cloud sync {new Date(syncState.lastSyncedAt).toLocaleString()}</p>
             ) : null}
           </div>
-          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)] sm:p-4">
-            <p className="font-semibold text-[var(--text)]">Recovery rule</p>
-            <p className="mt-1">
-              If Supabase is unavailable or returns an unexpected empty workspace, Align keeps local data on this device. Restore from a full JSON
-              backup first, then reconnect or upload to Supabase after the backend is healthy.
-            </p>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <Button variant="secondary" icon={<Download size={16} />} onClick={exportData}>Export Full Backup</Button>
-            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => importInputRef.current?.click()}>Import Backup</Button>
-          </div>
-          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-bg)] p-3 text-sm sm:p-4">
-            <p className="font-semibold text-[var(--danger-text)]">Reset current account cloud workspace</p>
-            <p className="mt-1 text-[var(--text-muted)]">
-              Use this if a test account accidentally received copied data. Align saves a local safety backup first and only clears the signed-in
-              account's cloud rows.
-            </p>
-            <Button
-              className="mt-3"
-              variant="danger"
-              onClick={() => void resetCurrentCloudWorkspace()}
-              disabled={!session || syncing || syncMode === "local"}
-            >
-              Reset Current Cloud Workspace
-            </Button>
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--surface-raised)] p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 text-[var(--danger-text)]" size={18} />
+                <div>
+                  <p className="font-semibold text-[var(--text)]">Advanced reset</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    Only use this when a test account accidentally received copied cloud data. A local safety backup is saved first.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={showCloudResetControls ? "ghost" : "secondary"}
+                onClick={() => setShowCloudResetControls((isVisible) => !isVisible)}
+              >
+                {showCloudResetControls ? "Hide reset controls" : "Show reset controls"}
+              </Button>
+            </div>
+            {showCloudResetControls ? (
+              <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-bg)] p-3">
+                <p className="text-sm font-semibold text-[var(--danger-text)]">Reset current account cloud workspace</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  This clears only the signed-in account's cloud rows. Your local workspace stays unless you confirm the second prompt.
+                </p>
+                <Button
+                  className="mt-3"
+                  variant="danger"
+                  onClick={() => void resetCurrentCloudWorkspace()}
+                  disabled={!session || syncing || syncMode === "local"}
+                >
+                  Reset Cloud Workspace
+                </Button>
+              </div>
+            ) : null}
           </div>
           <input
             ref={importInputRef}
