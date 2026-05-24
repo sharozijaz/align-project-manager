@@ -187,22 +187,42 @@ export async function isAllowedUserId(env, userId) {
 }
 
 async function requireAllowedEmail(env, email) {
-  const url = new URL(`${env.supabaseUrl}/rest/v1/allowed_users`);
+  const [profileAccess, legacyAccess] = await Promise.all([
+    readAllowedEmailRows(env, "app_profiles", email, { activeOnly: true }),
+    readAllowedEmailRows(env, "allowed_users", email),
+  ]);
+
+  if (profileAccess.rows.length || legacyAccess.rows.length) return;
+
+  if (!profileAccess.configured && !legacyAccess.configured) {
+    throw new HttpError(403, "Hosted API access tables are not configured. Run supabase/security-hardening.sql and supabase/feature-access.sql.");
+  }
+
+  throw new HttpError(403, "This account is not allowed to use hosted Align APIs. Add the email in Admin or public.allowed_users.");
+}
+
+async function readAllowedEmailRows(env, table, email, options = {}) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/${table}`);
   url.searchParams.set("email", `ilike.${email}`);
   url.searchParams.set("select", "email");
   url.searchParams.set("limit", "1");
+  if (options.activeOnly) url.searchParams.set("active", "eq.true");
 
-  let rows = [];
   try {
     const response = await serviceFetch(env, url);
-    rows = await response.json();
+    return { configured: true, rows: await response.json() };
   } catch (error) {
-    throw new HttpError(403, "Hosted API allowlist is not configured. Run supabase/security-hardening.sql and add allowed users.");
-  }
+    if (isMissingSupabaseRelation(error)) {
+      return { configured: false, rows: [] };
+    }
 
-  if (!rows.length) {
-    throw new HttpError(403, "This account is not allowed to use hosted Align APIs.");
+    throw error;
   }
+}
+
+function isMissingSupabaseRelation(error) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return error?.status === 404 || message.includes("schema cache") || message.includes("could not find the table");
 }
 
 export function createOAuthState(env, userId) {
