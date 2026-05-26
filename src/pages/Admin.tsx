@@ -5,6 +5,7 @@ import { useFeatureAccess } from "../features/access/FeatureAccessProvider";
 import { deleteAdminUser, listAdminUsers, saveAdminUser, setUserFeature, type AdminUser } from "../integrations/supabase/access";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { useConfirm } from "../components/ui/ConfirmProvider";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -20,6 +21,7 @@ const availableFeatures = featureRegistry.filter((feature) => !feature.planned);
 const selectableFeatures = availableFeatures.filter((feature) => feature.key !== "admin");
 
 export function Admin() {
+  const confirm = useConfirm();
   const { access, refreshAccess } = useFeatureAccess();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +157,13 @@ export function Admin() {
       setMessage("You cannot delete your current account from inside Align.");
       return;
     }
-    if (!window.confirm(`Permanently remove "${user.displayName || user.email}" from Align access?`)) return;
+    const shouldDelete = await confirm({
+      title: "Remove user access?",
+      description: `"${user.displayName || user.email}" will be permanently removed from Align access.`,
+      confirmLabel: "Remove User",
+      tone: "danger",
+    });
+    if (!shouldDelete) return;
 
     setMessage("");
     try {

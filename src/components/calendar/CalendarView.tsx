@@ -33,6 +33,7 @@ import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { useConfirm } from "../ui/ConfirmProvider";
 import { OptionBadge } from "../ui/OptionBadge";
 import { CalendarEventModal } from "./CalendarEventModal";
 
@@ -877,6 +878,8 @@ function CalendarItemRow({ item, actions }: { item: CalendarItem; actions?: Reac
 }
 
 function EventActions({ event, onEdit, onDelete }: { event: CalendarEvent; onEdit: (event: CalendarEvent) => void; onDelete: (id: string) => void }) {
+  const confirm = useConfirm();
+
   return (
     <div className="flex shrink-0 gap-1">
       <Button title="Edit event" variant="secondary" className="min-h-8 px-2" onClick={() => onEdit(event)}>
@@ -887,9 +890,14 @@ function EventActions({ event, onEdit, onDelete }: { event: CalendarEvent; onEdi
         variant="danger"
         className="min-h-8 px-2"
         onClick={() => {
-          if (window.confirm(`Delete "${event.title}" from your local calendar?`)) {
-            onDelete(event.id);
-          }
+          void confirm({
+            title: "Delete local event?",
+            description: `"${event.title}" will be removed from your local calendar.`,
+            confirmLabel: "Delete Event",
+            tone: "danger",
+          }).then((confirmed) => {
+            if (confirmed) onDelete(event.id);
+          });
         }}
       >
         <Trash2 size={14} />

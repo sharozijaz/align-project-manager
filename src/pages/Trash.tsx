@@ -4,6 +4,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { useConfirm } from "../components/ui/ConfirmProvider";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project } from "../types/project";
@@ -17,6 +18,7 @@ import {
 import { priorityTone } from "../utils/taskVisuals";
 
 export function Trash() {
+  const confirm = useConfirm();
   const { projects, restoreProject, permanentlyDeleteProject } = useProjectStore();
   const { tasks, restoreTask, permanentlyDeleteTask } = useTaskStore();
   const deletedProjects = projects.filter((project) => project.deletedAt).sort(compareDeletedAt);
@@ -55,9 +57,14 @@ export function Trash() {
               project={project}
               onRestore={() => restoreProject(project.id)}
               onDeleteForever={() => {
-                if (window.confirm(`Permanently delete "${project.name}"? This cannot be undone.`)) {
-                  permanentlyDeleteProject(project.id);
-                }
+                void confirm({
+                  title: "Permanently delete project?",
+                  description: `"${project.name}" will be removed forever. This cannot be undone.`,
+                  confirmLabel: "Delete Forever",
+                  tone: "danger",
+                }).then((confirmed) => {
+                  if (confirmed) permanentlyDeleteProject(project.id);
+                });
               }}
             />
           ))
@@ -78,9 +85,14 @@ export function Trash() {
                 projectName={project?.name}
                 onRestore={() => restoreTask(task.id)}
                 onDeleteForever={() => {
-                  if (window.confirm(`Permanently delete "${task.title}"? This cannot be undone.`)) {
-                    permanentlyDeleteTask(task.id);
-                  }
+                  void confirm({
+                    title: "Permanently delete task?",
+                    description: `"${task.title}" will be removed forever. This cannot be undone.`,
+                    confirmLabel: "Delete Forever",
+                    tone: "danger",
+                  }).then((confirmed) => {
+                    if (confirmed) permanentlyDeleteTask(task.id);
+                  });
                 }}
               />
             );

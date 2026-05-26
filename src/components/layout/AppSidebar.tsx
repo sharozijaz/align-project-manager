@@ -25,6 +25,7 @@ import { NavLink } from "react-router-dom";
 import { InstallAppButton } from "../pwa/InstallAppButton";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { SyncIndicator } from "../sync/SyncIndicator";
+import { useConfirm } from "../ui/ConfirmProvider";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 import type { FeatureKey } from "../../features/access/featureRegistry";
@@ -73,6 +74,7 @@ export const appNavigationItems = [...primaryLinks, ...workspaceLinks, ...profil
 const sidebarSpring = { type: "spring", stiffness: 520, damping: 44, mass: 0.72 } as const;
 
 export function AppSidebar() {
+  const confirm = useConfirm();
   const { access, hasFeature } = useFeatureAccess();
   const { session } = useSupabaseSession();
   const theme = useThemeStore((state) => state.theme);
@@ -97,9 +99,11 @@ export function AppSidebar() {
 
   const handleSignOut = async () => {
     if (!supabase || !session) return;
-    const shouldSignOut = window.confirm(
-      "Sign out of cloud sync? Align will save a local safety backup first, then isolate this device from the signed-in cloud workspace.",
-    );
+    const shouldSignOut = await confirm({
+      title: "Sign out of cloud sync?",
+      description: "Align will save a local safety backup first, then isolate this device from the signed-in cloud workspace.",
+      confirmLabel: "Sign Out",
+    });
     if (!shouldSignOut) return;
 
     saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes });

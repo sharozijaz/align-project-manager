@@ -6,6 +6,7 @@ import { ClientProjectsSharePanel } from "../components/projects/ClientProjectsS
 import { ProjectCard } from "../components/projects/ProjectCard";
 import { ProjectForm } from "../components/projects/ProjectForm";
 import { Button } from "../components/ui/Button";
+import { useConfirm } from "../components/ui/ConfirmProvider";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { Select } from "../components/ui/Select";
@@ -20,6 +21,7 @@ type ProjectSort = "manual" | "updated" | "name" | "due";
 type ProjectDragState = { id: string; startX: number; startY: number; x: number; y: number; active: boolean };
 
 export function Projects() {
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [areaFilter, setAreaFilter] = useState<ProjectAreaFilter>("all");
   const [lifecycleFilter, setLifecycleFilter] = useState<ProjectLifecycleFilter>("active");
@@ -183,16 +185,25 @@ export function Projects() {
               onComplete={setCompletingProject}
               onArchive={(projectId) => {
                 const project = projects.find((item) => item.id === projectId);
-                if (window.confirm(`Archive "${project?.name ?? "this project"}"? It will move out of the active workspace.`)) {
-                  archiveProject(projectId);
-                }
+                void confirm({
+                  title: "Archive project?",
+                  description: `"${project?.name ?? "This project"}" will move out of the active workspace. You can restore it from Archived projects.`,
+                  confirmLabel: "Archive",
+                }).then((confirmed) => {
+                  if (confirmed) archiveProject(projectId);
+                });
               }}
               onRestore={restoreProject}
               onDelete={(projectId) => {
                 const project = projects.find((item) => item.id === projectId);
-                if (window.confirm(`Move "${project?.name ?? "this project"}" to Trash? You can restore it later.`)) {
-                  deleteProject(projectId);
-                }
+                void confirm({
+                  title: "Move project to Trash?",
+                  description: `"${project?.name ?? "This project"}" will leave your project list, but you can restore it later from Trash.`,
+                  confirmLabel: "Move to Trash",
+                  tone: "danger",
+                }).then((confirmed) => {
+                  if (confirmed) deleteProject(projectId);
+                });
               }}
             />
           </div>

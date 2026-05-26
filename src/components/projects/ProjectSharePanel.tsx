@@ -7,10 +7,12 @@ import type { ProjectShare } from "../../types/projectShare";
 import { openShareUrl, projectShareUrl } from "../../utils/shareUrls";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { useConfirm } from "../ui/ConfirmProvider";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 
 export function ProjectSharePanel({ project }: { project: Project }) {
+  const confirm = useConfirm();
   const [share, setShare] = useState<ProjectShare | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [working, setWorking] = useState(false);
@@ -49,11 +51,6 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   }, [project.id]);
 
   const handleCreate = async () => {
-    if (!createPassword.trim()) {
-      setCreatePasswordError("Add a password before creating the client link.");
-      return;
-    }
-
     setWorking(true);
     setError("");
     setCreatePasswordError("");
@@ -79,7 +76,14 @@ export function ProjectSharePanel({ project }: { project: Project }) {
   };
 
   const handleRevoke = async () => {
-    if (!share || !window.confirm("Disable this client share link?")) return;
+    if (!share) return;
+    const shouldRevoke = await confirm({
+      title: "Disable client link?",
+      description: "The current public URL will stop working. You can create a new read-only link later.",
+      confirmLabel: "Disable Link",
+      tone: "danger",
+    });
+    if (!shouldRevoke) return;
 
     setWorking(true);
     setError("");
@@ -152,7 +156,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
         )}
       </div>
       <Modal
-        title="Protect client link"
+        title="Create client link"
         open={createPasswordOpen}
         onClose={() => {
           if (working) return;
@@ -170,13 +174,13 @@ export function ProjectSharePanel({ project }: { project: Project }) {
               <div>
                 <p className="font-bold text-[var(--text)]">{project.name}</p>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  Client links are read-only, password protected, and expire after 30 days.
+                  Client links are read-only and expire after 30 days. Add a password for sensitive project context.
                 </p>
               </div>
             </div>
           </div>
           <label className="grid gap-2 text-sm font-bold text-[var(--text)]">
-            Link password
+            Password optional
             <Input
               type="password"
               value={createPassword}
@@ -184,7 +188,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
                 setCreatePassword(event.target.value);
                 setCreatePasswordError("");
               }}
-              placeholder="Enter a client password"
+              placeholder="Leave empty for no password"
               autoFocus
             />
           </label>
@@ -229,7 +233,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
                 <div>
                   <p className="text-sm font-bold text-[var(--text)]">Password protection</p>
                   <p className="mt-1 text-xs text-[var(--text-soft)]">
-                    New links require a password and expire after 30 days by default.
+                    Links can be password protected and expire after 30 days by default.
                     {share.expiresAt ? ` Expires ${new Date(share.expiresAt).toLocaleDateString()}.` : ""}
                   </p>
                 </div>

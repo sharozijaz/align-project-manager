@@ -15,10 +15,12 @@ import { plainDateLabel } from "../../utils/date";
 import { clientShareUrl as buildClientShareUrl, openShareUrl } from "../../utils/shareUrls";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { useConfirm } from "../ui/ConfirmProvider";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 
 export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) {
+  const confirm = useConfirm();
   const [clientName, setClientName] = useState("");
   const [modalPassword, setModalPassword] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -117,11 +119,6 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   };
 
   const createClientLink = async (sharePassword: string) => {
-    if (!sharePassword.trim()) {
-      setPasswordError("Add a password before creating the overview link.");
-      return;
-    }
-
     setWorking(true);
     setMessage("");
     setPasswordError("");
@@ -228,7 +225,13 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   };
 
   const deleteLink = async (link: ClientShareLink) => {
-    if (!window.confirm(`Delete "${link.name || "this overview link"}"? The public URL will stop working.`)) return;
+    const shouldDelete = await confirm({
+      title: "Delete overview link?",
+      description: `"${link.name || "This overview link"}" will stop working for anyone who has the public URL.`,
+      confirmLabel: "Delete Link",
+      tone: "danger",
+    });
+    if (!shouldDelete) return;
 
     setWorking(true);
     setMessage("");
@@ -483,7 +486,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
         ) : null}
       </AnimatePresence>
       <Modal
-        title={passwordAction === "update" ? "Confirm client password" : "Protect overview link"}
+        title={passwordAction === "update" ? "Confirm client password" : "Create overview link"}
         open={Boolean(passwordAction)}
         onClose={closePasswordAction}
       >
@@ -498,13 +501,13 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
                   {passwordAction === "update"
                     ? "Re-enter the overview password so newly included project detail links stay protected."
-                    : "New overview links are read-only, password protected, and expire after 30 days."}
+                    : "Overview links are read-only and expire after 30 days. Add a password for sensitive client context."}
                 </p>
               </div>
             </div>
           </div>
           <label className="grid gap-2 text-sm font-bold text-[var(--text)]">
-            Password
+            {passwordAction === "update" ? "Password" : "Password optional"}
             <Input
               type="password"
               value={passwordDraft}
@@ -512,7 +515,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 setPasswordDraft(event.target.value);
                 setPasswordError("");
               }}
-              placeholder="Enter the client password"
+              placeholder={passwordAction === "update" ? "Enter the client password" : "Leave empty for no password"}
               autoFocus
             />
           </label>
@@ -552,7 +555,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
                 <div>
                   <p className="text-sm font-bold text-[var(--text)]">Optional password</p>
                   <p className="mt-1 text-xs text-[var(--text-soft)]">
-                    New overview links require a password and expire after 30 days by default.
+                    Links can be password protected and expire after 30 days by default.
                     {shareModalLink.expiresAt ? ` Expires ${plainDateLabel(shareModalLink.expiresAt.slice(0, 10))}.` : ""}
                   </p>
                 </div>

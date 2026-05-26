@@ -25,6 +25,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { useConfirm } from "../components/ui/ConfirmProvider";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { useCalendarStore } from "../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
@@ -91,6 +92,7 @@ function getSessionDisplayName(session: ReturnType<typeof useSupabaseSession>["s
 }
 
 export function Settings() {
+  const confirm = useConfirm();
   const importInputRef = useRef<HTMLInputElement>(null);
   const [dataMessage, setDataMessage] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
@@ -324,9 +326,12 @@ export function Settings() {
 
     try {
       const backup = parseWorkspaceBackup(await file.text());
-      const shouldImport = window.confirm(
-        "Importing this backup will replace local tasks, projects, calendar events, notes, resources, and supported preferences. Align will save a safety copy first. Continue?",
-      );
+      const shouldImport = await confirm({
+        title: "Import backup?",
+        description:
+          "Importing this backup will replace local tasks, projects, calendar events, notes, resources, and supported preferences. Align will save a safety copy first.",
+        confirmLabel: "Import Backup",
+      });
 
       if (!shouldImport) return;
 
@@ -399,9 +404,11 @@ export function Settings() {
 
   const signOut = async () => {
     if (!supabase) return;
-    const shouldSignOut = window.confirm(
-      "Sign out of cloud sync? Align will save a local safety backup first, then isolate this device from the signed-in cloud workspace.",
-    );
+    const shouldSignOut = await confirm({
+      title: "Sign out of cloud sync?",
+      description: "Align will save a local safety backup first, then isolate this device from the signed-in cloud workspace.",
+      confirmLabel: "Sign Out",
+    });
     if (!shouldSignOut) return;
 
     saveSafetyBackup("manual-sign-out");
@@ -425,9 +432,12 @@ export function Settings() {
       return;
     }
     if (session?.user.id && !ownerId && currentWorkspaceHasData) {
-      const shouldClaimWorkspace = window.confirm(
-        "This local workspace is not linked to the signed-in account yet. Uploading will attach this device data to this account. Continue only if this is your workspace.",
-      );
+      const shouldClaimWorkspace = await confirm({
+        title: "Attach local workspace to this account?",
+        description:
+          "This local workspace is not linked to the signed-in account yet. Uploading will attach this device data to this account. Continue only if this is your workspace.",
+        confirmLabel: "Attach and Upload",
+      });
       if (!shouldClaimWorkspace) {
         saveSafetyBackup("blocked-unowned-upload");
         const message = "Upload cancelled. A safety backup was saved and no cloud data was changed.";
@@ -462,9 +472,12 @@ export function Settings() {
       return;
     }
 
-    const shouldReplace = window.confirm(
-      "Download from Supabase and replace this local workspace? Align will save a local safety backup first.",
-    );
+    const shouldReplace = await confirm({
+      title: "Replace local workspace?",
+      description: "Download from Supabase and replace this local workspace? Align will save a local safety backup first.",
+      confirmLabel: "Download and Replace",
+      tone: "danger",
+    });
     if (!shouldReplace) return;
 
     setSyncing(true);
@@ -506,12 +519,21 @@ export function Settings() {
       return;
     }
 
-    const shouldReset = window.confirm(
-      `Reset cloud workspace for ${session.user.email ?? "this signed-in account"}? Align will save a local safety backup first. This only clears this account's cloud workspace.`,
-    );
+    const shouldReset = await confirm({
+      title: "Reset cloud workspace?",
+      description: `Reset cloud workspace for ${session.user.email ?? "this signed-in account"}? Align will save a local safety backup first. This only clears this account's cloud workspace.`,
+      confirmLabel: "Reset Cloud",
+      tone: "danger",
+    });
     if (!shouldReset) return;
 
-    const shouldAlsoClearLocal = window.confirm("Also clear this device's local workspace after the cloud reset?");
+    const shouldAlsoClearLocal = await confirm({
+      title: "Also clear local workspace?",
+      description: "This is optional. If you choose no, only the cloud copy is reset and local data stays on this device.",
+      confirmLabel: "Clear Local Too",
+      cancelLabel: "Keep Local",
+      tone: "danger",
+    });
 
     setSyncing(true);
     setSyncMessage("");
@@ -592,7 +614,11 @@ export function Settings() {
     const forceTaskIds = googleSyncState.lastSummary?.conflicts.map((conflict) => conflict.taskId) ?? [];
     if (!forceTaskIds.length) return;
 
-    const shouldOverwrite = window.confirm("Overwrite the conflicting Google Calendar events with Align task details?");
+    const shouldOverwrite = await confirm({
+      title: "Overwrite calendar conflicts?",
+      description: "Conflicting Google Calendar events will be overwritten with Align task details.",
+      confirmLabel: "Overwrite",
+    });
     if (!shouldOverwrite) return;
 
     setSyncingCalendar(true);
@@ -627,7 +653,11 @@ export function Settings() {
   };
 
   const handleGoogleCalendarDisconnect = async () => {
-    const shouldDisconnect = window.confirm("Disconnect Google Calendar from Align?");
+    const shouldDisconnect = await confirm({
+      title: "Disconnect Google Calendar?",
+      description: "Align will stop syncing Google Calendar and remove imported Google events from the local calendar view.",
+      confirmLabel: "Disconnect",
+    });
     if (!shouldDisconnect) return;
 
     setSyncingCalendar(true);
