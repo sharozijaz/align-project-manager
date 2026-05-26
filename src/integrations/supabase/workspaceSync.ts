@@ -230,7 +230,18 @@ function isMissingRelation(error?: { message?: string; code?: string } | null) {
 }
 
 const optionalProjectColumns = ["start_time", "due_time", "sort_order", "notes"];
-const optionalTaskColumns = ["start_time", "due_time", "sort_order", "parent_task_id", "planned_month", "planned_week_start"];
+const optionalTaskColumns = [
+  "start_time",
+  "due_time",
+  "sort_order",
+  "parent_task_id",
+  "assignee_email",
+  "assignee_user_id",
+  "assigned_by",
+  "assigned_at",
+  "planned_month",
+  "planned_week_start",
+];
 
 function stripColumns<Row extends Record<string, unknown>>(rows: Row[], columns: string[]) {
   return rows.map((row) => {
@@ -302,8 +313,8 @@ async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[], userId: 
   if (rows.length) {
     const { error: upsertError } = await client.from("hub_notes").upsert(rows);
     if (isMissingRelation(upsertError)) return;
-    if (upsertError && isMissingColumn(upsertError, "project_ids")) {
-      const retryRows = rows.map(({ project_ids: _projectIds, ...row }) => row);
+    if (upsertError && (isMissingColumn(upsertError, "project_ids") || isMissingColumn(upsertError, "team_visible"))) {
+      const retryRows = rows.map(({ project_ids: _projectIds, team_visible: _teamVisible, ...row }) => row);
       const { error: retryError } = await client.from("hub_notes").upsert(retryRows);
       if (!retryError) return;
       throw new Error(errorMessage(retryError, "Could not upload hub notes."));

@@ -36,6 +36,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "shared",
+        lazy: async () => {
+          const { SharedProjects } = await import("../pages/SharedProjects");
+          return { Component: SharedProjects };
+        },
+      },
+      {
         path: "projects",
         lazy: async () => {
           const { Projects } = await import("../pages/Projects");

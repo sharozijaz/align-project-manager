@@ -22,6 +22,10 @@ export interface Task {
   recurrence: TaskRecurrence;
   recurringParentId?: string;
   parentTaskId?: string;
+  assigneeEmail?: string;
+  assigneeUserId?: string;
+  assignedBy?: string;
+  assignedAt?: string;
   plannedMonth?: string;
   plannedWeekStart?: string;
   sortOrder?: number;

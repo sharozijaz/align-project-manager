@@ -6,6 +6,7 @@ import { TaskTable } from "./TaskTable";
 import type { TaskViewMode } from "./TaskViewToggle";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
+import type { AssigneeOption } from "../../types/collaboration";
 import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
 
 type TaskDragState = { id: string; groupIds: string[]; startX: number; startY: number; x: number; y: number; active: boolean };
@@ -21,6 +22,7 @@ export function TaskList({
   lockedProjectId,
   onReorder,
   groupByProject = false,
+  assigneeOptions = [],
 }: {
   tasks: Task[];
   projects: Project[];
@@ -32,6 +34,7 @@ export function TaskList({
   lockedProjectId?: string;
   onReorder?: (orderedIds: string[]) => void;
   groupByProject?: boolean;
+  assigneeOptions?: AssigneeOption[];
 }) {
   const [taskDrag, setTaskDrag] = useState<TaskDragState | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -131,6 +134,7 @@ export function TaskList({
             onUpdate={onUpdate}
             onDelete={onDelete}
             onComplete={onComplete}
+            assigneeOptions={assigneeOptions}
             showProjectBadge={!options?.hideProjectBadge}
           />
         </motion.div>

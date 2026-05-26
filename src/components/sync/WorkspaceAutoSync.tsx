@@ -9,11 +9,13 @@ import { useTaskStore } from "../../store/taskStore";
 import { errorMessage } from "../../utils/errors";
 import { saveWorkspaceSafetyBackup } from "../../utils/storage";
 import { clearWorkspaceOwnerId, getWorkspaceOwnerId, setWorkspaceOwnerId } from "../../utils/workspaceIdentity";
+import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 
 const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[] }) =>
   workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
 
 export function WorkspaceAutoSync() {
+  const { access } = useFeatureAccess();
   const { session, loading, isConfigured } = useSupabaseSession();
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useProjectStore((state) => state.projects);
@@ -43,6 +45,13 @@ export function WorkspaceAutoSync() {
     saveWorkspaceSafetyBackup(reason, { tasks, projects, events, resources, notes });
 
   useEffect(() => {
+    if (access?.source === "collaboration") {
+      readyToPushRef.current = false;
+      pulledSessionRef.current = undefined;
+      setSyncState("idle", "Shared project mode. Full workspace sync is disabled for collaborator access.");
+      return;
+    }
+
     if (isConfigured && loading) {
       return;
     }
@@ -198,9 +207,11 @@ export function WorkspaceAutoSync() {
     syncMode,
     tasks,
     notes,
+    access?.source,
   ]);
 
   useEffect(() => {
+    if (access?.source === "collaboration") return;
     if (syncMode !== "cloud" || !isConfigured || !sessionId || !readyToPushRef.current || applyingCloudRef.current) return;
 
     const ownerId = getWorkspaceOwnerId();
@@ -218,7 +229,7 @@ export function WorkspaceAutoSync() {
     }, 1200);
 
     return () => window.clearTimeout(timeout);
-  }, [events, isConfigured, notes, projects, resources, sessionId, setSyncState, setSynced, syncMode, tasks, workspaceSnapshot]);
+  }, [access?.source, events, isConfigured, notes, projects, resources, sessionId, setSyncState, setSynced, syncMode, tasks, workspaceSnapshot]);
 
   return null;
 }

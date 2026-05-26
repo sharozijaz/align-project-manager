@@ -78,6 +78,7 @@ type NoteFormState = {
   body: string;
   tags: string;
   clientVisible: boolean;
+  teamVisible: boolean;
   projectIds: string[];
 };
 
@@ -95,6 +96,7 @@ const emptyNoteForm: NoteFormState = {
   body: "",
   tags: "",
   clientVisible: false,
+  teamVisible: false,
   projectIds: [],
 };
 
@@ -151,6 +153,7 @@ function normalizeNoteFormForSave(form: NoteFormState): NoteFormState {
     body: form.body,
     tags: form.tags.trim() || "",
     clientVisible: Boolean(form.clientVisible),
+    teamVisible: Boolean(form.teamVisible),
     projectIds: form.projectIds,
   };
 }
@@ -353,6 +356,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       body: note.body,
       tags: note.tags ?? "",
       clientVisible: Boolean(note.clientVisible),
+      teamVisible: Boolean(note.teamVisible),
       projectIds: note.projectIds ?? [],
     });
   };
@@ -776,6 +780,35 @@ function ClientVisibilityToggle({ checked, onChange }: { checked: boolean; onCha
           {checked
             ? "This note can appear on password-protected client share links for linked projects."
             : "This note stays private even when linked projects are shared."}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function TeamVisibilityToggle({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`flex items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-left text-sm transition ${
+        checked
+          ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)] text-[var(--text)]"
+          : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+    >
+      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--brand-primary)]">
+        <Check size={16} />
+      </span>
+      <span>
+        <span className="block font-bold text-[var(--text)]">{checked ? "Team-visible note" : "Owner-only team note"}</span>
+        <span className="mt-1 block text-xs">
+          {disabled
+            ? "Link this note to a project before making it visible to collaborators."
+            : checked
+              ? "Collaborators on linked projects can read this note in their shared project view."
+              : "Collaborators cannot see this note unless you turn this on."}
         </span>
       </span>
     </button>
@@ -1351,10 +1384,17 @@ function NotesWorkspace({
                 <Input value={noteForm.tags} onChange={(event) => onNoteFormChange({ ...noteForm, tags: event.target.value })} placeholder="Tags, comma separated" />
               </div>
               <ProjectPicker projects={projects} selectedIds={noteForm.projectIds} onChange={(projectIds) => onNoteFormChange({ ...noteForm, projectIds })} />
-              <ClientVisibilityToggle
-                checked={noteForm.clientVisible}
-                onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
-              />
+              <div className="grid gap-3 xl:grid-cols-2">
+                <ClientVisibilityToggle
+                  checked={noteForm.clientVisible}
+                  onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
+                />
+                <TeamVisibilityToggle
+                  checked={noteForm.teamVisible}
+                  disabled={!noteForm.projectIds.length}
+                  onChange={(teamVisible) => onNoteFormChange({ ...noteForm, teamVisible })}
+                />
+              </div>
               <MarkdownEditor value={noteForm.body} onChange={(body) => onNoteFormChange({ ...noteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
             </div>
           </div>
@@ -1370,6 +1410,7 @@ function NotesWorkspace({
                     <span>Note</span>
                     {selectedNote.favorite ? <Badge tone="purple">Pinned</Badge> : null}
                     {selectedNote.clientVisible ? <Badge tone="emerald">Client-visible</Badge> : null}
+                    {selectedNote.teamVisible ? <Badge tone="blue">Team-visible</Badge> : null}
                   </div>
                   <h2 className="mt-3 max-w-4xl font-display text-2xl font-bold leading-tight text-[var(--text)] lg:text-3xl">{selectedNote.title}</h2>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1425,10 +1466,17 @@ function NotesWorkspace({
                   <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Tags" />
                 </div>
                 <ProjectPicker projects={projects} selectedIds={editNoteForm.projectIds} onChange={(projectIds) => onEditFormChange({ ...editNoteForm, projectIds })} />
-                <ClientVisibilityToggle
-                  checked={editNoteForm.clientVisible}
-                  onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
-                />
+                <div className="grid gap-3 xl:grid-cols-2">
+                  <ClientVisibilityToggle
+                    checked={editNoteForm.clientVisible}
+                    onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
+                  />
+                  <TeamVisibilityToggle
+                    checked={editNoteForm.teamVisible}
+                    disabled={!editNoteForm.projectIds.length}
+                    onChange={(teamVisible) => onEditFormChange({ ...editNoteForm, teamVisible })}
+                  />
+                </div>
                 <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
               </div>
             ) : (

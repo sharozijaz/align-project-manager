@@ -14,6 +14,7 @@ import { useStudioStore } from "../../store/studioStore";
 import type { Project, ProjectInput } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
+import type { AssigneeOption } from "../../types/collaboration";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
 type ProjectTaskView = "cards" | "table" | "board" | "kanban";
@@ -29,6 +30,7 @@ export function ProjectDetail({
   onDeleteTask,
   onCompleteTask,
   onReorderTasks,
+  assigneeOptions = [],
 }: {
   project: Project;
   tasks: Task[];
@@ -39,6 +41,7 @@ export function ProjectDetail({
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
   onReorderTasks: (orderedIds: string[]) => void;
+  assigneeOptions?: AssigneeOption[];
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -95,6 +98,7 @@ export function ProjectDetail({
         <TaskForm
           projects={projects}
           lockedProject={project}
+          assigneeOptions={assigneeOptions}
           onSubmit={(input) => onAddTask({ ...input, projectId: project.id, category: "project" })}
           compact
         />
@@ -143,6 +147,7 @@ export function ProjectDetail({
           onUpdate={onUpdateTask}
           onDelete={onDeleteTask}
           onComplete={onCompleteTask}
+          assigneeOptions={assigneeOptions}
           view={view}
           lockedProjectId={project.id}
           onReorder={onReorderTasks}

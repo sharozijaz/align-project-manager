@@ -21,6 +21,7 @@ export interface HubNote {
   tags?: string;
   favorite?: boolean;
   clientVisible?: boolean;
+  teamVisible?: boolean;
   projectIds: string[];
   createdAt: string;
   updatedAt: string;

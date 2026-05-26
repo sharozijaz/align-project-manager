@@ -28,6 +28,7 @@ import { Badge } from "../components/ui/Badge";
 import { useConfirm } from "../components/ui/ConfirmProvider";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { useCalendarStore } from "../store/calendarStore";
+import { useFeatureAccess } from "../features/access/FeatureAccessProvider";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
 import { syncModeOptions, useSyncStore } from "../store/syncStore";
@@ -125,6 +126,7 @@ export function Settings() {
   );
   const magicLinkCooldown = useMagicLinkCooldown();
   const { session, loading: sessionLoading } = useSupabaseSession();
+  const { access } = useFeatureAccess();
   const profileDisplayName = getSessionDisplayName(session);
   const { projects, replaceProjects } = useProjectStore();
   const { tasks, replaceTasks, upsertTasks } = useTaskStore();
@@ -142,7 +144,7 @@ export function Settings() {
   const googleReadiness = getGoogleCalendarReadiness();
   const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>("google");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>(access?.source === "collaboration" ? "account" : "google");
   const workspaceMode = syncMode === "local"
     ? {
         label: "Local only",
@@ -184,13 +186,20 @@ export function Settings() {
             title: "Cloud workspace",
             description: syncState.message,
           };
-  const settingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
+  const allSettingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
     { id: "account", label: "Account", description: "Profile and sign-in" },
     { id: "appearance", label: "Appearance", description: "Theme and dashboard image" },
     { id: "google", label: "Google Sync", description: "Calendar and Todo sync" },
     { id: "notifications", label: "Notifications", description: "Email and desktop reminders" },
     { id: "data", label: "Data", description: "Backup, cloud sync, and cleanup" },
   ];
+  const settingsSections = access?.source === "collaboration" ? allSettingsSections.filter((section) => section.id === "account") : allSettingsSections;
+
+  useEffect(() => {
+    if (access?.source === "collaboration" && settingsSection !== "account") {
+      setSettingsSection("account");
+    }
+  }, [access?.source, settingsSection]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -209,6 +218,7 @@ export function Settings() {
   }, []);
 
   useEffect(() => {
+    if (access?.source === "collaboration") return;
     if (!session || !googleReadiness.ready || !googleTasksReadiness.ready) return;
 
     let cancelled = false;
@@ -242,7 +252,7 @@ export function Settings() {
     return () => {
       cancelled = true;
     };
-  }, [googleReadiness.ready, googleTasksReadiness.ready, session]);
+  }, [access?.source, googleReadiness.ready, googleTasksReadiness.ready, session]);
 
   useEffect(() => {
     if (!session || !isSupabaseConfigured) return;

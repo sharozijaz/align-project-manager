@@ -11,6 +11,7 @@ import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
+import type { AssigneeOption } from "../../types/collaboration";
 
 export function TaskCard({
   task,
@@ -20,6 +21,7 @@ export function TaskCard({
   onDelete,
   onComplete,
   showProjectBadge = true,
+  assigneeOptions = [],
 }: {
   task: Task;
   project?: Project;
@@ -28,6 +30,7 @@ export function TaskCard({
   onDelete: (id: string) => void;
   onComplete: (id: string) => void;
   showProjectBadge?: boolean;
+  assigneeOptions?: AssigneeOption[];
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -41,6 +44,7 @@ export function TaskCard({
             <OptionBadge option={getTaskPriorityOption(task.priority)} />
             <OptionBadge option={getTaskStatusOption(task.status)} />
             {showProjectBadge ? <Badge tone={project ? "purple" : "slate"}>{project?.name ?? task.category}</Badge> : null}
+            {task.assigneeEmail ? <Badge tone="blue">Assigned: {task.assigneeEmail}</Badge> : null}
             {task.startDate ? <Badge>{startDateLabel(task.startDate, task.startTime)}</Badge> : null}
             <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate, task.dueTime)}</Badge>
             {task.startDate ? <Badge>{durationLabel(task.startDate, task.dueDate)}</Badge> : null}
@@ -74,6 +78,7 @@ export function TaskCard({
             setEditing(false);
           }}
           onCancel={() => setEditing(false)}
+          assigneeOptions={assigneeOptions}
         />
       </Modal>
     </Card>
