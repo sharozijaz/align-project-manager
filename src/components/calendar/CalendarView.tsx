@@ -23,7 +23,7 @@ import {
   parseISO,
   startOfWeek,
 } from "date-fns";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import type { CalendarEvent, CalendarEventInput } from "../../types/calendar";
@@ -64,6 +64,8 @@ export function CalendarView({
   const [plannerDropDate, setPlannerDropDate] = useState<string | null>(null);
   const [unscheduleDropActive, setUnscheduleDropActive] = useState(false);
   const plannerDragRef = useRef<PlannerDragState | null>(null);
+  const plannerDropDateRef = useRef<string | null>(null);
+  const unscheduleDropActiveRef = useRef(false);
   const days = useMemo(() => monthGrid(visibleDate), [visibleDate]);
   const weekDays = useMemo(() => {
     const start = startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 });
@@ -100,6 +102,14 @@ export function CalendarView({
   }, [plannerDrag]);
 
   useEffect(() => {
+    plannerDropDateRef.current = plannerDropDate;
+  }, [plannerDropDate]);
+
+  useEffect(() => {
+    unscheduleDropActiveRef.current = unscheduleDropActive;
+  }, [unscheduleDropActive]);
+
+  useEffect(() => {
     if (!plannerDrag) return;
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -109,23 +119,36 @@ export function CalendarView({
         const active = current.active || distance > 8;
 
         if (active) {
-          setPlannerDropDate(getCalendarDropDate(event.clientX, event.clientY));
+          const nextDropDate = getCalendarDropDate(event.clientX, event.clientY);
+          const nextUnscheduleActive = Boolean(getCalendarUnscheduleDropTarget(event.clientX, event.clientY));
+
+          plannerDropDateRef.current = nextDropDate;
+          unscheduleDropActiveRef.current = nextUnscheduleActive;
+          setPlannerDropDate(nextDropDate);
+          setUnscheduleDropActive(nextUnscheduleActive);
         }
 
         return { ...current, x: event.clientX, y: event.clientY, active };
       });
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (event: PointerEvent) => {
       const current = plannerDragRef.current;
       const task = current ? tasks.find((item) => item.id === current.taskId) : undefined;
+      const dropDate = getCalendarDropDate(event.clientX, event.clientY) ?? plannerDropDateRef.current;
+      const shouldUnschedule = Boolean(getCalendarUnscheduleDropTarget(event.clientX, event.clientY)) || unscheduleDropActiveRef.current;
 
-      if (current?.active && task && plannerDropDate) {
-        moveTaskToDate(task, plannerDropDate);
+      if (current?.active && task) {
+        if (shouldUnschedule && task.dueDate) {
+          unscheduleTask(task.id);
+        } else if (dropDate) {
+          moveTaskToDate(task, dropDate);
+        }
       }
 
       setPlannerDrag(null);
       setPlannerDropDate(null);
+      setUnscheduleDropActive(false);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -137,7 +160,7 @@ export function CalendarView({
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [plannerDrag, plannerDropDate, tasks]);
+  }, [plannerDrag, tasks]);
 
   const openNewEvent = (date = selectedDate) => {
     setSelectedDate(date);
@@ -218,6 +241,10 @@ export function CalendarView({
               plannerDropDate={plannerDropDate}
               plannerDragging={Boolean(plannerDrag?.active)}
               onSelectDate={setSelectedDate}
+              onStartTaskDrag={(task, event) => {
+                event.preventDefault();
+                setPlannerDrag({ taskId: task.id, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
+              }}
             />
           ) : mode === "week" ? (
             <WeekView
@@ -228,7 +255,10 @@ export function CalendarView({
               plannerDragging={Boolean(plannerDrag?.active)}
               onSelectDate={setSelectedDate}
               onAddEvent={openNewEvent}
-              onMoveTask={moveTaskToDate}
+              onStartTaskDrag={(task, event) => {
+                event.preventDefault();
+                setPlannerDrag({ taskId: task.id, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
+              }}
             />
           ) : (
             <AgendaView groups={agendaGroups} onSelectDate={setSelectedDate} />
@@ -343,6 +373,7 @@ function MonthView({
   plannerDropDate,
   plannerDragging,
   onSelectDate,
+  onStartTaskDrag,
 }: {
   days: Date[];
   visibleDate: Date;
@@ -351,6 +382,7 @@ function MonthView({
   plannerDropDate: string | null;
   plannerDragging: boolean;
   onSelectDate: (date: string) => void;
+  onStartTaskDrag: (task: Task, event: ReactPointerEvent<HTMLParagraphElement>) => void;
 }) {
   return (
     <div className="min-w-0">
@@ -378,6 +410,7 @@ function MonthView({
               dropTarget={plannerDragging && plannerDropDate === key}
               className="min-h-[112px] 2xl:min-h-[132px]"
               onSelect={() => onSelectDate(key)}
+              onStartTaskDrag={onStartTaskDrag}
             />
           );
         })}
@@ -394,7 +427,7 @@ function WeekView({
   plannerDragging,
   onSelectDate,
   onAddEvent,
-  onMoveTask,
+  onStartTaskDrag,
 }: {
   days: Date[];
   selectedDate: string;
@@ -403,40 +436,15 @@ function WeekView({
   plannerDragging: boolean;
   onSelectDate: (date: string) => void;
   onAddEvent: (date: string) => void;
-  onMoveTask: (task: Task, date: string) => void;
+  onStartTaskDrag: (task: Task, event: ReactPointerEvent<HTMLParagraphElement>) => void;
 }) {
-  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
-  const [dropDate, setDropDate] = useState<string | null>(null);
-
-  const draggedTask =
-    draggingTaskId
-      ? items.find((item): item is Extract<CalendarItem, { kind: "task" }> => item.kind === "task" && item.task.id === draggingTaskId)?.task
-      : undefined;
-
-  const handleDragOver = (event: DragEvent<HTMLElement>, date: string) => {
-    if (!draggedTask) return;
-
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    setDropDate(date);
-  };
-
-  const handleDrop = (event: DragEvent<HTMLElement>, date: string) => {
-    event.preventDefault();
-    if (draggedTask) {
-      onMoveTask(draggedTask, date);
-    }
-    setDraggingTaskId(null);
-    setDropDate(null);
-  };
-
   return (
     <div className="grid min-h-[520px] min-w-0 gap-2 md:grid-cols-7">
       {days.map((day) => {
         const key = format(day, "yyyy-MM-dd");
         const dayItems = itemsForDate(items, key);
         const selected = selectedDate === key;
-        const draggingOver = (dropDate === key && Boolean(draggingTaskId)) || (plannerDragging && plannerDropDate === key);
+        const draggingOver = plannerDragging && plannerDropDate === key;
 
         return (
           <section
@@ -450,14 +458,6 @@ function WeekView({
                   : "border-[var(--border)]"
             }`}
             onClick={() => onSelectDate(key)}
-            onDragOver={(event) => handleDragOver(event, key)}
-            onDragEnter={(event) => handleDragOver(event, key)}
-            onDragLeave={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                setDropDate((current) => (current === key ? null : current));
-              }
-            }}
-            onDrop={(event) => handleDrop(event, key)}
           >
             <div className="flex items-start justify-between gap-2 border-b border-[var(--border)] p-3">
               <div>
@@ -472,20 +472,7 @@ function WeekView({
                   key={item.id}
                   item={item}
                   draggable={item.kind === "task"}
-                  dragging={item.kind === "task" && draggingTaskId === item.task.id}
-                  onDragStart={(event) => {
-                    if (item.kind !== "task") return;
-
-                    event.stopPropagation();
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData("text/plain", item.task.id);
-                    setDraggingTaskId(item.task.id);
-                    setDropDate(key);
-                  }}
-                  onDragEnd={() => {
-                    setDraggingTaskId(null);
-                    setDropDate(null);
-                  }}
+                  onPointerDown={item.kind === "task" ? (event) => onStartTaskDrag(item.task, event) : undefined}
                 />
               ))}
               {dayItems.length > 5 ? <p className="text-xs font-bold text-[var(--text-soft)]">+{dayItems.length - 5} more</p> : null}
@@ -620,6 +607,7 @@ function PlanningSidebar({
         </div>
       </Card>
       <Card
+        data-calendar-unschedule-drop
         className={`p-4 transition ${
           unscheduleDropActive
             ? "border-[var(--brand-primary)] bg-[var(--calendar-selected-bg)] shadow-[inset_0_0_0_1px_var(--brand-primary),var(--shadow-sm)]"
@@ -699,6 +687,7 @@ function CalendarDayButton({
   dropTarget,
   className,
   onSelect,
+  onStartTaskDrag,
 }: {
   date: Date;
   selected: boolean;
@@ -708,6 +697,7 @@ function CalendarDayButton({
   dropTarget: boolean;
   className?: string;
   onSelect: () => void;
+  onStartTaskDrag: (task: Task, event: ReactPointerEvent<HTMLParagraphElement>) => void;
 }) {
   const key = format(date, "yyyy-MM-dd");
   const dayClass = dropTarget
@@ -741,7 +731,12 @@ function CalendarDayButton({
       </div>
       <div className="mt-3 grid gap-1.5">
         {items.slice(0, 3).map((item) => (
-          <CalendarItemChip key={item.id} item={item} draggable={item.kind === "task"} />
+          <CalendarItemChip
+            key={item.id}
+            item={item}
+            draggable={item.kind === "task"}
+            onPointerDown={item.kind === "task" ? (event) => onStartTaskDrag(item.task, event) : undefined}
+          />
         ))}
         {items.length > 3 ? <p className="truncate text-xs font-bold text-[var(--text-soft)]">+{items.length - 3} more</p> : null}
         {dropTarget ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/60 p-2 text-center text-xs font-bold text-[var(--brand-primary)]">Schedule here</p> : null}
@@ -754,14 +749,12 @@ function CalendarItemChip({
   item,
   draggable = false,
   dragging = false,
-  onDragStart,
-  onDragEnd,
+  onPointerDown,
 }: {
   item: CalendarItem;
   draggable?: boolean;
   dragging?: boolean;
-  onDragStart?: (event: DragEvent<HTMLParagraphElement>) => void;
-  onDragEnd?: () => void;
+  onPointerDown?: (event: ReactPointerEvent<HTMLParagraphElement>) => void;
 }) {
   if (item.kind === "event") {
     return (
@@ -776,25 +769,19 @@ function CalendarItemChip({
   }
 
   const status = getTaskStatusOption(item.task.status);
-  const handleDragStart = (event: DragEvent<HTMLParagraphElement>) => {
-    if (item.kind !== "task") return;
-
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", item.task.id);
-    onDragStart?.(event);
-  };
-
   return (
     <p
-      draggable={draggable}
+      draggable={false}
       className={`flex min-w-0 items-center gap-1 rounded px-2 py-1 text-xs font-bold transition ${
         draggable ? "cursor-grab select-none hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] active:cursor-grabbing" : ""
       } ${dragging ? "opacity-45 ring-2 ring-[var(--brand-primary)]" : ""}`}
       style={{ backgroundColor: status.bg, color: status.text }}
       title={draggable ? "Drag to reschedule or unschedule" : undefined}
-      onDragStart={handleDragStart}
-      onDragEnd={onDragEnd}
+      onPointerDown={(event) => {
+        if (!draggable || event.button !== 0) return;
+        event.stopPropagation();
+        onPointerDown?.(event);
+      }}
       onClick={(event) => event.stopPropagation()}
     >
       <CalendarDays size={12} className="shrink-0 opacity-80" />
@@ -1043,4 +1030,9 @@ function getPlannerTasks(tasks: Task[], selectedWeekStart: string, visibleMonth:
 function getCalendarDropDate(clientX: number, clientY: number) {
   const element = document.elementFromPoint(clientX, clientY);
   return element?.closest<HTMLElement>("[data-calendar-drop-date]")?.dataset.calendarDropDate ?? null;
+}
+
+function getCalendarUnscheduleDropTarget(clientX: number, clientY: number) {
+  const element = document.elementFromPoint(clientX, clientY);
+  return element?.closest<HTMLElement>("[data-calendar-unschedule-drop]") ?? null;
 }
