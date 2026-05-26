@@ -1,12 +1,17 @@
-import { Check, Trash2 } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus, taskStatusOptions } from "../../config/taskOptions";
+import { getTaskPriorityOption, getTaskStatusOption, taskStatusOptions } from "../../config/taskOptions";
+import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
+import type { AssigneeOption } from "../../types/collaboration";
 import { dateLabel } from "../../utils/date";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Input } from "../ui/Input";
+import { Select } from "../ui/Select";
+import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "./projectTaskFields";
 
 type KanbanDragState = {
   task: Task;
@@ -18,25 +23,36 @@ type KanbanDragState = {
 };
 
 export function ProjectTaskKanban({
+  project,
   tasks,
+  onAddTask,
   onUpdateTask,
   onDeleteTask,
-  onCompleteTask,
+  assigneeOptions = [],
+  visibleFields,
 }: {
+  project?: Project;
   tasks: Task[];
+  onAddTask?: (input: TaskInput) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
-  onCompleteTask: (id: string) => void;
+  assigneeOptions?: AssigneeOption[];
+  visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
+  const fields = mergeProjectTaskFields("kanban", visibleFields);
   const [dragState, setDragState] = useState<KanbanDragState | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const dropStatusRef = useRef<TaskStatus | null>(null);
-  const parentTasks = tasks.filter((task) => !task.parentTaskId);
-  const subtasksByParent = new Map<string, Task[]>();
-  tasks.forEach((task) => {
-    if (!task.parentTaskId) return;
-    subtasksByParent.set(task.parentTaskId, [...(subtasksByParent.get(task.parentTaskId) ?? []), task]);
-  });
+  const parentTasks = useMemo(() => tasks.filter((task) => !task.parentTaskId), [tasks]);
+  const subtasksByParent = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    tasks.forEach((task) => {
+      if (!task.parentTaskId) return;
+      map.set(task.parentTaskId, [...(map.get(task.parentTaskId) ?? []), task]);
+    });
+    return map;
+  }, [tasks]);
   const draggedTaskId = dragState?.task.id ?? null;
 
   const setCurrentDropStatus = (status: TaskStatus | null) => {
@@ -95,6 +111,27 @@ export function ProjectTaskKanban({
     window.addEventListener("pointerup", handlePointerUp, { once: true });
   };
 
+  const addTaskToStatus = (status: TaskStatus) => {
+    if (!onAddTask || !project) return;
+    const title = drafts[status]?.trim();
+    if (!title) return;
+    onAddTask({
+      title,
+      description: "",
+      projectId: project.id,
+      category: "project",
+      priority: "medium",
+      status,
+      startDate: "",
+      startTime: "",
+      dueDate: "",
+      dueTime: "",
+      reminder: "none",
+      recurrence: "none",
+    });
+    setDrafts((current) => ({ ...current, [status]: "" }));
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
       <div className="grid min-w-[1680px] grid-cols-7 gap-4 2xl:min-w-0">
@@ -104,11 +141,15 @@ export function ProjectTaskKanban({
           return (
             <motion.section
               key={status.value}
-              className="flex min-h-[560px] flex-col rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)]"
+              className="flex min-h-[560px] flex-col overflow-hidden rounded-[var(--radius-md)] border bg-[var(--surface-raised)]"
+              style={{ borderColor: dragOverStatus === status.value ? status.border : "var(--border)" }}
               layout
               transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.8 }}
             >
-              <header className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-4">
+              <header
+                className="flex items-center justify-between gap-2 border-b px-4 py-4"
+                style={{ borderColor: status.border, background: `linear-gradient(135deg, ${status.bg}, var(--surface-raised))` }}
+              >
                 <span
                   className="rounded-full border px-2.5 py-1 text-xs font-bold"
                   style={{ backgroundColor: status.bg, borderColor: status.border, color: status.text }}
@@ -133,7 +174,9 @@ export function ProjectTaskKanban({
                       onPointerDragStart={(event) => startPointerDrag(task, event)}
                       onMove={(status) => onUpdateTask(task.id, { status })}
                       onDelete={() => onDeleteTask(task.id)}
-                      onComplete={() => onCompleteTask(task.id)}
+                      onUpdateTask={(input) => onUpdateTask(task.id, input)}
+                      assigneeOptions={assigneeOptions}
+                      fields={fields}
                     />
                   ))}
                 </AnimatePresence>
@@ -146,6 +189,22 @@ export function ProjectTaskKanban({
                     }`}
                   >
                     {draggedTaskId ? "Drop task here" : "No tasks"}
+                  </div>
+                ) : null}
+                {onAddTask && project ? (
+                  <div className="mt-1 grid gap-2 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-2">
+                    <Input
+                      className="min-h-9 border-transparent bg-transparent text-xs hover:border-[var(--border)] focus:bg-[var(--surface-raised)] sm:min-h-9"
+                      value={drafts[status.value] ?? ""}
+                      placeholder="+ Add task"
+                      onChange={(event) => setDrafts((current) => ({ ...current, [status.value]: event.target.value }))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") addTaskToStatus(status.value);
+                      }}
+                    />
+                    <Button type="button" variant="ghost" className="min-h-8 justify-start px-2 text-xs" icon={<Plus size={14} />} onClick={() => addTaskToStatus(status.value)}>
+                      Add task
+                    </Button>
                   </div>
                 ) : null}
               </div>
@@ -175,7 +234,9 @@ function KanbanTaskCard({
   onPointerDragStart,
   onMove,
   onDelete,
-  onComplete,
+  onUpdateTask,
+  assigneeOptions,
+  fields,
 }: {
   task: Task;
   subtaskCount: number;
@@ -183,7 +244,9 @@ function KanbanTaskCard({
   onPointerDragStart: (event: ReactPointerEvent<HTMLElement>) => void;
   onMove: (status: TaskStatus) => void;
   onDelete: () => void;
-  onComplete: () => void;
+  onUpdateTask: (input: Partial<TaskInput>) => void;
+  assigneeOptions: AssigneeOption[];
+  fields: ProjectTaskFieldVisibility;
 }) {
   const priority = getTaskPriorityOption(task.priority);
   const status = getTaskStatusOption(task.status);
@@ -202,17 +265,39 @@ function KanbanTaskCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="min-w-0 text-sm font-bold text-[var(--text)]">{task.title}</h3>
-        {subtaskCount ? <Badge>{subtaskCount} sub</Badge> : null}
+        {fields.subtasks && subtaskCount ? <Badge>{subtaskCount} sub</Badge> : null}
       </div>
-      {task.description ? <p className="mt-3 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
+      {fields.notes && task.description ? <p className="mt-3 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded border px-2 py-1 text-xs font-bold" style={{ backgroundColor: priority.bg, borderColor: priority.border, color: priority.text }}>
+        {fields.priority ? <span className="rounded border px-2 py-1 text-xs font-bold" style={{ backgroundColor: priority.bg, borderColor: priority.border, color: priority.text }}>
           {priority.label}
-        </span>
-        <Badge>{dateLabel(task.dueDate, task.dueTime)}</Badge>
+        </span> : null}
+        {fields.due ? <Badge>{dateLabel(task.dueDate, task.dueTime)}</Badge> : null}
+        {fields.assignee ? <Badge tone={task.assigneeEmail ? "blue" : "slate"}>{task.assigneeEmail || "Unassigned"}</Badge> : null}
       </div>
       <div className="mt-4 grid gap-3">
-        <select
+        {fields.assignee ? (
+          <Select
+            value={task.assigneeEmail ?? ""}
+            onChange={(event) => {
+              const option = assigneeOptions.find((item) => item.email === event.target.value);
+              onUpdateTask({
+                assigneeEmail: option?.email ?? "",
+                assigneeUserId: option?.userId ?? "",
+                assignedAt: option?.email ? new Date().toISOString() : "",
+              });
+            }}
+            className="min-h-9 text-xs"
+          >
+            <option value="">Unassigned</option>
+            {assigneeOptions.map((option) => (
+              <option key={`${option.email}-${option.userId ?? "email"}`} value={option.email}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+        {fields.status ? <select
           value={task.status}
           onChange={(event) => onMove(event.target.value as TaskStatus)}
           className="min-h-9 rounded-md border px-2 text-xs font-bold"
@@ -223,15 +308,12 @@ function KanbanTaskCard({
               {option.label}
             </option>
           ))}
-        </select>
-        <div className="flex justify-end gap-2">
-          <Button title="Mark done" variant="secondary" className="min-h-8 px-2" onClick={onComplete} disabled={isTerminalTaskStatus(task.status)}>
-            <Check size={14} />
-          </Button>
+        </select> : null}
+        {fields.actions ? <div className="flex justify-end gap-2 opacity-70 transition group-hover:opacity-100">
           <Button title="Delete" variant="danger" className="min-h-8 px-2" onClick={onDelete}>
             <Trash2 size={14} />
           </Button>
-        </div>
+        </div> : null}
       </div>
     </Card>
   );

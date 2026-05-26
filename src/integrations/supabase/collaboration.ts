@@ -22,6 +22,8 @@ type TaskUpdate = Pick<
   | "assigneeUserId"
   | "assignedBy"
   | "assignedAt"
+  | "parentTaskId"
+  | "sortOrder"
 >;
 
 export interface SharedProjectBundle {
@@ -212,10 +214,68 @@ export async function updateSharedTask(taskId: string, updates: TaskUpdate) {
   if (updates.assigneeUserId !== undefined) row.assignee_user_id = updates.assigneeUserId || null;
   if (updates.assignedBy !== undefined) row.assigned_by = updates.assignedBy || null;
   if (updates.assignedAt !== undefined) row.assigned_at = updates.assignedAt || null;
+  if (updates.parentTaskId !== undefined) row.parent_task_id = updates.parentTaskId || null;
+  if (updates.sortOrder !== undefined) row.sort_order = updates.sortOrder ?? null;
 
   const { data, error } = await supabase.from("tasks").update(row).eq("id", taskId).select("*").single();
   if (error) throw error;
   return rowToTask(data);
+}
+
+export async function createSharedTask(projectId: string, input: TaskInput) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { data: projectRow, error: projectError } = await supabase.from("projects").select("user_id").eq("id", projectId).single();
+  if (projectError) throw projectError;
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+
+  const now = new Date().toISOString();
+  const taskId = crypto.randomUUID();
+  const row: Database["public"]["Tables"]["tasks"]["Insert"] = {
+    id: taskId,
+    user_id: projectRow.user_id,
+    title: input.title.trim(),
+    description: input.description?.trim() || null,
+    project_id: projectId,
+    category: "project",
+    priority: input.priority ?? "medium",
+    status: input.status ?? "not_started",
+    start_date: input.startDate || null,
+    start_time: input.startTime || null,
+    due_date: input.dueDate || null,
+    due_time: input.dueTime || null,
+    reminder: input.reminder ?? "none",
+    recurrence: input.recurrence ?? "none",
+    parent_task_id: input.parentTaskId || null,
+    assignee_email: input.assigneeEmail ? normalizeEmail(input.assigneeEmail) : null,
+    assignee_user_id: input.assigneeUserId || null,
+    assigned_by: input.assigneeEmail ? userData.user?.id ?? null : null,
+    assigned_at: input.assigneeEmail ? now : null,
+    planned_month: input.plannedMonth ?? null,
+    planned_week_start: input.plannedWeekStart ?? null,
+    sort_order: input.sortOrder ?? Date.now(),
+    created_at: now,
+    updated_at: now,
+  };
+
+  const { data, error } = await supabase.from("tasks").insert(row).select("*").single();
+  if (error) throw error;
+  return rowToTask(data);
+}
+
+export async function deleteSharedTask(taskId: string) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase.from("tasks").update({ deleted_at: now, updated_at: now }).eq("id", taskId).select("*").single();
+  if (error) throw error;
+  return rowToTask(data);
+}
+
+export async function reorderSharedTasks(orderedIds: string[]) {
+  await Promise.all(orderedIds.map((taskId, index) => updateSharedTask(taskId, { sortOrder: index })));
 }
 
 export function subscribeToProjectTaskChanges(projectIds: string[], onChange: (task: Task | null, taskId?: string) => void) {

@@ -1,13 +1,15 @@
-import { ChevronDown, ChevronRight, Check, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
+import type { AssigneeOption } from "../../types/collaboration";
 import { dateLabel } from "../../utils/date";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
+import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "./projectTaskFields";
 
 type BoardGroupKey = "todo" | "completed";
 
@@ -38,15 +40,28 @@ export function ProjectTaskBoard({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
-  onCompleteTask,
+  assigneeOptions = [],
+  visibleFields,
 }: {
   project: Project;
   tasks: Task[];
   onAddTask: (input: TaskInput) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
-  onCompleteTask: (id: string) => void;
+  assigneeOptions?: AssigneeOption[];
+  visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
+  const fields = mergeProjectTaskFields("board", visibleFields);
+  const columnCount = 1 + Number(fields.assignee) + Number(fields.status) + Number(fields.priority) + Number(fields.start) + Number(fields.due) + Number(fields.notes) + Number(fields.actions);
+  const minWidth =
+    420 +
+    (fields.assignee ? 210 : 0) +
+    (fields.status ? 180 : 0) +
+    (fields.priority ? 160 : 0) +
+    (fields.start ? 170 : 0) +
+    (fields.due ? 170 : 0) +
+    (fields.notes ? 280 : 0) +
+    (fields.actions ? 90 : 0);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(tasks.filter((task) => !task.parentTaskId).map((task) => task.id)));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const subtasksByParent = useMemo(() => {
@@ -108,16 +123,17 @@ export function ProjectTaskBoard({
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-[1260px] w-full table-fixed border-collapse text-sm">
+                <table className="w-full table-fixed border-collapse text-sm" style={{ minWidth }}>
                   <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
                     <tr>
-                      <th className="w-[380px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
-                      <th className="w-[180px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th>
-                      <th className="w-[160px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th>
-                      <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th>
-                      <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Due</th>
-                      <th className="w-[280px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Notes</th>
-                      <th className="w-[130px] border-t border-[var(--border)] px-3 py-2 text-right">Actions</th>
+                      <th className="w-[420px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
+                      {fields.assignee ? <th className="w-[210px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Assignee</th> : null}
+                      {fields.status ? <th className="w-[180px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th> : null}
+                      {fields.priority ? <th className="w-[160px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th> : null}
+                      {fields.start ? <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th> : null}
+                      {fields.due ? <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Due</th> : null}
+                      {fields.notes ? <th className="w-[280px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Notes</th> : null}
+                      {fields.actions ? <th className="w-[90px] border-t border-[var(--border)] px-3 py-2 text-right">Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -135,7 +151,8 @@ export function ProjectTaskBoard({
                             onToggleExpanded={() => toggleExpanded(task.id)}
                             onUpdateTask={onUpdateTask}
                             onDeleteTask={onDeleteTask}
-                            onCompleteTask={onCompleteTask}
+                            assigneeOptions={assigneeOptions}
+                            fields={fields}
                           />
                           {isOpen
                             ? subtasks.map((subtask) => (
@@ -145,7 +162,8 @@ export function ProjectTaskBoard({
                                   level="subtask"
                                   onUpdateTask={onUpdateTask}
                                   onDeleteTask={onDeleteTask}
-                                  onCompleteTask={onCompleteTask}
+                                  assigneeOptions={assigneeOptions}
+                                  fields={fields}
                                 />
                               ))
                             : null}
@@ -156,6 +174,7 @@ export function ProjectTaskBoard({
                               indent
                               onChange={(value) => setDrafts((current) => ({ ...current, [draftKey(group.key, task.id)]: value }))}
                               onSubmit={() => addDraftTask(group.key, task.id)}
+                              colSpan={columnCount}
                             />
                           ) : null}
                         </Fragment>
@@ -163,7 +182,7 @@ export function ProjectTaskBoard({
                     })}
                     {!groupParents.length ? (
                       <tr className="border-t border-[var(--border)]">
-                        <td colSpan={7} className="border-t border-[var(--border)] px-3 py-6 text-center text-sm text-[var(--text-soft)]">
+                        <td colSpan={columnCount} className="border-t border-[var(--border)] px-3 py-6 text-center text-sm text-[var(--text-soft)]">
                           {group.key === "todo" ? "Add a parent task like Home Page Design, then expand it for subitems." : "Completed tasks appear here automatically."}
                         </td>
                       </tr>
@@ -173,6 +192,7 @@ export function ProjectTaskBoard({
                       placeholder="+ Add task"
                       onChange={(value) => setDrafts((current) => ({ ...current, [draftKey(group.key)]: value }))}
                       onSubmit={() => addDraftTask(group.key)}
+                      colSpan={columnCount}
                     />
                   </tbody>
                 </table>
@@ -193,7 +213,8 @@ function BoardRow({
   onToggleExpanded,
   onUpdateTask,
   onDeleteTask,
-  onCompleteTask,
+  assigneeOptions,
+  fields,
 }: {
   task: Task;
   level: "parent" | "subtask";
@@ -202,7 +223,8 @@ function BoardRow({
   onToggleExpanded?: () => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
-  onCompleteTask: (id: string) => void;
+  assigneeOptions: AssigneeOption[];
+  fields: ProjectTaskFieldVisibility;
 }) {
   const priorityOption = getTaskPriorityOption(task.priority);
   const statusOption = getTaskStatusOption(task.status);
@@ -222,44 +244,62 @@ function BoardRow({
           {level === "parent" && subtaskCount ? <span className="shrink-0 rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-soft)]">{subtaskCount}</span> : null}
         </div>
       </td>
-      <td className="border-r border-t border-[var(--border)] p-0">
+      {fields.assignee ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
+        <Select
+          value={task.assigneeEmail ?? ""}
+          onChange={(event) => {
+            const option = assigneeOptions.find((item) => item.email === event.target.value);
+            onUpdateTask(task.id, {
+              assigneeEmail: option?.email ?? "",
+              assigneeUserId: option?.userId ?? "",
+              assignedAt: option?.email ? new Date().toISOString() : "",
+            });
+          }}
+          className="align-field-quiet min-h-9"
+        >
+          <option value="">Unassigned</option>
+          {assigneeOptions.map((option) => (
+            <option key={`${option.email}-${option.userId ?? "email"}`} value={option.email}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      </td> : null}
+      {fields.status ? <td className="border-r border-t border-[var(--border)] p-0">
         <Select value={task.status} onChange={(event) => onUpdateTask(task.id, { status: event.target.value as Task["status"] })} className="min-h-11 rounded-none border-0 text-center font-bold sm:min-h-11" style={{ backgroundColor: statusOption.bg, color: statusOption.text, borderColor: statusOption.border }}>
           {taskStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </Select>
-      </td>
-      <td className="border-r border-t border-[var(--border)] p-0">
+      </td> : null}
+      {fields.priority ? <td className="border-r border-t border-[var(--border)] p-0">
         <Select value={task.priority} onChange={(event) => onUpdateTask(task.id, { priority: event.target.value as Task["priority"] })} className="min-h-11 rounded-none border-0 text-center font-bold sm:min-h-11" style={{ backgroundColor: priorityOption.bg, color: priorityOption.text, borderColor: priorityOption.border }}>
           {taskPriorityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </Select>
-      </td>
-      <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
+      </td> : null}
+      {fields.start ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
         <Input className="min-h-9 border-transparent bg-transparent text-center hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus:bg-[var(--surface-raised)] sm:min-h-9" type="date" value={task.startDate ?? ""} onChange={(event) => onUpdateTask(task.id, { startDate: event.target.value || undefined })} />
-      </td>
-      <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
+      </td> : null}
+      {fields.due ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
         <Input className="min-h-9 border-transparent bg-transparent text-center hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus:bg-[var(--surface-raised)] sm:min-h-9" type="date" value={task.dueDate ?? ""} onChange={(event) => onUpdateTask(task.id, { dueDate: event.target.value || undefined })} />
         <p className="mt-1 text-xs text-[var(--text-soft)]">{dateLabel(task.dueDate, task.dueTime)}</p>
-      </td>
-      <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
+      </td> : null}
+      {fields.notes ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
         <InlineText value={task.description ?? ""} placeholder="Add note" onSave={(description) => onUpdateTask(task.id, { description: description || undefined })} />
-      </td>
-      <td className="border-t border-[var(--border)] px-2 py-1.5">
+      </td> : null}
+      {fields.actions ? <td className="border-t border-[var(--border)] px-2 py-1.5">
         <div className="flex justify-end gap-2 opacity-70 transition group-hover:opacity-100">
-          <Button title="Mark done" variant="secondary" className="px-3" onClick={() => onCompleteTask(task.id)} disabled={isTerminalTaskStatus(task.status)}>
-            <Check size={15} />
-          </Button>
           <Button title="Delete" variant="danger" className="px-3" onClick={() => onDeleteTask(task.id)}>
             <Trash2 size={15} />
           </Button>
         </div>
-      </td>
+      </td> : null}
     </tr>
   );
 }
 
-function DraftRow({ value, placeholder, indent = false, onChange, onSubmit }: { value: string; placeholder: string; indent?: boolean; onChange: (value: string) => void; onSubmit: () => void }) {
+function DraftRow({ value, placeholder, indent = false, colSpan, onChange, onSubmit }: { value: string; placeholder: string; indent?: boolean; colSpan: number; onChange: (value: string) => void; onSubmit: () => void }) {
   return (
     <tr className="bg-[var(--surface)]">
-      <td className="border-t border-[var(--border)] px-2 py-1.5" colSpan={7}>
+      <td className="border-t border-[var(--border)] px-2 py-1.5" colSpan={colSpan}>
         <div className={`flex gap-2 ${indent ? "pl-14" : ""}`}>
           <Input
             className="min-h-9 border-transparent bg-transparent text-[var(--text-muted)] hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus:bg-[var(--surface-raised)] sm:min-h-9"

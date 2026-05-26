@@ -67,3 +67,12 @@ Align is moving toward a public, open-source Windows desktop release while keepi
 - Position Align as a local-first project and life planning app for freelance web designers and developers.
 - Show real workflows: Figma to WordPress, client feedback, weekly planning, notes, and handoff.
 - Prepare GitHub screenshots, a landing page, demo video, and launch posts.
+
+## Phase 8 - Project Collaboration And Workspace Polish
+
+- Keep collaboration project-scoped, with editor access only to explicitly shared projects.
+- Upgrade shared projects into a focused workspace with List, Table, Board, Kanban, and Notes views.
+- Add clear assignee visibility and local show/hide field controls for project task views.
+- Move quick-add into a modal and keep the project page centered around the active view.
+- Refresh Board and Kanban spacing, status color accents, and inline task creation.
+- Keep client share links read-only and separate from collaboration.

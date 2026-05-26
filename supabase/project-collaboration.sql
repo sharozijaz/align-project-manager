@@ -46,6 +46,7 @@ create index if not exists project_collaborators_invitee_user_id_idx on public.p
 
 drop policy if exists "Collaborators can read shared projects" on public.projects;
 drop policy if exists "Collaborators can read shared tasks" on public.tasks;
+drop policy if exists "Collaborators can insert shared tasks" on public.tasks;
 drop policy if exists "Collaborators can update shared tasks" on public.tasks;
 drop policy if exists "Collaborators can read team-visible project notes" on public.hub_notes;
 drop policy if exists "Owners can manage project collaborators" on public.project_collaborators;
@@ -111,6 +112,23 @@ with check (
   )
 );
 
+create policy "Collaborators can insert shared tasks"
+on public.tasks
+for insert
+with check (
+  project_id is not null
+  and user_id = (select p.user_id from public.projects p where p.id = tasks.project_id)
+  and exists (
+    select 1 from public.project_collaborators pc
+    where pc.project_id = tasks.project_id
+      and pc.status in ('invited', 'active')
+      and (
+        pc.invitee_user_id = auth.uid()
+        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
+  )
+);
+
 create policy "Collaborators can read team-visible project notes"
 on public.hub_notes
 for select
@@ -144,7 +162,7 @@ using (
 grant select, insert, update, delete on public.project_collaborators to authenticated;
 grant select, insert, update, delete on public.project_collaborators to service_role;
 grant select, update on public.projects to authenticated;
-grant select, update on public.tasks to authenticated;
+grant select, insert, update, delete on public.tasks to authenticated;
 grant select on public.hub_notes to authenticated;
 
 do $$

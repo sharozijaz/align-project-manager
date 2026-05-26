@@ -1,22 +1,32 @@
-import { RefreshCw, ShieldCheck, UserCheck } from "lucide-react";
+import { Columns3, KanbanSquare, ListTree, Plus, RefreshCw, ShieldCheck, StickyNote, Table2, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { getTaskPriorityOption, getTaskStatusOption, taskStatusOptions } from "../config/taskOptions";
-import { pullSharedProjects, subscribeToProjectTaskChanges, updateSharedTask } from "../integrations/supabase/collaboration";
+import { pullSharedProjects, subscribeToProjectTaskChanges, updateSharedTask, createSharedTask, deleteSharedTask, reorderSharedTasks, collaboratorAssigneeOptions } from "../integrations/supabase/collaboration";
 import { useFeatureAccess } from "../features/access/FeatureAccessProvider";
 import type { SharedProjectBundle } from "../integrations/supabase/collaboration";
 import type { Project } from "../types/project";
-import type { Task } from "../types/task";
-import { Badge } from "../components/ui/Badge";
+import type { HubNote } from "../types/studio";
+import type { Task, TaskInput } from "../types/task";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
+import { Modal } from "../components/ui/Modal";
+import { TaskForm } from "../components/tasks/TaskForm";
+import { TaskList } from "../components/tasks/TaskList";
+import { NoteReaderModal } from "../components/notes/NoteReaderModal";
+import { ProjectTaskBoard } from "../components/projects/ProjectTaskBoard";
+import { ProjectTaskKanban } from "../components/projects/ProjectTaskKanban";
+import type { ProjectTaskFieldVisibility } from "../components/projects/projectTaskFields";
 import { startDateLabel, dateLabel } from "../utils/date";
+
+type SharedView = "cards" | "table" | "board" | "kanban" | "notes";
 
 export function SharedProjects() {
   const { access } = useFeatureAccess();
   const [bundle, setBundle] = useState<SharedProjectBundle>({ collaborators: [], projects: [], tasks: [], notes: [] });
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [filter, setFilter] = useState<"all" | "mine" | "unassigned">("all");
+  const [view, setView] = useState<SharedView>("cards");
+  const [addOpen, setAddOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +61,8 @@ export function SharedProjects() {
   }, [bundle.projects]);
 
   const selectedProject = bundle.projects.find((project) => project.id === selectedProjectId);
+  const selectedCollaborators = useMemo(() => bundle.collaborators.filter((collaborator) => collaborator.projectId === selectedProjectId), [bundle.collaborators, selectedProjectId]);
+  const assigneeOptions = useMemo(() => collaboratorAssigneeOptions(selectedCollaborators), [selectedCollaborators]);
   const selectedProjectTasks = useMemo(() => {
     const email = access?.profile.email.toLowerCase();
     return bundle.tasks
@@ -65,12 +77,50 @@ export function SharedProjects() {
 
   const sharedNotes = bundle.notes.filter((note) => note.projectIds.includes(selectedProjectId));
 
-  const handleTaskStatus = async (task: Task, status: string) => {
+  const updateTask = async (taskId: string, input: Partial<TaskInput>) => {
     try {
-      const updated = await updateSharedTask(task.id, { status: status as Task["status"] });
+      const updated = await updateSharedTask(taskId, input);
       setBundle((current) => ({ ...current, tasks: upsertTask(current.tasks, updated) }));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not update task.");
+    }
+  };
+
+  const addTask = async (input: TaskInput) => {
+    if (!selectedProject) return;
+    try {
+      const created = await createSharedTask(selectedProject.id, { ...input, projectId: selectedProject.id, category: "project" });
+      setBundle((current) => ({ ...current, tasks: upsertTask(current.tasks, created) }));
+      setAddOpen(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create task.");
+    }
+  };
+
+  const removeTask = async (taskId: string) => {
+    try {
+      await deleteSharedTask(taskId);
+      setBundle((current) => ({ ...current, tasks: current.tasks.filter((task) => task.id !== taskId) }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not delete task.");
+    }
+  };
+
+  const completeTask = async (taskId: string) => updateTask(taskId, { status: "done" });
+
+  const reorderTasks = async (orderedIds: string[]) => {
+    setBundle((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) => {
+        const index = orderedIds.indexOf(task.id);
+        return index >= 0 ? { ...task, sortOrder: index } : task;
+      }),
+    }));
+    try {
+      await reorderSharedTasks(orderedIds);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not save task order.");
+      void load();
     }
   };
 
@@ -112,6 +162,14 @@ export function SharedProjects() {
             </Select>
           </div>
         </div>
+        <div className="mt-4 flex flex-col gap-3 border-t border-[var(--border)] pt-4 lg:flex-row lg:items-center lg:justify-between">
+          <SharedViewTabs value={view} onChange={setView} />
+          {selectedProject && view !== "notes" ? (
+            <Button icon={<Plus size={16} />} onClick={() => setAddOpen(true)}>
+              Add task
+            </Button>
+          ) : null}
+        </div>
       </Card>
 
       {message ? <div className="rounded-[var(--radius-sm)] border border-[var(--warning)] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[var(--warning)]">{message}</div> : null}
@@ -120,7 +178,19 @@ export function SharedProjects() {
         <Card className="p-8 text-center text-sm text-[var(--text-muted)]">Loading shared project access...</Card>
       ) : selectedProject ? (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <SharedProjectWork project={selectedProject} tasks={selectedProjectTasks} onTaskStatus={handleTaskStatus} />
+          <SharedProjectWork
+            project={selectedProject}
+            projects={bundle.projects}
+            tasks={selectedProjectTasks}
+            notes={sharedNotes}
+            view={view}
+            assigneeOptions={assigneeOptions}
+            onAddTask={addTask}
+            onUpdateTask={(id, input) => void updateTask(id, input)}
+            onDeleteTask={(id) => void removeTask(id)}
+            onCompleteTask={(id) => void completeTask(id)}
+            onReorderTasks={(ids) => void reorderTasks(ids)}
+          />
           <aside className="space-y-4">
             <Card className="p-4">
               <h2 className="text-lg font-bold text-[var(--text)]">Project Context</h2>
@@ -134,12 +204,7 @@ export function SharedProjects() {
               <h2 className="text-lg font-bold text-[var(--text)]">Team-visible Notes</h2>
               <div className="mt-3 space-y-2">
                 {sharedNotes.length ? (
-                  sharedNotes.map((note) => (
-                    <article key={note.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-                      <h3 className="font-bold text-[var(--text)]">{note.title}</h3>
-                      <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{note.body}</p>
-                    </article>
-                  ))
+                  sharedNotes.map((note) => <SharedNoteCard key={note.id} note={note} />)
                 ) : (
                   <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-5 text-center text-sm text-[var(--text-muted)]">
                     No team-visible notes for this project.
@@ -156,49 +221,145 @@ export function SharedProjects() {
           <p className="mt-2 text-sm text-[var(--text-muted)]">Ask the project owner to invite this email to a project.</p>
         </Card>
       )}
+      {selectedProject ? (
+        <Modal title="Add shared task" open={addOpen} onClose={() => setAddOpen(false)}>
+          <TaskForm projects={bundle.projects} lockedProject={selectedProject} assigneeOptions={assigneeOptions} onSubmit={(input) => void addTask(input)} onCancel={() => setAddOpen(false)} />
+        </Modal>
+      ) : null}
     </div>
   );
 }
 
-function SharedProjectWork({ project, tasks, onTaskStatus }: { project: Project; tasks: Task[]; onTaskStatus: (task: Task, status: string) => Promise<void> }) {
+function SharedProjectWork({
+  project,
+  projects,
+  tasks,
+  notes,
+  view,
+  assigneeOptions,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+  onCompleteTask,
+  onReorderTasks,
+}: {
+  project: Project;
+  projects: Project[];
+  tasks: Task[];
+  notes: HubNote[];
+  view: SharedView;
+  assigneeOptions: ReturnType<typeof collaboratorAssigneeOptions>;
+  onAddTask: (input: TaskInput) => void;
+  onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
+  onDeleteTask: (id: string) => void;
+  onCompleteTask: (id: string) => void;
+  onReorderTasks: (orderedIds: string[]) => void;
+}) {
+  const sharedFields: Partial<ProjectTaskFieldVisibility> = {
+    project: false,
+    actions: true,
+    assignee: true,
+  };
+
+  if (view === "notes") {
+    return (
+      <Card className="overflow-hidden">
+        <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] p-4">
+          <h2 className="text-xl font-bold text-[var(--text)]">{project.name}</h2>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">{notes.length} team-visible notes</p>
+        </div>
+        <div className="grid gap-3 p-4 md:grid-cols-2">
+          {notes.length ? notes.map((note) => <SharedNoteCard key={note.id} note={note} />) : <EmptyState>No team-visible notes for this project.</EmptyState>}
+        </div>
+      </Card>
+    );
+  }
+
+  if (view === "board") {
+    return <ProjectTaskBoard project={project} tasks={tasks} onAddTask={onAddTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} assigneeOptions={assigneeOptions} visibleFields={sharedFields} />;
+  }
+
+  if (view === "kanban") {
+    return <ProjectTaskKanban project={project} tasks={tasks} onAddTask={onAddTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} assigneeOptions={assigneeOptions} visibleFields={sharedFields} />;
+  }
+
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] p-4">
         <h2 className="text-xl font-bold text-[var(--text)]">{project.name}</h2>
         <p className="mt-1 text-sm text-[var(--text-muted)]">{tasks.length} shared tasks</p>
       </div>
-      <div className="space-y-3 p-4">
+      <div className="p-4">
         {tasks.length ? (
-          tasks.map((task) => (
-            <article key={task.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <h3 className="font-bold text-[var(--text)]">{task.title}</h3>
-                  {task.description ? <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">{task.description}</p> : null}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge tone="amber">{getTaskPriorityOption(task.priority).label}</Badge>
-                    <Badge tone="slate">{dateLabel(task.dueDate, task.dueTime)}</Badge>
-                    {task.assigneeEmail ? <Badge tone="blue">{task.assigneeEmail}</Badge> : <Badge tone="slate">Unassigned</Badge>}
-                  </div>
-                </div>
-                <Select className="lg:w-48" value={task.status} onChange={(event) => void onTaskStatus(task, event.target.value)}>
-                  {taskStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {getTaskStatusOption(option.value).label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </article>
-          ))
+          <TaskList
+            tasks={tasks}
+            projects={projects}
+            onUpdate={onUpdateTask}
+            onDelete={onDeleteTask}
+            onComplete={onCompleteTask}
+            lockedProjectId={project.id}
+            assigneeOptions={assigneeOptions}
+            visibleFields={sharedFields}
+            view={view === "table" ? "table" : "cards"}
+            onReorder={onReorderTasks}
+          />
         ) : (
-          <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
-            No tasks match this view.
-          </div>
+          <EmptyState>No tasks match this view.</EmptyState>
         )}
       </div>
     </Card>
   );
+}
+
+function SharedViewTabs({ value, onChange }: { value: SharedView; onChange: (value: SharedView) => void }) {
+  const options = [
+    { value: "cards" as const, label: "List", icon: Columns3 },
+    { value: "table" as const, label: "Table", icon: Table2 },
+    { value: "board" as const, label: "Board", icon: ListTree },
+    { value: "kanban" as const, label: "Kanban", icon: KanbanSquare },
+    { value: "notes" as const, label: "Notes", icon: StickyNote },
+  ];
+
+  return (
+    <div className="align-tab-list">
+      {options.map(({ value: optionValue, label, icon: Icon }) => (
+        <button key={optionValue} type="button" className="align-tab" data-active={value === optionValue} onClick={() => onChange(optionValue)}>
+          <Icon size={15} />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SharedNoteCard({ note }: { note: HubNote }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <article
+        role="button"
+        tabIndex={0}
+        className="cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 transition hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)]"
+        onClick={() => setOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+      >
+        <h3 className="font-bold text-[var(--text)]">{note.title}</h3>
+        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{note.body}</p>
+        <p className="mt-3 text-xs font-bold text-[var(--text-brand)]">Open note</p>
+      </article>
+      <NoteReaderModal note={open ? { title: note.title, body: note.body, tags: note.tags, favorite: note.favorite, updatedAt: note.updatedAt } : null} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+function EmptyState({ children }: { children: string }) {
+  return <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">{children}</div>;
 }
 
 function upsertTask(tasks: Task[], next: Task) {

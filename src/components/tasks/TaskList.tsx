@@ -8,6 +8,7 @@ import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
 import type { AssigneeOption } from "../../types/collaboration";
 import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
+import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 
 type TaskDragState = { id: string; groupIds: string[]; startX: number; startY: number; x: number; y: number; active: boolean };
 
@@ -23,6 +24,7 @@ export function TaskList({
   onReorder,
   groupByProject = false,
   assigneeOptions = [],
+  visibleFields,
 }: {
   tasks: Task[];
   projects: Project[];
@@ -35,6 +37,7 @@ export function TaskList({
   onReorder?: (orderedIds: string[]) => void;
   groupByProject?: boolean;
   assigneeOptions?: AssigneeOption[];
+  visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   const [taskDrag, setTaskDrag] = useState<TaskDragState | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -133,8 +136,8 @@ export function TaskList({
             project={project}
             onUpdate={onUpdate}
             onDelete={onDelete}
-            onComplete={onComplete}
             assigneeOptions={assigneeOptions}
+            visibleFields={visibleFields}
             showProjectBadge={!options?.hideProjectBadge}
           />
         </motion.div>
@@ -178,6 +181,8 @@ export function TaskList({
           onDelete={onDelete}
           onComplete={onComplete}
           lockedProjectId={lockedProjectId}
+          assigneeOptions={assigneeOptions}
+          visibleFields={visibleFields}
         />
       </div>
     </>

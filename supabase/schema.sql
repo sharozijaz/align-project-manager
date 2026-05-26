@@ -247,6 +247,23 @@ using (
   )
 );
 
+create policy "Collaborators can insert shared tasks"
+on public.tasks
+for insert
+with check (
+  project_id is not null
+  and user_id = (select p.user_id from public.projects p where p.id = tasks.project_id)
+  and exists (
+    select 1 from public.project_collaborators pc
+    where pc.project_id = tasks.project_id
+      and pc.status in ('invited', 'active')
+      and (
+        pc.invitee_user_id = auth.uid()
+        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
+  )
+);
+
 create policy "Collaborators can update shared tasks"
 on public.tasks
 for update

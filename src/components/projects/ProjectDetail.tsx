@@ -1,13 +1,16 @@
-import { Columns3, KanbanSquare, ListTree, Pin, Table2 } from "lucide-react";
+import { Columns3, KanbanSquare, ListTree, Pin, Plus, Search, Settings2, Table2 } from "lucide-react";
 import { TaskForm } from "../tasks/TaskForm";
 import { TaskList } from "../tasks/TaskList";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
+import { Modal } from "../ui/Modal";
 import { NoteReaderModal } from "../notes/NoteReaderModal";
 import { ProjectTaskBoard } from "./ProjectTaskBoard";
 import { ProjectTaskKanban } from "./ProjectTaskKanban";
+import { PROJECT_TASK_FIELDS, mergeProjectTaskFields, type ProjectTaskField, type ProjectTaskFieldVisibility } from "./projectTaskFields";
 import { useEffect, useMemo, useState } from "react";
 import { isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import { useStudioStore } from "../../store/studioStore";
@@ -19,6 +22,7 @@ import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
 type ProjectTaskView = "cards" | "table" | "board" | "kanban";
 const PROJECT_TASK_VIEW_KEY = "align-project-task-view-v1";
+const PROJECT_TASK_FIELDS_KEY = "align-project-task-fields-v1";
 
 export function ProjectDetail({
   project,
@@ -45,8 +49,13 @@ export function ProjectDetail({
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [view, setView] = useState<ProjectTaskView>(() => getSavedProjectTaskView());
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [fieldPreferences, setFieldPreferences] = useState<Record<ProjectTaskView, Partial<ProjectTaskFieldVisibility>>>(() => getSavedFieldPreferences());
   const hubNotes = useStudioStore((state) => state.notes);
+  const fields = mergeProjectTaskFields(view, fieldPreferences[view]);
   const complete = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
   const progress = tasks.length ? Math.round((complete / tasks.length) * 100) : 0;
   const linkedHubNotes = useMemo(() => hubNotes.filter((note) => note.projectIds?.includes(project.id)), [hubNotes, project.id]);
@@ -55,14 +64,30 @@ export function ProjectDetail({
       tasks.filter((task) => {
         const statusMatch = statusFilter === "all" || task.status === statusFilter;
         const priorityMatch = priorityFilter === "all" || task.priority === priorityFilter;
-        return statusMatch && priorityMatch;
+        const query = search.trim().toLowerCase();
+        const searchMatch = !query || task.title.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query) || task.assigneeEmail?.toLowerCase().includes(query);
+        return statusMatch && priorityMatch && searchMatch;
       }),
-    [priorityFilter, statusFilter, tasks],
+    [priorityFilter, search, statusFilter, tasks],
   );
 
   useEffect(() => {
     window.localStorage.setItem(PROJECT_TASK_VIEW_KEY, view);
   }, [view]);
+
+  useEffect(() => {
+    window.localStorage.setItem(PROJECT_TASK_FIELDS_KEY, JSON.stringify(fieldPreferences));
+  }, [fieldPreferences]);
+
+  const updateVisibleField = (field: ProjectTaskField, enabled: boolean) => {
+    setFieldPreferences((current) => ({
+      ...current,
+      [view]: {
+        ...current[view],
+        [field]: enabled,
+      },
+    }));
+  };
 
   return (
     <div className="space-y-4">
@@ -94,51 +119,58 @@ export function ProjectDetail({
           <div className="h-full align-gradient" style={{ width: `${progress}%` }} />
         </div>
       </Card>
-      <Card className="p-4">
-        <TaskForm
-          projects={projects}
-          lockedProject={project}
-          assigneeOptions={assigneeOptions}
-          onSubmit={(input) => onAddTask({ ...input, projectId: project.id, category: "project" })}
-          compact
-        />
-      </Card>
       <div className="align-toolbar">
-        <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:max-w-[680px]">
-        <Select className="align-field-quiet sm:min-h-10" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="all">All statuses</option>
-          {taskStatusOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        <Select className="align-field-quiet sm:min-h-10" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
-          <option value="all">All priorities</option>
-          {taskPriorityOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
+        <div className="grid flex-1 gap-2 lg:grid-cols-[minmax(240px,1fr)_170px_170px]">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={16} />
+            <Input className="pl-10 sm:min-h-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks, notes, assignees..." />
+          </label>
+          <Select className="align-field-quiet sm:min-h-10" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="all">All statuses</option>
+            {taskStatusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          <Select className="align-field-quiet sm:min-h-10" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+            <option value="all">All priorities</option>
+            {taskPriorityOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
         </div>
-        <ProjectTaskViewToggle value={view} onChange={setView} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" icon={<Settings2 size={15} />} onClick={() => setCustomizeOpen(true)}>
+            Customize
+          </Button>
+          <Button icon={<Plus size={16} />} onClick={() => setTaskModalOpen(true)}>
+            Add Task
+          </Button>
+          <ProjectTaskViewToggle value={view} onChange={setView} />
+        </div>
       </div>
       {view === "board" ? (
         <ProjectTaskBoard
           project={project}
-          tasks={tasks}
+          tasks={visibleTasks}
           onAddTask={onAddTask}
           onUpdateTask={onUpdateTask}
           onDeleteTask={onDeleteTask}
-          onCompleteTask={onCompleteTask}
+          assigneeOptions={assigneeOptions}
+          visibleFields={fields}
         />
       ) : view === "kanban" ? (
         <ProjectTaskKanban
+          project={project}
           tasks={visibleTasks}
+          onAddTask={onAddTask}
           onUpdateTask={onUpdateTask}
           onDeleteTask={onDeleteTask}
-          onCompleteTask={onCompleteTask}
+          assigneeOptions={assigneeOptions}
+          visibleFields={fields}
         />
       ) : (
         <TaskList
@@ -151,9 +183,44 @@ export function ProjectDetail({
           view={view}
           lockedProjectId={project.id}
           onReorder={onReorderTasks}
+          visibleFields={fields}
         />
       )}
       <LinkedHubNotes notes={linkedHubNotes} />
+      <Modal title="Add task" open={taskModalOpen} onClose={() => setTaskModalOpen(false)}>
+        <TaskForm
+          projects={projects}
+          lockedProject={project}
+          assigneeOptions={assigneeOptions}
+          onSubmit={(input) => {
+            onAddTask({ ...input, projectId: project.id, category: "project" });
+            setTaskModalOpen(false);
+          }}
+          onCancel={() => setTaskModalOpen(false)}
+        />
+      </Modal>
+      <Modal title={`Customize ${view === "cards" ? "List" : view} fields`} open={customizeOpen} onClose={() => setCustomizeOpen(false)}>
+        <div className="space-y-3">
+          <p className="text-sm leading-6 text-[var(--text-muted)]">Choose which fields are visible in this project view. These preferences stay on this device.</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {PROJECT_TASK_FIELDS.map((field) => (
+              <label key={field.key} className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+                <span>
+                  <span className="block font-bold text-[var(--text)]">{field.label}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{field.description}</span>
+                </span>
+                <input type="checkbox" checked={fields[field.key]} onChange={(event) => updateVisibleField(field.key, event.target.checked)} />
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setFieldPreferences((current) => ({ ...current, [view]: {} }))}>
+              Reset view
+            </Button>
+            <Button onClick={() => setCustomizeOpen(false)}>Done</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -164,9 +231,20 @@ function getSavedProjectTaskView(): ProjectTaskView {
   return saved === "table" || saved === "board" || saved === "kanban" ? saved : "cards";
 }
 
+function getSavedFieldPreferences(): Record<ProjectTaskView, Partial<ProjectTaskFieldVisibility>> {
+  const defaults = { cards: {}, table: {}, board: {}, kanban: {} };
+  if (typeof window === "undefined") return defaults;
+  try {
+    const saved = window.localStorage.getItem(PROJECT_TASK_FIELDS_KEY);
+    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+  } catch {
+    return defaults;
+  }
+}
+
 function ProjectTaskViewToggle({ value, onChange }: { value: ProjectTaskView; onChange: (value: ProjectTaskView) => void }) {
   const options = [
-    { value: "cards" as const, label: "Cards", icon: Columns3 },
+    { value: "cards" as const, label: "List", icon: Columns3 },
     { value: "table" as const, label: "Table", icon: Table2 },
     { value: "board" as const, label: "Board", icon: ListTree },
     { value: "kanban" as const, label: "Kanban", icon: KanbanSquare },

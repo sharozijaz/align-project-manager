@@ -1,4 +1,4 @@
-import { Bell, Check, Pencil, Trash2 } from "lucide-react";
+import { Bell, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskReminderOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
@@ -12,6 +12,7 @@ import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/task
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
 import type { AssigneeOption } from "../../types/collaboration";
+import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 
 export function TaskCard({
   task,
@@ -19,18 +20,18 @@ export function TaskCard({
   projects,
   onUpdate,
   onDelete,
-  onComplete,
   showProjectBadge = true,
   assigneeOptions = [],
+  visibleFields,
 }: {
   task: Task;
   project?: Project;
   projects: Project[];
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
-  onComplete: (id: string) => void;
   showProjectBadge?: boolean;
   assigneeOptions?: AssigneeOption[];
+  visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -39,14 +40,14 @@ export function TaskCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className={`font-bold text-[var(--text)] ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}>{task.title}</h3>
-          {task.description ? <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
+          {visibleFields?.notes !== false && task.description ? <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            <OptionBadge option={getTaskPriorityOption(task.priority)} />
-            <OptionBadge option={getTaskStatusOption(task.status)} />
-            {showProjectBadge ? <Badge tone={project ? "purple" : "slate"}>{project?.name ?? task.category}</Badge> : null}
-            {task.assigneeEmail ? <Badge tone="blue">Assigned: {task.assigneeEmail}</Badge> : null}
-            {task.startDate ? <Badge>{startDateLabel(task.startDate, task.startTime)}</Badge> : null}
-            <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate, task.dueTime)}</Badge>
+            {visibleFields?.priority !== false ? <OptionBadge option={getTaskPriorityOption(task.priority)} /> : null}
+            {visibleFields?.status !== false ? <OptionBadge option={getTaskStatusOption(task.status)} /> : null}
+            {visibleFields?.project !== false && showProjectBadge ? <Badge tone={project ? "purple" : "slate"}>{project?.name ?? task.category}</Badge> : null}
+            {visibleFields?.assignee !== false ? <Badge tone={task.assigneeEmail ? "blue" : "slate"}>{task.assigneeEmail || "Unassigned"}</Badge> : null}
+            {visibleFields?.start !== false && task.startDate ? <Badge>{startDateLabel(task.startDate, task.startTime)}</Badge> : null}
+            {visibleFields?.due !== false ? <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate, task.dueTime)}</Badge> : null}
             {task.startDate ? <Badge>{durationLabel(task.startDate, task.dueDate)}</Badge> : null}
             {task.reminder !== "none" ? (
               <Badge>
@@ -57,10 +58,8 @@ export function TaskCard({
             {task.recurrence && task.recurrence !== "none" ? <Badge>{getTaskRecurrenceOption(task.recurrence).label}</Badge> : null}
           </div>
         </div>
+        {visibleFields?.actions === false ? null : (
         <div className="flex shrink-0 gap-1.5 opacity-80 transition group-hover:opacity-100">
-          <Button title="Mark complete" variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => onComplete(task.id)}>
-            <Check size={16} />
-          </Button>
           <Button title="Edit task" variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </Button>
@@ -68,6 +67,7 @@ export function TaskCard({
             <Trash2 size={16} />
           </Button>
         </div>
+        )}
       </div>
       <Modal title="Edit task" open={editing} onClose={() => setEditing(false)}>
         <TaskForm
