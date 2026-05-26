@@ -1600,6 +1600,7 @@ function appTimeZone() {
 export function googleEventToCalendarEvent(event) {
   const startDate = event.start?.date || event.start?.dateTime?.slice(0, 10);
   const endDate = event.end?.date || event.end?.dateTime?.slice(0, 10);
+  const linkedTaskId = event.extendedProperties?.private?.alignTaskId;
 
   return {
     id: `google:${event.id}`,
@@ -1607,6 +1608,7 @@ export function googleEventToCalendarEvent(event) {
     description: event.description || undefined,
     startDate,
     endDate,
+    linkedTaskId: linkedTaskId || undefined,
     source: "google",
   };
 }
