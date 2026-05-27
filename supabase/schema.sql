@@ -216,6 +216,27 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create or replace function public.can_edit_shared_project_task(task_project_id text, task_owner_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.project_collaborators pc
+    join public.projects p on p.id = pc.project_id
+    where pc.project_id = task_project_id
+      and p.user_id = task_owner_user_id
+      and pc.status in ('invited', 'active')
+      and (
+        pc.invitee_user_id = auth.uid()
+        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
+  );
+$$;
+
 create policy "Collaborators can read shared projects"
 on public.projects
 for select
@@ -236,15 +257,7 @@ on public.tasks
 for select
 using (
   project_id is not null
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 );
 
 create policy "Collaborators can insert shared tasks"
@@ -252,16 +265,7 @@ on public.tasks
 for insert
 with check (
   project_id is not null
-  and user_id = (select p.user_id from public.projects p where p.id = tasks.project_id)
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 );
 
 create policy "Collaborators can update shared tasks"
@@ -269,28 +273,11 @@ on public.tasks
 for update
 using (
   project_id is not null
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 )
 with check (
   project_id is not null
-  and user_id = (select p.user_id from public.projects p where p.id = tasks.project_id)
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 );
 
 create policy "Users can manage their own calendar events"
@@ -365,6 +352,24 @@ using (
   or lower(invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
 );
 
+create or replace function public.accept_project_collaborations()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.project_collaborators
+  set status = 'active',
+      invitee_user_id = auth.uid(),
+      accepted_at = coalesce(accepted_at, now()),
+      updated_at = now()
+  where status = 'invited'
+    and lower(invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    and (invitee_user_id is null or invitee_user_id = auth.uid());
+end;
+$$;
+
 create policy "Users can manage their own Google Todo settings"
 on public.google_todo_sync_settings
 for all
@@ -430,6 +435,8 @@ grant select, insert, update, delete on public.hub_notes to authenticated;
 grant select, insert, update, delete on public.project_collaborators to authenticated;
 grant select, insert, update, delete on public.google_todo_sync_settings to authenticated;
 grant select, insert, update, delete on public.google_todo_links to authenticated;
+grant execute on function public.can_edit_shared_project_task(text, uuid) to authenticated;
+grant execute on function public.accept_project_collaborations() to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
 grant select, insert, update, delete on public.tasks to service_role;
 grant select, insert, update, delete on public.calendar_events to service_role;

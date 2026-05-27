@@ -104,23 +104,26 @@ export function ProjectCollaboratorsPanel({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {activeCollaborators.length ? (
-          activeCollaborators.map((collaborator) => (
-            <span
-              key={collaborator.id}
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm font-semibold text-[var(--text)]"
-            >
-              {collaborator.inviteeEmail}
-              <Badge tone="purple">{collaborator.status}</Badge>
-              <button
-                type="button"
-                className="grid h-6 w-6 place-items-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--danger-bg)] hover:text-[var(--danger)]"
-                onClick={() => void handleRemove(collaborator)}
-                aria-label={`Remove ${collaborator.inviteeEmail}`}
+          activeCollaborators.map((collaborator) => {
+            const collaboratorStatus = collaborator.status === "active" || collaborator.inviteeUserId || collaborator.acceptedAt ? "active" : "invited";
+            return (
+              <span
+                key={collaborator.id}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm font-semibold text-[var(--text)]"
               >
-                <UserMinus size={13} />
-              </button>
-            </span>
-          ))
+                {collaborator.inviteeEmail}
+                <Badge tone={collaboratorStatus === "active" ? "emerald" : "purple"}>{collaboratorStatus}</Badge>
+                <button
+                  type="button"
+                  className="grid h-6 w-6 place-items-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--danger-bg)] hover:text-[var(--danger)]"
+                  onClick={() => void handleRemove(collaborator)}
+                  aria-label={`Remove ${collaborator.inviteeEmail}`}
+                >
+                  <UserMinus size={13} />
+                </button>
+              </span>
+            );
+          })
         ) : (
           <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] px-4 py-3 text-sm text-[var(--text-muted)]">
             No collaborators yet.

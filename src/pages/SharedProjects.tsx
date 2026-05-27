@@ -450,7 +450,15 @@ function upsertFreshTask(tasks: Task[], next: Task) {
 }
 
 function formatSharedError(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) return `${fallback} ${error.message}`;
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string") return `${fallback} ${error.message}`;
+  const message =
+    error instanceof Error && error.message
+      ? error.message
+      : typeof error === "object" && error && "message" in error && typeof error.message === "string"
+        ? error.message
+        : "";
+  if (message.includes("row-level security policy")) {
+    return `${fallback} Shared project permissions need the latest collaboration database policy. Run supabase/project-collaboration.sql in Supabase, then retry.`;
+  }
+  if (message) return `${fallback} ${message}`;
   return fallback;
 }

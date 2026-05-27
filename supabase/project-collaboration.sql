@@ -60,6 +60,29 @@ drop policy if exists "Collaborators can read team-visible project notes" on pub
 drop policy if exists "Owners can manage project collaborators" on public.project_collaborators;
 drop policy if exists "Invitees can read their project collaborator records" on public.project_collaborators;
 
+create or replace function public.can_edit_shared_project_task(task_project_id text, task_owner_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.project_collaborators pc
+    join public.projects p on p.id = pc.project_id
+    where pc.project_id = task_project_id
+      and p.user_id = task_owner_user_id
+      and pc.status in ('invited', 'active')
+      and (
+        pc.invitee_user_id = auth.uid()
+        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
+  );
+$$;
+
+grant execute on function public.can_edit_shared_project_task(text, uuid) to authenticated;
+
 create policy "Collaborators can read shared projects"
 on public.projects
 for select
@@ -80,15 +103,7 @@ on public.tasks
 for select
 using (
   project_id is not null
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 );
 
 create policy "Collaborators can update shared tasks"
@@ -96,28 +111,11 @@ on public.tasks
 for update
 using (
   project_id is not null
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 )
 with check (
   project_id is not null
-  and user_id = (select p.user_id from public.projects p where p.id = tasks.project_id)
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 );
 
 create policy "Collaborators can insert shared tasks"
@@ -125,16 +123,7 @@ on public.tasks
 for insert
 with check (
   project_id is not null
-  and user_id = (select p.user_id from public.projects p where p.id = tasks.project_id)
-  and exists (
-    select 1 from public.project_collaborators pc
-    where pc.project_id = tasks.project_id
-      and pc.status in ('invited', 'active')
-      and (
-        pc.invitee_user_id = auth.uid()
-        or lower(pc.invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      )
-  )
+  and public.can_edit_shared_project_task(project_id, user_id)
 );
 
 create policy "Collaborators can read team-visible project notes"

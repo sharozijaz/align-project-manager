@@ -292,6 +292,7 @@ export async function createSharedTask(projectId: string, input: TaskInput) {
 
   const { data: projectRow, error: projectError } = await supabase.from("projects").select("user_id").eq("id", projectId).single();
   if (projectError) throw projectError;
+  if (!projectRow?.user_id) throw new Error("Shared project owner could not be verified.");
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
