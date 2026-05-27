@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { getTaskPriorityOption, getTaskStatusOption, taskStatusOptions } from "../../config/taskOptions";
@@ -10,7 +10,8 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
-import { Select } from "../ui/Select";
+import { TaskAssigneePicker } from "../tasks/TaskAssigneePicker";
+import { TaskOverflowMenu } from "../tasks/TaskOverflowMenu";
 import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "./projectTaskFields";
 
 type KanbanDragState = {
@@ -28,6 +29,7 @@ export function ProjectTaskKanban({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  onOpenTask,
   assigneeOptions = [],
   visibleFields,
 }: {
@@ -36,6 +38,7 @@ export function ProjectTaskKanban({
   onAddTask?: (input: TaskInput) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
+  onOpenTask?: (task: Task) => void;
   assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
@@ -174,6 +177,7 @@ export function ProjectTaskKanban({
                       onPointerDragStart={(event) => startPointerDrag(task, event)}
                       onMove={(status) => onUpdateTask(task.id, { status })}
                       onDelete={() => onDeleteTask(task.id)}
+                      onOpen={() => onOpenTask?.(task)}
                       onUpdateTask={(input) => onUpdateTask(task.id, input)}
                       assigneeOptions={assigneeOptions}
                       fields={fields}
@@ -234,6 +238,7 @@ function KanbanTaskCard({
   onPointerDragStart,
   onMove,
   onDelete,
+  onOpen,
   onUpdateTask,
   assigneeOptions,
   fields,
@@ -244,6 +249,7 @@ function KanbanTaskCard({
   onPointerDragStart: (event: ReactPointerEvent<HTMLElement>) => void;
   onMove: (status: TaskStatus) => void;
   onDelete: () => void;
+  onOpen: () => void;
   onUpdateTask: (input: Partial<TaskInput>) => void;
   assigneeOptions: AssigneeOption[];
   fields: ProjectTaskFieldVisibility;
@@ -264,7 +270,9 @@ function KanbanTaskCard({
       onPointerDown={onPointerDragStart}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="min-w-0 text-sm font-bold text-[var(--text)]">{task.title}</h3>
+        <button type="button" className="min-w-0 text-left text-sm font-bold text-[var(--text)] transition hover:text-[var(--text-brand)]" onPointerDown={(event) => event.stopPropagation()} onClick={onOpen}>
+          {task.title}
+        </button>
         {fields.subtasks && subtaskCount ? <Badge>{subtaskCount} sub</Badge> : null}
       </div>
       {fields.notes && task.description ? <p className="mt-3 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
@@ -277,25 +285,18 @@ function KanbanTaskCard({
       </div>
       <div className="mt-4 grid gap-3">
         {fields.assignee ? (
-          <Select
+          <TaskAssigneePicker
             value={task.assigneeEmail ?? ""}
-            onChange={(event) => {
-              const option = assigneeOptions.find((item) => item.email === event.target.value);
+            options={assigneeOptions}
+            size="compact"
+            onChange={(option) => {
               onUpdateTask({
                 assigneeEmail: option?.email ?? "",
                 assigneeUserId: option?.userId ?? "",
                 assignedAt: option?.email ? new Date().toISOString() : "",
               });
             }}
-            className="min-h-9 text-xs"
-          >
-            <option value="">Unassigned</option>
-            {assigneeOptions.map((option) => (
-              <option key={`${option.email}-${option.userId ?? "email"}`} value={option.email}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
+          />
         ) : null}
         {fields.status ? <select
           value={task.status}
@@ -309,10 +310,8 @@ function KanbanTaskCard({
             </option>
           ))}
         </select> : null}
-        {fields.actions ? <div className="flex justify-end gap-2 opacity-70 transition group-hover:opacity-100">
-          <Button title="Delete" variant="danger" className="min-h-8 px-2" onClick={onDelete}>
-            <Trash2 size={14} />
-          </Button>
+        {fields.actions ? <div className="flex justify-end opacity-70 transition group-hover:opacity-100">
+          <TaskOverflowMenu task={task} onOpen={() => onOpen()} onDelete={() => onDelete()} />
         </div> : null}
       </div>
     </Card>

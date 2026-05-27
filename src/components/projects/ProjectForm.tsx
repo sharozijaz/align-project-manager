@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { CalendarDays, ChevronDown, Clock } from "lucide-react";
+import { CalendarDays, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -220,7 +220,7 @@ function OptionalTimeInput({ value, onChange, ariaLabel }: { value: string; onCh
   return (
     <div className="relative">
       <Input
-        className={`pr-10 font-bold ${showPlaceholder ? "text-transparent" : ""}`}
+        className={`font-bold ${showPlaceholder ? "text-transparent" : ""}`}
         type="time"
         value={value}
         onFocus={() => setFocused(true)}
@@ -233,7 +233,6 @@ function OptionalTimeInput({ value, onChange, ariaLabel }: { value: string; onCh
           No time
         </span>
       ) : null}
-      <Clock size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
     </div>
   );
 }

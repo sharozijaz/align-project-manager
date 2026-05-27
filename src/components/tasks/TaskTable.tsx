@@ -1,4 +1,3 @@
-import { Check, Trash2 } from "lucide-react";
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   getTaskPriorityOption,
@@ -18,18 +17,20 @@ import type { Project } from "../../types/project";
 import type { Task, TaskCategory, TaskInput } from "../../types/task";
 import type { AssigneeOption } from "../../types/collaboration";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
-import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { OptionBadge } from "../ui/OptionBadge";
 import { Select } from "../ui/Select";
 import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
+import { TaskOverflowMenu } from "./TaskOverflowMenu";
+import { TaskAssigneePicker } from "./TaskAssigneePicker";
+import { TaskDateTimeField } from "./TaskDateTimeField";
 
 export function TaskTable({
   tasks,
   projects,
   onUpdate,
   onDelete,
-  onComplete,
+  onOpen,
   lockedProjectId,
   assigneeOptions = [],
   visibleFields,
@@ -39,6 +40,7 @@ export function TaskTable({
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
   onComplete: (id: string) => void;
+  onOpen?: (task: Task) => void;
   lockedProjectId?: string;
   assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
@@ -81,7 +83,7 @@ export function TaskTable({
                 projects={projects}
                 onUpdate={onUpdate}
                 onDelete={onDelete}
-                onComplete={onComplete}
+                onOpen={onOpen}
                 lockedProjectId={lockedProjectId}
                 assigneeOptions={assigneeOptions}
                 fields={fields}
@@ -100,7 +102,7 @@ function TaskTableRow({
   projects,
   onUpdate,
   onDelete,
-  onComplete,
+  onOpen,
   lockedProjectId,
   assigneeOptions,
   fields,
@@ -110,7 +112,7 @@ function TaskTableRow({
   projects: Project[];
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
-  onComplete: (id: string) => void;
+  onOpen?: (task: Task) => void;
   lockedProjectId?: string;
   assigneeOptions: AssigneeOption[];
   fields: ProjectTaskFieldVisibility;
@@ -149,7 +151,7 @@ function TaskTableRow({
   };
 
   return (
-    <tr className="group border-t border-[var(--border)] align-top transition hover:bg-[var(--surface-hover)]">
+    <tr className="group border-t border-[var(--border)] align-top transition hover:bg-[var(--surface-hover)]" onDoubleClick={() => onOpen?.(task)}>
       <td className="px-4 py-3">
         <Input
           value={title}
@@ -195,25 +197,18 @@ function TaskTableRow({
       </td> : null}
       {fields.assignee ? (
         <td className="px-4 py-3">
-          <Select
+          <TaskAssigneePicker
             value={task.assigneeEmail ?? ""}
-            onChange={(event) => {
-              const option = assigneeOptions.find((item) => item.email === event.target.value);
+            options={assigneeOptions}
+            size="compact"
+            onChange={(option) => {
               onUpdate(task.id, {
                 assigneeEmail: option?.email ?? "",
                 assigneeUserId: option?.userId ?? "",
                 assignedAt: option?.email ? new Date().toISOString() : "",
               });
             }}
-            className="align-field-quiet min-h-10"
-          >
-            <option value="">Unassigned</option>
-            {assigneeOptions.map((option) => (
-              <option key={`${option.email}-${option.userId ?? "email"}`} value={option.email}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
+          />
         </td>
       ) : null}
       {fields.priority ? <td className="px-4 py-3">
@@ -247,42 +242,24 @@ function TaskTableRow({
         </Select>
       </td> : null}
       {fields.start ? <td className="px-4 py-3">
-        <div className="grid grid-cols-[1fr_112px] gap-2">
-          <Input
-            type="date"
-            value={task.startDate ?? ""}
-            onChange={(event) => onUpdate(task.id, { startDate: event.target.value || undefined, startTime: event.target.value ? task.startTime : undefined })}
-            className="align-field-quiet min-h-10"
-            aria-label="Start date"
-          />
-          <Input
-            type="time"
-            value={task.startTime ?? ""}
-            onChange={(event) => onUpdate(task.id, { startTime: event.target.value || undefined })}
-            className="align-field-quiet min-h-10"
-            aria-label="Start time"
-          />
-        </div>
-        <p className="mt-2 text-xs text-[var(--text-muted)]">{startDateLabel(task.startDate, task.startTime)}</p>
+        <TaskDateTimeField
+          label="Start"
+          summary={startDateLabel(task.startDate, task.startTime)}
+          date={task.startDate}
+          time={task.startTime}
+          onDateChange={(value) => onUpdate(task.id, { startDate: value || undefined, startTime: value ? task.startTime : undefined })}
+          onTimeChange={(value) => onUpdate(task.id, { startTime: value || undefined })}
+        />
       </td> : null}
       {fields.due ? <td className="px-4 py-3">
-        <div className="grid grid-cols-[1fr_112px] gap-2">
-          <Input
-            type="date"
-            value={task.dueDate ?? ""}
-            onChange={(event) => onUpdate(task.id, { dueDate: event.target.value || undefined, dueTime: event.target.value ? task.dueTime : undefined })}
-            className="align-field-quiet min-h-10"
-            aria-label="Due date"
-          />
-          <Input
-            type="time"
-            value={task.dueTime ?? ""}
-            onChange={(event) => onUpdate(task.id, { dueTime: event.target.value || undefined })}
-            className="align-field-quiet min-h-10"
-            aria-label="Due time"
-          />
-        </div>
-        <p className="mt-2 text-xs text-[var(--text-muted)]">{dateLabel(task.dueDate, task.dueTime)}</p>
+        <TaskDateTimeField
+          label="Due"
+          summary={dateLabel(task.dueDate, task.dueTime)}
+          date={task.dueDate}
+          time={task.dueTime}
+          onDateChange={(value) => onUpdate(task.id, { dueDate: value || undefined, dueTime: value ? task.dueTime : undefined })}
+          onTimeChange={(value) => onUpdate(task.id, { dueTime: value || undefined })}
+        />
         {task.startDate ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{durationLabel(task.startDate, task.dueDate)}</p> : null}
       </td> : null}
       {showReminderRepeat ? <td className="px-4 py-3">
@@ -314,13 +291,8 @@ function TaskTableRow({
         </Select>
       </td> : null}
       {fields.actions ? <td className="px-4 py-3">
-        <div className="flex justify-end gap-2 opacity-75 transition group-hover:opacity-100">
-          <Button title="Mark done" variant="secondary" className="px-3" onClick={() => onComplete(task.id)} disabled={isTerminalTaskStatus(task.status)}>
-            <Check size={16} />
-          </Button>
-          <Button title="Delete task" variant="danger" className="px-3" onClick={() => onDelete(task.id)}>
-            <Trash2 size={16} />
-          </Button>
+        <div className="flex justify-end opacity-75 transition group-hover:opacity-100">
+          <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} />
         </div>
       </td> : null}
     </tr>

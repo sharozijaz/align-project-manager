@@ -19,6 +19,8 @@ import {
 import type { Task, TaskInput } from "../../types/task";
 import type { Project } from "../../types/project";
 import type { AssigneeOption } from "../../types/collaboration";
+import { TaskAssigneePicker } from "./TaskAssigneePicker";
+import { TaskDateTimeField } from "./TaskDateTimeField";
 
 const blank: TaskInput = {
   title: "",
@@ -153,10 +155,10 @@ export function TaskForm({
   );
 
   const assigneeField = showAssigneeField ? (
-    <Select
+    <TaskAssigneePicker
       value={form.assigneeEmail ?? ""}
-      onChange={(event) => {
-        const option = assigneeOptions.find((item) => item.email === event.target.value);
+      options={assigneeOptions}
+      onChange={(option) => {
         setForm((current) => ({
           ...current,
           assigneeEmail: option?.email ?? "",
@@ -164,19 +166,11 @@ export function TaskForm({
           assignedAt: option ? current.assignedAt || new Date().toISOString() : "",
         }));
       }}
-      aria-label="Assignee"
-    >
-      <option value="">Unassigned</option>
-      {assigneeOptions.map((option) => (
-        <option key={option.email} value={option.email}>
-          {option.label}
-        </option>
-      ))}
-    </Select>
+    />
   ) : null;
 
   const startField = (
-    <DateTimeField
+    <TaskDateTimeField
       label="Start"
       date={form.startDate}
       time={form.startTime}
@@ -186,7 +180,7 @@ export function TaskForm({
   );
 
   const dueField = (
-    <DateTimeField
+    <TaskDateTimeField
       label="Due"
       date={form.dueDate}
       time={form.dueTime}
@@ -355,30 +349,6 @@ export function TaskForm({
         </>
       )}
     </form>
-  );
-}
-
-function DateTimeField({
-  label,
-  date,
-  time,
-  onDateChange,
-  onTimeChange,
-}: {
-  label: string;
-  date?: string;
-  time?: string;
-  onDateChange: (value: string) => void;
-  onTimeChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
-      <span>{label}</span>
-      <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
-        <Input className="min-w-0" type="date" value={date ?? ""} onChange={(event) => onDateChange(event.target.value)} aria-label={`${label} date`} />
-        <Input className="min-w-[9rem]" type="time" value={time ?? ""} onChange={(event) => onTimeChange(event.target.value)} aria-label={`${label} time`} />
-      </div>
-    </label>
   );
 }
 

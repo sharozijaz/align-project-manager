@@ -8,6 +8,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { NoteReaderModal } from "../notes/NoteReaderModal";
+import { TaskDetailModal } from "../tasks/TaskDetailModal";
 import { ProjectTaskBoard } from "./ProjectTaskBoard";
 import { ProjectTaskKanban } from "./ProjectTaskKanban";
 import { PROJECT_TASK_FIELDS, mergeProjectTaskFields, type ProjectTaskField, type ProjectTaskFieldVisibility } from "./projectTaskFields";
@@ -52,6 +53,7 @@ export function ProjectDetail({
   const [search, setSearch] = useState("");
   const [view, setView] = useState<ProjectTaskView>(() => getSavedProjectTaskView());
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [fieldPreferences, setFieldPreferences] = useState<Record<ProjectTaskView, Partial<ProjectTaskFieldVisibility>>>(() => getSavedFieldPreferences());
   const hubNotes = useStudioStore((state) => state.notes);
@@ -59,6 +61,7 @@ export function ProjectDetail({
   const complete = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
   const progress = tasks.length ? Math.round((complete / tasks.length) * 100) : 0;
   const linkedHubNotes = useMemo(() => hubNotes.filter((note) => note.projectIds?.includes(project.id)), [hubNotes, project.id]);
+  const openTask = useMemo(() => (openTaskId ? tasks.find((task) => task.id === openTaskId) ?? null : null), [openTaskId, tasks]);
   const visibleTasks = useMemo(
     () =>
       tasks.filter((task) => {
@@ -161,6 +164,7 @@ export function ProjectDetail({
           onDeleteTask={onDeleteTask}
           assigneeOptions={assigneeOptions}
           visibleFields={fields}
+          onOpenTask={(task) => setOpenTaskId(task.id)}
         />
       ) : view === "kanban" ? (
         <ProjectTaskKanban
@@ -171,6 +175,7 @@ export function ProjectDetail({
           onDeleteTask={onDeleteTask}
           assigneeOptions={assigneeOptions}
           visibleFields={fields}
+          onOpenTask={(task) => setOpenTaskId(task.id)}
         />
       ) : (
         <TaskList
@@ -184,6 +189,7 @@ export function ProjectDetail({
           lockedProjectId={project.id}
           onReorder={onReorderTasks}
           visibleFields={fields}
+          onOpenTask={(task) => setOpenTaskId(task.id)}
         />
       )}
       <LinkedHubNotes notes={linkedHubNotes} />
@@ -199,6 +205,19 @@ export function ProjectDetail({
           onCancel={() => setTaskModalOpen(false)}
         />
       </Modal>
+      <TaskDetailModal
+        task={openTask}
+        project={project}
+        projects={projects}
+        tasks={tasks}
+        notes={linkedHubNotes}
+        open={Boolean(openTask)}
+        onClose={() => setOpenTaskId(null)}
+        onUpdateTask={onUpdateTask}
+        onAddTask={onAddTask}
+        onDeleteTask={onDeleteTask}
+        assigneeOptions={assigneeOptions}
+      />
       <Modal title={`Customize ${view === "cards" ? "List" : view} fields`} open={customizeOpen} onClose={() => setCustomizeOpen(false)}>
         <div className="space-y-3">
           <p className="text-sm leading-6 text-[var(--text-muted)]">Choose which fields are visible in this project view. These preferences stay on this device.</p>

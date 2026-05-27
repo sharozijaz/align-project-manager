@@ -12,6 +12,7 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { TaskForm } from "../components/tasks/TaskForm";
 import { TaskList } from "../components/tasks/TaskList";
+import { TaskDetailModal } from "../components/tasks/TaskDetailModal";
 import { NoteReaderModal } from "../components/notes/NoteReaderModal";
 import { ProjectTaskBoard } from "../components/projects/ProjectTaskBoard";
 import { ProjectTaskKanban } from "../components/projects/ProjectTaskKanban";
@@ -27,8 +28,10 @@ export function SharedProjects() {
   const [filter, setFilter] = useState<"all" | "mine" | "unassigned">("all");
   const [view, setView] = useState<SharedView>("cards");
   const [addOpen, setAddOpen] = useState(false);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingTaskIds, setSavingTaskIds] = useState<Set<string>>(() => new Set());
 
   const load = async () => {
     try {
@@ -55,14 +58,25 @@ export function SharedProjects() {
     return subscribeToProjectTaskChanges(projectIds, (task, taskId) => {
       setBundle((current) => ({
         ...current,
-        tasks: task ? upsertTask(current.tasks, task) : current.tasks.filter((item) => item.id !== taskId),
+        tasks: task ? upsertFreshTask(current.tasks, task) : current.tasks.filter((item) => item.id !== taskId),
       }));
     });
   }, [bundle.projects]);
 
   const selectedProject = bundle.projects.find((project) => project.id === selectedProjectId);
   const selectedCollaborators = useMemo(() => bundle.collaborators.filter((collaborator) => collaborator.projectId === selectedProjectId), [bundle.collaborators, selectedProjectId]);
-  const assigneeOptions = useMemo(() => collaboratorAssigneeOptions(selectedCollaborators), [selectedCollaborators]);
+  const currentAssignee = useMemo(
+    () =>
+      access?.profile.email
+        ? {
+            email: access.profile.email,
+            userId: access.profile.id ?? undefined,
+            label: `${access.profile.displayName || access.profile.email} (you)`,
+          }
+        : null,
+    [access?.profile.displayName, access?.profile.email, access?.profile.id],
+  );
+  const assigneeOptions = useMemo(() => collaboratorAssigneeOptions(selectedCollaborators, currentAssignee), [currentAssignee, selectedCollaborators]);
   const selectedProjectTasks = useMemo(() => {
     const email = access?.profile.email.toLowerCase();
     return bundle.tasks
@@ -76,33 +90,58 @@ export function SharedProjects() {
   }, [access?.profile.email, bundle.tasks, filter, selectedProjectId]);
 
   const sharedNotes = bundle.notes.filter((note) => note.projectIds.includes(selectedProjectId));
+  const openTask = useMemo(() => (openTaskId ? bundle.tasks.find((task) => task.id === openTaskId) ?? null : null), [bundle.tasks, openTaskId]);
 
   const updateTask = async (taskId: string, input: Partial<TaskInput>) => {
+    setSavingTaskIds((current) => new Set(current).add(taskId));
     try {
+      setMessage(null);
       const updated = await updateSharedTask(taskId, input);
-      setBundle((current) => ({ ...current, tasks: upsertTask(current.tasks, updated) }));
+      setBundle((current) => ({ ...current, tasks: upsertFreshTask(current.tasks, updated) }));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not update task.");
+      setMessage(formatSharedError(error, "Could not update task."));
+      void load();
+    } finally {
+      setSavingTaskIds((current) => {
+        const next = new Set(current);
+        next.delete(taskId);
+        return next;
+      });
     }
   };
 
   const addTask = async (input: TaskInput) => {
     if (!selectedProject) return;
     try {
-      const created = await createSharedTask(selectedProject.id, { ...input, projectId: selectedProject.id, category: "project" });
-      setBundle((current) => ({ ...current, tasks: upsertTask(current.tasks, created) }));
+      setMessage(null);
+      const created = await createSharedTask(selectedProject.id, {
+        ...input,
+        projectId: selectedProject.id,
+        category: "project",
+        priority: input.priority ?? "medium",
+        status: input.status ?? "not_started",
+      });
+      setBundle((current) => ({ ...current, tasks: upsertFreshTask(current.tasks, created) }));
       setAddOpen(false);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not create task.");
+      setMessage(formatSharedError(error, "Could not create task."));
     }
   };
 
   const removeTask = async (taskId: string) => {
+    setSavingTaskIds((current) => new Set(current).add(taskId));
     try {
+      setMessage(null);
       await deleteSharedTask(taskId);
       setBundle((current) => ({ ...current, tasks: current.tasks.filter((task) => task.id !== taskId) }));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not delete task.");
+      setMessage(formatSharedError(error, "Could not delete task."));
+    } finally {
+      setSavingTaskIds((current) => {
+        const next = new Set(current);
+        next.delete(taskId);
+        return next;
+      });
     }
   };
 
@@ -173,6 +212,7 @@ export function SharedProjects() {
       </Card>
 
       {message ? <div className="rounded-[var(--radius-sm)] border border-[var(--warning)] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[var(--warning)]">{message}</div> : null}
+      {savingTaskIds.size ? <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm font-semibold text-[var(--text-muted)]">Saving shared task changes...</div> : null}
 
       {loading ? (
         <Card className="p-8 text-center text-sm text-[var(--text-muted)]">Loading shared project access...</Card>
@@ -190,6 +230,7 @@ export function SharedProjects() {
             onDeleteTask={(id) => void removeTask(id)}
             onCompleteTask={(id) => void completeTask(id)}
             onReorderTasks={(ids) => void reorderTasks(ids)}
+            onOpenTask={(task) => setOpenTaskId(task.id)}
           />
           <aside className="space-y-4">
             <Card className="p-4">
@@ -226,6 +267,19 @@ export function SharedProjects() {
           <TaskForm projects={bundle.projects} lockedProject={selectedProject} assigneeOptions={assigneeOptions} onSubmit={(input) => void addTask(input)} onCancel={() => setAddOpen(false)} />
         </Modal>
       ) : null}
+      <TaskDetailModal
+        task={openTask}
+        project={selectedProject}
+        projects={bundle.projects}
+        tasks={bundle.tasks.filter((task) => task.projectId === selectedProjectId)}
+        notes={sharedNotes}
+        open={Boolean(openTask)}
+        onClose={() => setOpenTaskId(null)}
+        onUpdateTask={updateTask}
+        onAddTask={addTask}
+        onDeleteTask={removeTask}
+        assigneeOptions={assigneeOptions}
+      />
     </div>
   );
 }
@@ -242,6 +296,7 @@ function SharedProjectWork({
   onDeleteTask,
   onCompleteTask,
   onReorderTasks,
+  onOpenTask,
 }: {
   project: Project;
   projects: Project[];
@@ -254,6 +309,7 @@ function SharedProjectWork({
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
   onReorderTasks: (orderedIds: string[]) => void;
+  onOpenTask: (task: Task) => void;
 }) {
   const sharedFields: Partial<ProjectTaskFieldVisibility> = {
     project: false,
@@ -276,11 +332,33 @@ function SharedProjectWork({
   }
 
   if (view === "board") {
-    return <ProjectTaskBoard project={project} tasks={tasks} onAddTask={onAddTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} assigneeOptions={assigneeOptions} visibleFields={sharedFields} />;
+    return (
+      <ProjectTaskBoard
+        project={project}
+        tasks={tasks}
+        onAddTask={onAddTask}
+        onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
+        onOpenTask={onOpenTask}
+        assigneeOptions={assigneeOptions}
+        visibleFields={sharedFields}
+      />
+    );
   }
 
   if (view === "kanban") {
-    return <ProjectTaskKanban project={project} tasks={tasks} onAddTask={onAddTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} assigneeOptions={assigneeOptions} visibleFields={sharedFields} />;
+    return (
+      <ProjectTaskKanban
+        project={project}
+        tasks={tasks}
+        onAddTask={onAddTask}
+        onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
+        onOpenTask={onOpenTask}
+        assigneeOptions={assigneeOptions}
+        visibleFields={sharedFields}
+      />
+    );
   }
 
   return (
@@ -302,6 +380,7 @@ function SharedProjectWork({
             visibleFields={sharedFields}
             view={view === "table" ? "table" : "cards"}
             onReorder={onReorderTasks}
+            onOpenTask={onOpenTask}
           />
         ) : (
           <EmptyState>No tasks match this view.</EmptyState>
@@ -362,6 +441,14 @@ function EmptyState({ children }: { children: string }) {
   return <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">{children}</div>;
 }
 
-function upsertTask(tasks: Task[], next: Task) {
-  return tasks.some((task) => task.id === next.id) ? tasks.map((task) => (task.id === next.id ? next : task)) : [...tasks, next];
+function upsertFreshTask(tasks: Task[], next: Task) {
+  const existing = tasks.find((task) => task.id === next.id);
+  if (existing && existing.updatedAt > next.updatedAt) return tasks;
+  return existing ? tasks.map((task) => (task.id === next.id ? next : task)) : [...tasks, next];
+}
+
+function formatSharedError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return `${fallback} ${error.message}`;
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string") return `${fallback} ${error.message}`;
+  return fallback;
 }

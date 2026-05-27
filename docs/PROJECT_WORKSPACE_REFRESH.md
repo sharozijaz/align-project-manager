@@ -12,6 +12,8 @@ Make project work feel like a focused workspace instead of a stack of forms. Col
 
 - Shared projects use the same task views as owner projects.
 - Collaborators can add, edit, delete, reorder, and update shared project tasks.
+- Collaborators can leave work unassigned or assign tasks to themselves from the assignee selector.
+- Shared task mutations show saving feedback and refetch on rejected Supabase updates instead of silently reverting.
 - Collaborators can use List, Table, Board, Kanban, and Notes views.
 - Team-visible notes open in the normal note reader modal.
 - Private projects, Resources, private Notes, Settings, Admin, client share controls, and collaborator management remain blocked.
@@ -39,6 +41,22 @@ Make project work feel like a focused workspace instead of a stack of forms. Col
 
 - Task creation and editing should progressively group core, ownership, workflow, timeline, and optional settings.
 - Destructive actions should use Align custom confirm dialogs.
+- Task rows and cards should stay light. Full editing moves into the task detail modal.
+- Visible checkmark/delete controls are removed from main task surfaces; status controls completion, and overflow/detail menus handle destructive actions.
+
+## Task Detail Direction
+
+Project views are for scanning and moving work. Clicking a task opens a reusable task detail modal for deeper edits:
+
+- Title and description.
+- Project context.
+- Assignee, status, and priority.
+- Start and due dates.
+- Subtasks with add/edit/delete/status.
+- Linked or team-visible notes.
+- Saving/activity placeholder for future history.
+
+Owner and collaborator flows share this modal, with collaborator permissions scoped to shared project tasks only.
 
 ## Collaboration Scope
 
@@ -65,6 +83,9 @@ Client share links stay separate and read-only.
 - Owner invites a collaborator and assigns a task.
 - Collaborator sees only the shared project.
 - Collaborator can create, edit, delete, reorder, and update shared tasks.
+- Collaborator can create an unassigned task and a task assigned to self.
+- Repeated status and assignee changes persist after refresh.
+- Owner and collaborator can open the same task detail modal and manage subtasks.
 - Collaborator can open team-visible notes in a modal.
 - Owner can see assignees in List, Table, Board, and Kanban.
 - Field visibility preferences persist after refresh.

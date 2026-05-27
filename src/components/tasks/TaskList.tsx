@@ -18,6 +18,7 @@ export function TaskList({
   onUpdate,
   onDelete,
   onComplete,
+  onOpenTask,
   emptyText = "No tasks match this view.",
   view = "cards",
   lockedProjectId,
@@ -31,6 +32,7 @@ export function TaskList({
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
   onComplete: (id: string) => void;
+  onOpenTask?: (task: Task) => void;
   emptyText?: string;
   view?: TaskViewMode;
   lockedProjectId?: string;
@@ -136,6 +138,7 @@ export function TaskList({
             project={project}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onOpen={onOpenTask}
             assigneeOptions={assigneeOptions}
             visibleFields={visibleFields}
             showProjectBadge={!options?.hideProjectBadge}
@@ -180,6 +183,7 @@ export function TaskList({
           onUpdate={onUpdate}
           onDelete={onDelete}
           onComplete={onComplete}
+          onOpen={onOpenTask}
           lockedProjectId={lockedProjectId}
           assigneeOptions={assigneeOptions}
           visibleFields={visibleFields}

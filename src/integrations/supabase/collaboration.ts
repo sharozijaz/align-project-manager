@@ -33,7 +33,7 @@ export interface SharedProjectBundle {
   notes: HubNote[];
 }
 
-const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const normalizeEmail = (email?: string | null) => email?.trim().toLowerCase() ?? "";
 
 const collaboratorRowToModel = (row: CollaboratorRow): ProjectCollaborator => ({
   id: row.id,
@@ -50,14 +50,30 @@ const collaboratorRowToModel = (row: CollaboratorRow): ProjectCollaborator => ({
   updatedAt: row.updated_at,
 });
 
-export function collaboratorAssigneeOptions(collaborators: ProjectCollaborator[]): AssigneeOption[] {
-  return collaborators
+export function collaboratorAssigneeOptions(collaborators: ProjectCollaborator[], currentUser?: AssigneeOption | null): AssigneeOption[] {
+  const options = collaborators
     .filter((collaborator) => collaborator.status !== "removed")
     .map((collaborator) => ({
-      email: collaborator.inviteeEmail,
+      email: normalizeEmail(collaborator.inviteeEmail),
       userId: collaborator.inviteeUserId,
       label: collaborator.inviteeEmail,
     }));
+
+  if (currentUser?.email) {
+    options.unshift({
+      email: normalizeEmail(currentUser.email),
+      userId: currentUser.userId,
+      label: currentUser.label,
+    });
+  }
+
+  const seen = new Set<string>();
+  return options.filter((option) => {
+    const key = normalizeEmail(option.email);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function hasProjectCollaborations(email: string, userId?: string) {
@@ -233,6 +249,9 @@ export async function createSharedTask(projectId: string, input: TaskInput) {
 
   const now = new Date().toISOString();
   const taskId = crypto.randomUUID();
+  const assigneeEmail = normalizeEmail(input.assigneeEmail);
+  const currentUserEmail = normalizeEmail(userData.user?.email);
+  const assigneeUserId = input.assigneeUserId || (assigneeEmail && assigneeEmail === currentUserEmail ? userData.user?.id : null);
   const row: Database["public"]["Tables"]["tasks"]["Insert"] = {
     id: taskId,
     user_id: projectRow.user_id,
@@ -249,10 +268,10 @@ export async function createSharedTask(projectId: string, input: TaskInput) {
     reminder: input.reminder ?? "none",
     recurrence: input.recurrence ?? "none",
     parent_task_id: input.parentTaskId || null,
-    assignee_email: input.assigneeEmail ? normalizeEmail(input.assigneeEmail) : null,
-    assignee_user_id: input.assigneeUserId || null,
-    assigned_by: input.assigneeEmail ? userData.user?.id ?? null : null,
-    assigned_at: input.assigneeEmail ? now : null,
+    assignee_email: assigneeEmail || null,
+    assignee_user_id: assigneeUserId || null,
+    assigned_by: assigneeEmail ? userData.user?.id ?? null : null,
+    assigned_at: assigneeEmail ? now : null,
     planned_month: input.plannedMonth ?? null,
     planned_week_start: input.plannedWeekStart ?? null,
     sort_order: input.sortOrder ?? Date.now(),

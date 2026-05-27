@@ -1,12 +1,9 @@
-import { Bell, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Bell } from "lucide-react";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskReminderOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
-import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { Modal } from "../ui/Modal";
 import { OptionBadge } from "../ui/OptionBadge";
-import { TaskForm } from "./TaskForm";
+import { TaskOverflowMenu } from "./TaskOverflowMenu";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
@@ -17,11 +14,9 @@ import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 export function TaskCard({
   task,
   project,
-  projects,
-  onUpdate,
   onDelete,
+  onOpen,
   showProjectBadge = true,
-  assigneeOptions = [],
   visibleFields,
 }: {
   task: Task;
@@ -29,17 +24,22 @@ export function TaskCard({
   projects: Project[];
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
+  onOpen?: (task: Task) => void;
   showProjectBadge?: boolean;
   assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
-  const [editing, setEditing] = useState(false);
-
   return (
     <Card className={`group p-4 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-md)] ${taskAccentClass(task)}`} style={taskAccentStyle(task)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className={`font-bold text-[var(--text)] ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}>{task.title}</h3>
+          <button
+            type="button"
+            className={`max-w-full text-left font-bold text-[var(--text)] transition hover:text-[var(--text-brand)] ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}
+            onClick={() => onOpen?.(task)}
+          >
+            {task.title}
+          </button>
           {visibleFields?.notes !== false && task.description ? <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {visibleFields?.priority !== false ? <OptionBadge option={getTaskPriorityOption(task.priority)} /> : null}
@@ -59,28 +59,11 @@ export function TaskCard({
           </div>
         </div>
         {visibleFields?.actions === false ? null : (
-        <div className="flex shrink-0 gap-1.5 opacity-80 transition group-hover:opacity-100">
-          <Button title="Edit task" variant="secondary" className="min-h-9 px-3 sm:min-h-10" onClick={() => setEditing(true)}>
-            <Pencil size={16} />
-          </Button>
-          <Button title="Delete task" variant="danger" className="min-h-9 px-3 sm:min-h-10" onClick={() => onDelete(task.id)}>
-            <Trash2 size={16} />
-          </Button>
-        </div>
+          <div className="flex shrink-0 gap-1.5 opacity-80 transition group-hover:opacity-100">
+            <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} />
+          </div>
         )}
       </div>
-      <Modal title="Edit task" open={editing} onClose={() => setEditing(false)}>
-        <TaskForm
-          projects={projects}
-          initialTask={task}
-          onSubmit={(input) => {
-            onUpdate(task.id, input);
-            setEditing(false);
-          }}
-          onCancel={() => setEditing(false)}
-          assigneeOptions={assigneeOptions}
-        />
-      </Modal>
     </Card>
   );
 }

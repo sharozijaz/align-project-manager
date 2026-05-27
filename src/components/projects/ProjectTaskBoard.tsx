@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
@@ -9,6 +9,9 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
+import { TaskAssigneePicker } from "../tasks/TaskAssigneePicker";
+import { TaskDateTimeField } from "../tasks/TaskDateTimeField";
+import { TaskOverflowMenu } from "../tasks/TaskOverflowMenu";
 import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "./projectTaskFields";
 
 type BoardGroupKey = "todo" | "completed";
@@ -40,6 +43,7 @@ export function ProjectTaskBoard({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  onOpenTask,
   assigneeOptions = [],
   visibleFields,
 }: {
@@ -48,6 +52,7 @@ export function ProjectTaskBoard({
   onAddTask: (input: TaskInput) => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
+  onOpenTask?: (task: Task) => void;
   assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
@@ -58,8 +63,8 @@ export function ProjectTaskBoard({
     (fields.assignee ? 210 : 0) +
     (fields.status ? 180 : 0) +
     (fields.priority ? 160 : 0) +
-    (fields.start ? 170 : 0) +
-    (fields.due ? 170 : 0) +
+    (fields.start ? 250 : 0) +
+    (fields.due ? 250 : 0) +
     (fields.notes ? 280 : 0) +
     (fields.actions ? 90 : 0);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(tasks.filter((task) => !task.parentTaskId).map((task) => task.id)));
@@ -130,8 +135,8 @@ export function ProjectTaskBoard({
                       {fields.assignee ? <th className="w-[210px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Assignee</th> : null}
                       {fields.status ? <th className="w-[180px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th> : null}
                       {fields.priority ? <th className="w-[160px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th> : null}
-                      {fields.start ? <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th> : null}
-                      {fields.due ? <th className="w-[170px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Due</th> : null}
+                      {fields.start ? <th className="w-[250px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th> : null}
+                      {fields.due ? <th className="w-[250px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Due</th> : null}
                       {fields.notes ? <th className="w-[280px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Notes</th> : null}
                       {fields.actions ? <th className="w-[90px] border-t border-[var(--border)] px-3 py-2 text-right">Actions</th> : null}
                     </tr>
@@ -151,6 +156,7 @@ export function ProjectTaskBoard({
                             onToggleExpanded={() => toggleExpanded(task.id)}
                             onUpdateTask={onUpdateTask}
                             onDeleteTask={onDeleteTask}
+                            onOpenTask={onOpenTask}
                             assigneeOptions={assigneeOptions}
                             fields={fields}
                           />
@@ -162,6 +168,7 @@ export function ProjectTaskBoard({
                                   level="subtask"
                                   onUpdateTask={onUpdateTask}
                                   onDeleteTask={onDeleteTask}
+                                  onOpenTask={onOpenTask}
                                   assigneeOptions={assigneeOptions}
                                   fields={fields}
                                 />
@@ -213,6 +220,7 @@ function BoardRow({
   onToggleExpanded,
   onUpdateTask,
   onDeleteTask,
+  onOpenTask,
   assigneeOptions,
   fields,
 }: {
@@ -223,6 +231,7 @@ function BoardRow({
   onToggleExpanded?: () => void;
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
+  onOpenTask?: (task: Task) => void;
   assigneeOptions: AssigneeOption[];
   fields: ProjectTaskFieldVisibility;
 }) {
@@ -230,7 +239,7 @@ function BoardRow({
   const statusOption = getTaskStatusOption(task.status);
 
   return (
-    <tr className={`group align-top transition hover:bg-[var(--surface-hover)] ${level === "subtask" ? "bg-[var(--bg-soft)]/40" : ""}`}>
+    <tr className={`group align-top transition hover:bg-[var(--surface-hover)] ${level === "subtask" ? "bg-[var(--bg-soft)]/40" : ""}`} onDoubleClick={() => onOpenTask?.(task)}>
       <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
         <div className={`flex min-w-0 items-center gap-2 ${level === "subtask" ? "pl-8" : ""}`}>
           {level === "parent" ? (
@@ -245,25 +254,18 @@ function BoardRow({
         </div>
       </td>
       {fields.assignee ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
-        <Select
+        <TaskAssigneePicker
           value={task.assigneeEmail ?? ""}
-          onChange={(event) => {
-            const option = assigneeOptions.find((item) => item.email === event.target.value);
+          options={assigneeOptions}
+          size="compact"
+          onChange={(option) => {
             onUpdateTask(task.id, {
               assigneeEmail: option?.email ?? "",
               assigneeUserId: option?.userId ?? "",
               assignedAt: option?.email ? new Date().toISOString() : "",
             });
           }}
-          className="align-field-quiet min-h-9"
-        >
-          <option value="">Unassigned</option>
-          {assigneeOptions.map((option) => (
-            <option key={`${option.email}-${option.userId ?? "email"}`} value={option.email}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
+        />
       </td> : null}
       {fields.status ? <td className="border-r border-t border-[var(--border)] p-0">
         <Select value={task.status} onChange={(event) => onUpdateTask(task.id, { status: event.target.value as Task["status"] })} className="min-h-11 rounded-none border-0 text-center font-bold sm:min-h-11" style={{ backgroundColor: statusOption.bg, color: statusOption.text, borderColor: statusOption.border }}>
@@ -276,20 +278,32 @@ function BoardRow({
         </Select>
       </td> : null}
       {fields.start ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
-        <Input className="min-h-9 border-transparent bg-transparent text-center hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus:bg-[var(--surface-raised)] sm:min-h-9" type="date" value={task.startDate ?? ""} onChange={(event) => onUpdateTask(task.id, { startDate: event.target.value || undefined })} />
+        <TaskDateTimeField
+          compact
+          label="Start"
+          date={task.startDate}
+          time={task.startTime}
+          onDateChange={(value) => onUpdateTask(task.id, { startDate: value || undefined, startTime: value ? task.startTime : undefined })}
+          onTimeChange={(value) => onUpdateTask(task.id, { startTime: value || undefined })}
+        />
       </td> : null}
       {fields.due ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
-        <Input className="min-h-9 border-transparent bg-transparent text-center hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus:bg-[var(--surface-raised)] sm:min-h-9" type="date" value={task.dueDate ?? ""} onChange={(event) => onUpdateTask(task.id, { dueDate: event.target.value || undefined })} />
-        <p className="mt-1 text-xs text-[var(--text-soft)]">{dateLabel(task.dueDate, task.dueTime)}</p>
+        <TaskDateTimeField
+          compact
+          label="Due"
+          summary={dateLabel(task.dueDate, task.dueTime)}
+          date={task.dueDate}
+          time={task.dueTime}
+          onDateChange={(value) => onUpdateTask(task.id, { dueDate: value || undefined, dueTime: value ? task.dueTime : undefined })}
+          onTimeChange={(value) => onUpdateTask(task.id, { dueTime: value || undefined })}
+        />
       </td> : null}
       {fields.notes ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
         <InlineText value={task.description ?? ""} placeholder="Add note" onSave={(description) => onUpdateTask(task.id, { description: description || undefined })} />
       </td> : null}
       {fields.actions ? <td className="border-t border-[var(--border)] px-2 py-1.5">
-        <div className="flex justify-end gap-2 opacity-70 transition group-hover:opacity-100">
-          <Button title="Delete" variant="danger" className="px-3" onClick={() => onDeleteTask(task.id)}>
-            <Trash2 size={15} />
-          </Button>
+        <div className="flex justify-end opacity-70 transition group-hover:opacity-100">
+          <TaskOverflowMenu task={task} onOpen={onOpenTask} onDelete={onDeleteTask} />
         </div>
       </td> : null}
     </tr>
