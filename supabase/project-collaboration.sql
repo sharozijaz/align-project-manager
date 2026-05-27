@@ -13,6 +13,12 @@ add column if not exists assigned_by uuid references auth.users(id) on delete se
 alter table public.tasks
 add column if not exists assigned_at timestamptz;
 
+alter table public.tasks
+add column if not exists planned_month text;
+
+alter table public.tasks
+add column if not exists planned_week_start date;
+
 alter table public.hub_notes
 add column if not exists team_visible boolean not null default false;
 
@@ -37,6 +43,8 @@ alter table public.project_collaborators enable row level security;
 create index if not exists tasks_project_id_idx on public.tasks(project_id);
 create index if not exists tasks_assignee_email_idx on public.tasks(lower(assignee_email));
 create index if not exists tasks_assignee_user_id_idx on public.tasks(assignee_user_id);
+create index if not exists tasks_planned_month_idx on public.tasks(planned_month);
+create index if not exists tasks_planned_week_start_idx on public.tasks(planned_week_start);
 create index if not exists hub_notes_team_visible_idx on public.hub_notes(team_visible);
 create index if not exists hub_notes_project_ids_idx on public.hub_notes using gin(project_ids);
 create index if not exists project_collaborators_project_id_idx on public.project_collaborators(project_id);
@@ -164,6 +172,26 @@ grant select, insert, update, delete on public.project_collaborators to service_
 grant select, update on public.projects to authenticated;
 grant select, insert, update, delete on public.tasks to authenticated;
 grant select on public.hub_notes to authenticated;
+
+create or replace function public.accept_project_collaborations()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.project_collaborators
+  set status = 'active',
+      invitee_user_id = auth.uid(),
+      accepted_at = coalesce(accepted_at, now()),
+      updated_at = now()
+  where status = 'invited'
+    and lower(invitee_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    and (invitee_user_id is null or invitee_user_id = auth.uid());
+end;
+$$;
+
+grant execute on function public.accept_project_collaborations() to authenticated;
 
 do $$
 begin

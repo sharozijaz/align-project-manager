@@ -101,6 +101,7 @@ export function SharedProjects() {
     } catch (error) {
       setMessage(formatSharedError(error, "Could not update task."));
       void load();
+      throw error;
     } finally {
       setSavingTaskIds((current) => {
         const next = new Set(current);
@@ -125,6 +126,7 @@ export function SharedProjects() {
       setAddOpen(false);
     } catch (error) {
       setMessage(formatSharedError(error, "Could not create task."));
+      throw error;
     }
   };
 

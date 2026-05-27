@@ -35,6 +35,32 @@ export interface SharedProjectBundle {
 
 const normalizeEmail = (email?: string | null) => email?.trim().toLowerCase() ?? "";
 
+function errorMessage(error: unknown) {
+  if (!error) return "";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object") {
+    const record = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    return [record.message, record.details, record.hint, record.code].filter(Boolean).join(" ");
+  }
+  return String(error);
+}
+
+function isMissingColumnError(error: unknown, column: string) {
+  const message = errorMessage(error).toLowerCase();
+  return (
+    message.includes(column.toLowerCase()) &&
+    (message.includes("schema cache") || message.includes("does not exist") || message.includes("could not find"))
+  );
+}
+
+function removeColumns<T extends Record<string, unknown>>(row: T, columns: string[]) {
+  const next = { ...row };
+  columns.forEach((column) => {
+    delete next[column];
+  });
+  return next;
+}
+
 const collaboratorRowToModel = (row: CollaboratorRow): ProjectCollaborator => ({
   id: row.id,
   projectId: row.project_id,
@@ -113,6 +139,20 @@ export async function listProjectCollaborators(projectId: string): Promise<Proje
   return (data ?? []).map(collaboratorRowToModel);
 }
 
+async function acceptCurrentProjectCollaborations() {
+  if (!supabase) return;
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user?.email) return;
+
+  const { error } = await (supabase as unknown as { rpc: (fn: string) => Promise<{ error: unknown }> }).rpc("accept_project_collaborations");
+  if (error) {
+    const message = errorMessage(error).toLowerCase();
+    if (!message.includes("accept_project_collaborations")) {
+      console.warn("Could not mark project collaboration invite as active.", error);
+    }
+  }
+}
+
 export async function inviteProjectCollaborator(project: Project, inviteeEmail: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -180,6 +220,8 @@ export async function listOwnedCollaborationProjectIds() {
 export async function pullSharedProjects(): Promise<SharedProjectBundle> {
   if (!supabase) return { collaborators: [], projects: [], tasks: [], notes: [] };
 
+  await acceptCurrentProjectCollaborations();
+
   const { data: collaboratorRows, error: collaboratorError } = await supabase
     .from("project_collaborators")
     .select("*")
@@ -233,8 +275,15 @@ export async function updateSharedTask(taskId: string, updates: TaskUpdate) {
   if (updates.parentTaskId !== undefined) row.parent_task_id = updates.parentTaskId || null;
   if (updates.sortOrder !== undefined) row.sort_order = updates.sortOrder ?? null;
 
-  const { data, error } = await supabase.from("tasks").update(row).eq("id", taskId).select("*").single();
+  let { data, error } = await supabase.from("tasks").update(row).eq("id", taskId).select("*").single();
+  if (error && (isMissingColumnError(error, "assigned_by") || isMissingColumnError(error, "assigned_at"))) {
+    const retryRow = removeColumns(row as Record<string, unknown>, ["assigned_by", "assigned_at"]) as Database["public"]["Tables"]["tasks"]["Update"];
+    const retry = await supabase.from("tasks").update(retryRow).eq("id", taskId).select("*").single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) throw error;
+  if (!data) throw new Error("Could not update task.");
   return rowToTask(data);
 }
 
@@ -279,8 +328,15 @@ export async function createSharedTask(projectId: string, input: TaskInput) {
     updated_at: now,
   };
 
-  const { data, error } = await supabase.from("tasks").insert(row).select("*").single();
+  let { data, error } = await supabase.from("tasks").insert(row).select("*").single();
+  if (error && (isMissingColumnError(error, "planned_month") || isMissingColumnError(error, "planned_week_start"))) {
+    const retryRow = removeColumns(row as Record<string, unknown>, ["planned_month", "planned_week_start"]) as Database["public"]["Tables"]["tasks"]["Insert"];
+    const retry = await supabase.from("tasks").insert(retryRow).select("*").single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) throw error;
+  if (!data) throw new Error("Could not create task.");
   return rowToTask(data);
 }
 
