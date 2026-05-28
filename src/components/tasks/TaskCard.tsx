@@ -8,7 +8,6 @@ import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/assignee";
 import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 
 export function TaskCard({
@@ -26,7 +25,6 @@ export function TaskCard({
   onDelete: (id: string) => void;
   onOpen?: (task: Task) => void;
   showProjectBadge?: boolean;
-  assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   return (
@@ -45,7 +43,6 @@ export function TaskCard({
             {visibleFields?.priority !== false ? <OptionBadge option={getTaskPriorityOption(task.priority)} /> : null}
             {visibleFields?.status !== false ? <OptionBadge option={getTaskStatusOption(task.status)} /> : null}
             {visibleFields?.project !== false && showProjectBadge ? <Badge tone={project ? "purple" : "slate"}>{project?.name ?? task.category}</Badge> : null}
-            {visibleFields?.assignee !== false ? <Badge tone={task.assigneeEmail ? "blue" : "slate"}>{task.assigneeEmail || "Unassigned"}</Badge> : null}
             {visibleFields?.start !== false && task.startDate ? <Badge>{startDateLabel(task.startDate, task.startTime)}</Badge> : null}
             {visibleFields?.due !== false ? <Badge tone={taskDateTone(task)}>{dateLabel(task.dueDate, task.dueTime)}</Badge> : null}
             {task.startDate ? <Badge>{durationLabel(task.startDate, task.dueDate)}</Badge> : null}

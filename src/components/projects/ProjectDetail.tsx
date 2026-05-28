@@ -18,7 +18,6 @@ import { useStudioStore } from "../../store/studioStore";
 import type { Project, ProjectInput } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
 type ProjectTaskView = "cards" | "table" | "board" | "kanban";
@@ -35,7 +34,6 @@ export function ProjectDetail({
   onDeleteTask,
   onCompleteTask,
   onReorderTasks,
-  assigneeOptions = [],
 }: {
   project: Project;
   tasks: Task[];
@@ -46,7 +44,6 @@ export function ProjectDetail({
   onDeleteTask: (id: string) => void;
   onCompleteTask: (id: string) => void;
   onReorderTasks: (orderedIds: string[]) => void;
-  assigneeOptions?: AssigneeOption[];
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -68,7 +65,7 @@ export function ProjectDetail({
         const statusMatch = statusFilter === "all" || task.status === statusFilter;
         const priorityMatch = priorityFilter === "all" || task.priority === priorityFilter;
         const query = search.trim().toLowerCase();
-        const searchMatch = !query || task.title.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query) || task.assigneeEmail?.toLowerCase().includes(query);
+        const searchMatch = !query || task.title.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query);
         return statusMatch && priorityMatch && searchMatch;
       }),
     [priorityFilter, search, statusFilter, tasks],
@@ -126,7 +123,7 @@ export function ProjectDetail({
         <div className="grid flex-1 gap-2 lg:grid-cols-[minmax(240px,1fr)_170px_170px]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={16} />
-            <Input className="pl-10 sm:min-h-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks, notes, assignees..." />
+            <Input className="pl-10 sm:min-h-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks and notes..." />
           </label>
           <Select className="align-field-quiet sm:min-h-10" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="all">All statuses</option>
@@ -162,7 +159,6 @@ export function ProjectDetail({
           onAddTask={onAddTask}
           onUpdateTask={onUpdateTask}
           onDeleteTask={onDeleteTask}
-          assigneeOptions={assigneeOptions}
           visibleFields={fields}
           onOpenTask={(task) => setOpenTaskId(task.id)}
         />
@@ -173,7 +169,6 @@ export function ProjectDetail({
           onAddTask={onAddTask}
           onUpdateTask={onUpdateTask}
           onDeleteTask={onDeleteTask}
-          assigneeOptions={assigneeOptions}
           visibleFields={fields}
           onOpenTask={(task) => setOpenTaskId(task.id)}
         />
@@ -184,7 +179,6 @@ export function ProjectDetail({
           onUpdate={onUpdateTask}
           onDelete={onDeleteTask}
           onComplete={onCompleteTask}
-          assigneeOptions={assigneeOptions}
           view={view}
           lockedProjectId={project.id}
           onReorder={onReorderTasks}
@@ -197,7 +191,6 @@ export function ProjectDetail({
         <TaskForm
           projects={projects}
           lockedProject={project}
-          assigneeOptions={assigneeOptions}
           onSubmit={(input) => {
             onAddTask({ ...input, projectId: project.id, category: "project" });
             setTaskModalOpen(false);
@@ -216,7 +209,6 @@ export function ProjectDetail({
         onUpdateTask={onUpdateTask}
         onAddTask={onAddTask}
         onDeleteTask={onDeleteTask}
-        assigneeOptions={assigneeOptions}
       />
       <Modal title={`Customize ${view === "cards" ? "List" : view} fields`} open={customizeOpen} onClose={() => setCustomizeOpen(false)}>
         <div className="space-y-3">

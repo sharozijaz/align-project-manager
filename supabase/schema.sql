@@ -34,10 +34,6 @@ create table if not exists public.tasks (
   recurrence text not null default 'none' check (recurrence in ('none', 'daily', 'weekly', 'monthly', 'yearly')),
   recurring_parent_id text,
   parent_task_id text references public.tasks(id) on delete cascade,
-  assignee_email text,
-  assignee_user_id uuid references auth.users(id) on delete set null,
-  assigned_by uuid references auth.users(id) on delete set null,
-  assigned_at timestamptz,
   planned_month text,
   planned_week_start date,
   sort_order numeric,
@@ -111,18 +107,6 @@ add column if not exists project_ids text[] not null default '{}';
 
 alter table public.hub_notes
 add column if not exists client_visible boolean not null default false;
-
-alter table public.tasks
-add column if not exists assignee_email text;
-
-alter table public.tasks
-add column if not exists assignee_user_id uuid references auth.users(id) on delete set null;
-
-alter table public.tasks
-add column if not exists assigned_by uuid references auth.users(id) on delete set null;
-
-alter table public.tasks
-add column if not exists assigned_at timestamptz;
 
 create table if not exists public.project_shares (
   id uuid primary key default gen_random_uuid(),
@@ -257,8 +241,6 @@ create index if not exists tasks_start_date_idx on public.tasks(start_date);
 create index if not exists tasks_user_sort_order_idx on public.tasks(user_id, sort_order);
 create index if not exists tasks_parent_task_id_idx on public.tasks(parent_task_id);
 create index if not exists tasks_project_id_idx on public.tasks(project_id);
-create index if not exists tasks_assignee_email_idx on public.tasks(lower(assignee_email));
-create index if not exists tasks_assignee_user_id_idx on public.tasks(assignee_user_id);
 create index if not exists tasks_planned_month_idx on public.tasks(planned_month);
 create index if not exists tasks_planned_week_start_idx on public.tasks(planned_week_start);
 create index if not exists projects_start_date_idx on public.projects(start_date);

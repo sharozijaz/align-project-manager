@@ -113,10 +113,6 @@ export interface Database {
           recurrence: TaskRecurrence;
           recurring_parent_id: string | null;
           parent_task_id: string | null;
-          assignee_email: string | null;
-          assignee_user_id: string | null;
-          assigned_by: string | null;
-          assigned_at: string | null;
           planned_month: string | null;
           planned_week_start: string | null;
           sort_order: number | null;
@@ -141,10 +137,6 @@ export interface Database {
           recurrence?: TaskRecurrence;
           recurring_parent_id?: string | null;
           parent_task_id?: string | null;
-          assignee_email?: string | null;
-          assignee_user_id?: string | null;
-          assigned_by?: string | null;
-          assigned_at?: string | null;
           planned_month?: string | null;
           planned_week_start?: string | null;
           sort_order?: number | null;

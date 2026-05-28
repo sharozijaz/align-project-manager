@@ -3,13 +3,11 @@ import { Fragment, useEffect, useMemo, useState, type KeyboardEvent } from "reac
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
-import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel } from "../../utils/date";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
-import { TaskAssigneePicker } from "../tasks/TaskAssigneePicker";
 import { TaskDateTimeField } from "../tasks/TaskDateTimeField";
 import { TaskOverflowMenu } from "../tasks/TaskOverflowMenu";
 import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "./projectTaskFields";
@@ -44,7 +42,6 @@ export function ProjectTaskBoard({
   onUpdateTask,
   onDeleteTask,
   onOpenTask,
-  assigneeOptions = [],
   visibleFields,
 }: {
   project: Project;
@@ -53,14 +50,12 @@ export function ProjectTaskBoard({
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
   onOpenTask?: (task: Task) => void;
-  assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   const fields = mergeProjectTaskFields("board", visibleFields);
-  const columnCount = 1 + Number(fields.assignee) + Number(fields.status) + Number(fields.priority) + Number(fields.start) + Number(fields.due) + Number(fields.notes) + Number(fields.actions);
+  const columnCount = 1 + Number(fields.status) + Number(fields.priority) + Number(fields.start) + Number(fields.due) + Number(fields.notes) + Number(fields.actions);
   const minWidth =
     420 +
-    (fields.assignee ? 210 : 0) +
     (fields.status ? 180 : 0) +
     (fields.priority ? 160 : 0) +
     (fields.start ? 250 : 0) +
@@ -132,7 +127,6 @@ export function ProjectTaskBoard({
                   <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
                     <tr>
                       <th className="w-[420px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
-                      {fields.assignee ? <th className="w-[210px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Assignee</th> : null}
                       {fields.status ? <th className="w-[180px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th> : null}
                       {fields.priority ? <th className="w-[160px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th> : null}
                       {fields.start ? <th className="w-[250px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th> : null}
@@ -157,7 +151,6 @@ export function ProjectTaskBoard({
                             onUpdateTask={onUpdateTask}
                             onDeleteTask={onDeleteTask}
                             onOpenTask={onOpenTask}
-                            assigneeOptions={assigneeOptions}
                             fields={fields}
                           />
                           {isOpen
@@ -169,7 +162,6 @@ export function ProjectTaskBoard({
                                   onUpdateTask={onUpdateTask}
                                   onDeleteTask={onDeleteTask}
                                   onOpenTask={onOpenTask}
-                                  assigneeOptions={assigneeOptions}
                                   fields={fields}
                                 />
                               ))
@@ -221,7 +213,6 @@ function BoardRow({
   onUpdateTask,
   onDeleteTask,
   onOpenTask,
-  assigneeOptions,
   fields,
 }: {
   task: Task;
@@ -232,7 +223,6 @@ function BoardRow({
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
   onOpenTask?: (task: Task) => void;
-  assigneeOptions: AssigneeOption[];
   fields: ProjectTaskFieldVisibility;
 }) {
   const priorityOption = getTaskPriorityOption(task.priority);
@@ -253,20 +243,6 @@ function BoardRow({
           {level === "parent" && subtaskCount ? <span className="shrink-0 rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-soft)]">{subtaskCount}</span> : null}
         </div>
       </td>
-      {fields.assignee ? <td className="border-r border-t border-[var(--border)] px-2 py-1.5">
-        <TaskAssigneePicker
-          value={task.assigneeEmail ?? ""}
-          options={assigneeOptions}
-          size="compact"
-          onChange={(option) => {
-            onUpdateTask(task.id, {
-              assigneeEmail: option?.email ?? "",
-              assigneeUserId: option?.userId ?? "",
-              assignedAt: option?.email ? new Date().toISOString() : "",
-            });
-          }}
-        />
-      </td> : null}
       {fields.status ? <td className="border-r border-t border-[var(--border)] p-0">
         <Select value={task.status} onChange={(event) => onUpdateTask(task.id, { status: event.target.value as Task["status"] })} className="min-h-11 rounded-none border-0 text-center font-bold sm:min-h-11" style={{ backgroundColor: statusOption.bg, color: statusOption.text, borderColor: statusOption.border }}>
           {taskStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}

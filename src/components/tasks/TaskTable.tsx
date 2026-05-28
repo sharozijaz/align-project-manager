@@ -15,14 +15,12 @@ import {
 } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskCategory, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { Input } from "../ui/Input";
 import { OptionBadge } from "../ui/OptionBadge";
 import { Select } from "../ui/Select";
 import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 import { TaskOverflowMenu } from "./TaskOverflowMenu";
-import { TaskAssigneePicker } from "./TaskAssigneePicker";
 import { TaskDateTimeField } from "./TaskDateTimeField";
 
 export function TaskTable({
@@ -32,7 +30,6 @@ export function TaskTable({
   onDelete,
   onOpen,
   lockedProjectId,
-  assigneeOptions = [],
   visibleFields,
 }: {
   tasks: Task[];
@@ -42,14 +39,12 @@ export function TaskTable({
   onComplete: (id: string) => void;
   onOpen?: (task: Task) => void;
   lockedProjectId?: string;
-  assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   const fields = mergeProjectTaskFields("table", visibleFields);
   const minWidth =
     340 +
     (fields.project ? 230 : 0) +
-    (fields.assignee ? 210 : 0) +
     (fields.priority ? 170 : 0) +
     (fields.status ? 190 : 0) +
     (fields.start ? 300 : 0) +
@@ -65,7 +60,6 @@ export function TaskTable({
             <tr>
               <th className="w-[340px] px-4 py-3">Task</th>
               {fields.project ? <th className="w-[230px] px-4 py-3">Project / Category</th> : null}
-              {fields.assignee ? <th className="w-[210px] px-4 py-3">Assignee</th> : null}
               {fields.priority ? <th className="w-[170px] px-4 py-3">Priority</th> : null}
               {fields.status ? <th className="w-[190px] px-4 py-3">Status</th> : null}
               {fields.start ? <th className="w-[300px] px-4 py-3">Start</th> : null}
@@ -85,7 +79,6 @@ export function TaskTable({
                 onDelete={onDelete}
                 onOpen={onOpen}
                 lockedProjectId={lockedProjectId}
-                assigneeOptions={assigneeOptions}
                 fields={fields}
                 showReminderRepeat={!visibleFields}
               />
@@ -104,7 +97,6 @@ function TaskTableRow({
   onDelete,
   onOpen,
   lockedProjectId,
-  assigneeOptions,
   fields,
   showReminderRepeat,
 }: {
@@ -114,7 +106,6 @@ function TaskTableRow({
   onDelete: (id: string) => void;
   onOpen?: (task: Task) => void;
   lockedProjectId?: string;
-  assigneeOptions: AssigneeOption[];
   fields: ProjectTaskFieldVisibility;
   showReminderRepeat: boolean;
 }) {
@@ -195,22 +186,6 @@ function TaskTableRow({
           </Select>
         )}
       </td> : null}
-      {fields.assignee ? (
-        <td className="px-4 py-3">
-          <TaskAssigneePicker
-            value={task.assigneeEmail ?? ""}
-            options={assigneeOptions}
-            size="compact"
-            onChange={(option) => {
-              onUpdate(task.id, {
-                assigneeEmail: option?.email ?? "",
-                assigneeUserId: option?.userId ?? "",
-                assignedAt: option?.email ? new Date().toISOString() : "",
-              });
-            }}
-          />
-        </td>
-      ) : null}
       {fields.priority ? <td className="px-4 py-3">
         <Select
           value={task.priority}

@@ -1,7 +1,6 @@
 export type ProjectTaskViewMode = "cards" | "table" | "board" | "kanban";
 
 export type ProjectTaskField =
-  | "assignee"
   | "status"
   | "priority"
   | "start"
@@ -14,7 +13,6 @@ export type ProjectTaskField =
 export type ProjectTaskFieldVisibility = Record<ProjectTaskField, boolean>;
 
 export const PROJECT_TASK_FIELDS: { key: ProjectTaskField; label: string; description: string }[] = [
-  { key: "assignee", label: "Assignee", description: "Who owns the next action." },
   { key: "status", label: "Status", description: "Current workflow stage." },
   { key: "priority", label: "Priority", description: "Importance level." },
   { key: "start", label: "Start", description: "Planned start date." },
@@ -27,7 +25,6 @@ export const PROJECT_TASK_FIELDS: { key: ProjectTaskField; label: string; descri
 
 const PROJECT_TASK_FIELD_DEFAULTS: Record<ProjectTaskViewMode, ProjectTaskFieldVisibility> = {
   cards: {
-    assignee: true,
     status: true,
     priority: true,
     start: true,
@@ -38,7 +35,6 @@ const PROJECT_TASK_FIELD_DEFAULTS: Record<ProjectTaskViewMode, ProjectTaskFieldV
     actions: true,
   },
   table: {
-    assignee: true,
     status: true,
     priority: true,
     start: false,
@@ -49,7 +45,6 @@ const PROJECT_TASK_FIELD_DEFAULTS: Record<ProjectTaskViewMode, ProjectTaskFieldV
     actions: true,
   },
   board: {
-    assignee: true,
     status: true,
     priority: true,
     start: true,
@@ -60,7 +55,6 @@ const PROJECT_TASK_FIELD_DEFAULTS: Record<ProjectTaskViewMode, ProjectTaskFieldV
     actions: true,
   },
   kanban: {
-    assignee: true,
     status: false,
     priority: true,
     start: false,

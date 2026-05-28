@@ -71,6 +71,6 @@ Align is moving toward a public, open-source Windows desktop release while keepi
 ## Phase 8 - Project Workspace Polish
 
 - Keep Align focused on solo/local-first project work; client share links remain read-only.
-- Add clear assignee visibility and local show/hide field controls for project task views.
+- Add local show/hide field controls for project task views.
 - Move quick-add into a modal and keep the project page centered around the active view.
 - Refresh Board and Kanban spacing, status color accents, and inline task creation.

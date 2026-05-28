@@ -235,10 +235,6 @@ const optionalTaskColumns = [
   "due_time",
   "sort_order",
   "parent_task_id",
-  "assignee_email",
-  "assignee_user_id",
-  "assigned_by",
-  "assigned_at",
   "planned_month",
   "planned_week_start",
 ];

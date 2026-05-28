@@ -18,8 +18,6 @@ import {
 } from "../../config/taskOptions";
 import type { Task, TaskInput } from "../../types/task";
 import type { Project } from "../../types/project";
-import type { AssigneeOption } from "../../types/assignee";
-import { TaskAssigneePicker } from "./TaskAssigneePicker";
 import { TaskDateTimeField } from "./TaskDateTimeField";
 
 const blank: TaskInput = {
@@ -38,10 +36,6 @@ const blank: TaskInput = {
   parentTaskId: "",
   plannedMonth: "",
   plannedWeekStart: "",
-  assigneeEmail: "",
-  assigneeUserId: "",
-  assignedBy: "",
-  assignedAt: "",
 };
 
 export function TaskForm({
@@ -52,7 +46,6 @@ export function TaskForm({
   compact = false,
   lockedProject,
   todoOnly = false,
-  assigneeOptions = [],
 }: {
   projects: Project[];
   initialTask?: Task;
@@ -61,7 +54,6 @@ export function TaskForm({
   compact?: boolean;
   lockedProject?: Project;
   todoOnly?: boolean;
-  assigneeOptions?: AssigneeOption[];
 }) {
   const [form, setForm] = useState<TaskInput>({
     ...blank,
@@ -82,7 +74,6 @@ export function TaskForm({
   );
   const [detailsOpen, setDetailsOpen] = useState(Boolean(!compact || hasAdvancedValues));
   const showProjectField = !todoOnly && !lockedProject;
-  const showAssigneeField = !todoOnly && assigneeOptions.length > 0;
   const currentMonth = format(new Date(), "yyyy-MM");
   const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
   const selectableProjects = useMemo(
@@ -103,12 +94,8 @@ export function TaskForm({
 
   const update = (key: keyof TaskInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const compactGridClass = showProjectField
-    ? showAssigneeField
-      ? "xl:grid-cols-[minmax(240px,1fr)_minmax(170px,220px)_minmax(170px,220px)_minmax(130px,160px)_minmax(150px,180px)_auto]"
-      : "xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]"
-    : showAssigneeField
-      ? "xl:grid-cols-[minmax(260px,1fr)_minmax(170px,220px)_minmax(130px,160px)_minmax(150px,180px)_auto]"
-      : "xl:grid-cols-[minmax(320px,1fr)_minmax(140px,170px)_minmax(160px,190px)_auto]";
+    ? "xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]"
+    : "xl:grid-cols-[minmax(320px,1fr)_minmax(140px,170px)_minmax(160px,190px)_auto]";
 
   const titleField = (
     <Input
@@ -153,21 +140,6 @@ export function TaskForm({
       ))}
     </Select>
   );
-
-  const assigneeField = showAssigneeField ? (
-    <TaskAssigneePicker
-      value={form.assigneeEmail ?? ""}
-      options={assigneeOptions}
-      onChange={(option) => {
-        setForm((current) => ({
-          ...current,
-          assigneeEmail: option?.email ?? "",
-          assigneeUserId: option?.userId ?? "",
-          assignedAt: option ? current.assignedAt || new Date().toISOString() : "",
-        }));
-      }}
-    />
-  ) : null;
 
   const startField = (
     <TaskDateTimeField
@@ -273,9 +245,6 @@ export function TaskForm({
           startTime: form.startDate && form.startTime ? form.startTime : undefined,
           dueDate: form.dueDate || undefined,
           dueTime: form.dueDate && form.dueTime ? form.dueTime : undefined,
-          assigneeEmail: form.assigneeEmail || undefined,
-          assigneeUserId: form.assigneeUserId || undefined,
-          assignedAt: form.assigneeEmail ? form.assignedAt || new Date().toISOString() : undefined,
           plannedMonth: form.dueDate ? undefined : form.plannedMonth || undefined,
           plannedWeekStart: form.dueDate ? undefined : form.plannedWeekStart || undefined,
         });
@@ -287,7 +256,6 @@ export function TaskForm({
           <div className={`grid gap-3 ${compactGridClass}`}>
             {titleField}
             {showProjectField ? projectField : null}
-            {assigneeField}
             {priorityField}
             {statusField}
             <div className="hidden xl:block">{actionButtons}</div>
@@ -335,7 +303,6 @@ export function TaskForm({
             {priorityField}
             {statusField}
           </div>
-          {assigneeField ? <FieldLabel label="Assignee">{assigneeField}</FieldLabel> : null}
           <div className="grid gap-3 lg:grid-cols-2">
             {startField}
             {dueField}

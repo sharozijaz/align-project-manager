@@ -6,7 +6,6 @@ import { TaskTable } from "./TaskTable";
 import type { TaskViewMode } from "./TaskViewToggle";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/assignee";
 import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
 import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 
@@ -24,7 +23,6 @@ export function TaskList({
   lockedProjectId,
   onReorder,
   groupByProject = false,
-  assigneeOptions = [],
   visibleFields,
 }: {
   tasks: Task[];
@@ -38,7 +36,6 @@ export function TaskList({
   lockedProjectId?: string;
   onReorder?: (orderedIds: string[]) => void;
   groupByProject?: boolean;
-  assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   const [taskDrag, setTaskDrag] = useState<TaskDragState | null>(null);
@@ -139,7 +136,6 @@ export function TaskList({
             onUpdate={onUpdate}
             onDelete={onDelete}
             onOpen={onOpenTask}
-            assigneeOptions={assigneeOptions}
             visibleFields={visibleFields}
             showProjectBadge={!options?.hideProjectBadge}
           />
@@ -185,7 +181,6 @@ export function TaskList({
           onComplete={onComplete}
           onOpen={onOpenTask}
           lockedProjectId={lockedProjectId}
-          assigneeOptions={assigneeOptions}
           visibleFields={visibleFields}
         />
       </div>

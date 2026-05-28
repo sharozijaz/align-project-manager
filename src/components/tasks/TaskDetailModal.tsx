@@ -1,7 +1,6 @@
-import { CalendarDays, CheckCircle2, Plus, Trash2, UserRound } from "lucide-react";
+import { CalendarDays, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getTaskPriorityOption, getTaskStatusOption, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
-import type { AssigneeOption } from "../../types/assignee";
 import type { Project } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
@@ -14,12 +13,10 @@ import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { OptionBadge } from "../ui/OptionBadge";
 import { Select } from "../ui/Select";
-import { TaskAssigneePicker } from "./TaskAssigneePicker";
 
 type TaskDraft = {
   title: string;
   description: string;
-  assigneeEmail: string;
   status: Task["status"];
   priority: Task["priority"];
   startDate: string;
@@ -39,7 +36,6 @@ export function TaskDetailModal({
   onUpdateTask,
   onAddTask,
   onDeleteTask,
-  assigneeOptions = [],
   canDelete = true,
   readOnly = false,
 }: {
@@ -53,7 +49,6 @@ export function TaskDetailModal({
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void | Promise<void>;
   onAddTask?: (input: TaskInput) => void | Promise<void>;
   onDeleteTask?: (id: string) => void | Promise<void>;
-  assigneeOptions?: AssigneeOption[];
   canDelete?: boolean;
   readOnly?: boolean;
 }) {
@@ -114,18 +109,6 @@ export function TaskDetailModal({
     void persistTask(input);
   };
 
-  const updateAssignee = (option: AssigneeOption | null) => {
-    const email = option?.email ?? "";
-    updateDraftAndPersist(
-      { assigneeEmail: email },
-      {
-        assigneeEmail: email,
-        assigneeUserId: option?.userId ?? "",
-        assignedAt: email && normalizeEmail(email) !== normalizeEmail(task.assigneeEmail) ? new Date().toISOString() : task.assignedAt,
-      },
-    );
-  };
-
   const saveTaskBeforeClose = async () => {
     if (readOnly) return;
     const title = draft.title.trim();
@@ -165,8 +148,6 @@ export function TaskDetailModal({
         dueTime: "",
         reminder: "none",
         recurrence: "none",
-        assigneeEmail: task.assigneeEmail ?? "",
-        assigneeUserId: task.assigneeUserId ?? "",
       });
       setSubtaskTitle("");
     } finally {
@@ -218,14 +199,6 @@ export function TaskDetailModal({
                 <div className="flex min-h-11 items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-bold text-[var(--text)]">
                   {projectContext?.name ?? task.category}
                 </div>
-              </Field>
-              <Field label="Assignee">
-                <TaskAssigneePicker
-                  value={draft.assigneeEmail}
-                  options={assigneeOptions}
-                  disabled={readOnly}
-                  onChange={updateAssignee}
-                />
               </Field>
               <Field label="Status">
                 <Select
@@ -359,9 +332,6 @@ export function TaskDetailModal({
                 <OptionBadge option={priorityOption} />
               </div>
             </InfoCard>
-            <InfoCard icon={<UserRound size={16} />} title="Ownership">
-              <p className="text-sm text-[var(--text-muted)]">{draft.assigneeEmail || "Unassigned"}</p>
-            </InfoCard>
             <InfoCard icon={<CalendarDays size={16} />} title="Timeline">
               <p className="text-sm text-[var(--text-muted)]">{startDateLabel(draft.startDate, draft.startTime)}</p>
               <p className="mt-1 text-sm text-[var(--text-muted)]">{dateLabel(draft.dueDate, draft.dueTime)}</p>
@@ -396,7 +366,6 @@ function toDraft(task: Task | null): TaskDraft {
   return {
     title: task?.title ?? "",
     description: task?.description ?? "",
-    assigneeEmail: task?.assigneeEmail ?? "",
     status: task?.status ?? "not_started",
     priority: task?.priority ?? "medium",
     startDate: task?.startDate ?? "",
@@ -404,10 +373,6 @@ function toDraft(task: Task | null): TaskDraft {
     dueDate: task?.dueDate ?? "",
     dueTime: task?.dueTime ?? "",
   };
-}
-
-function normalizeEmail(value?: string) {
-  return (value ?? "").trim().toLowerCase();
 }
 
 function TimelineCard({

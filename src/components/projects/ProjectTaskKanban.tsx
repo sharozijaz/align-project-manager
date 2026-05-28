@@ -4,13 +4,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { getTaskPriorityOption, getTaskStatusOption, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
-import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel } from "../../utils/date";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
-import { TaskAssigneePicker } from "../tasks/TaskAssigneePicker";
 import { TaskOverflowMenu } from "../tasks/TaskOverflowMenu";
 import { mergeProjectTaskFields, type ProjectTaskFieldVisibility } from "./projectTaskFields";
 
@@ -30,7 +28,6 @@ export function ProjectTaskKanban({
   onUpdateTask,
   onDeleteTask,
   onOpenTask,
-  assigneeOptions = [],
   visibleFields,
 }: {
   project?: Project;
@@ -39,7 +36,6 @@ export function ProjectTaskKanban({
   onUpdateTask: (id: string, input: Partial<TaskInput>) => void;
   onDeleteTask: (id: string) => void;
   onOpenTask?: (task: Task) => void;
-  assigneeOptions?: AssigneeOption[];
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
 }) {
   const fields = mergeProjectTaskFields("kanban", visibleFields);
@@ -178,8 +174,6 @@ export function ProjectTaskKanban({
                       onMove={(status) => onUpdateTask(task.id, { status })}
                       onDelete={() => onDeleteTask(task.id)}
                       onOpen={() => onOpenTask?.(task)}
-                      onUpdateTask={(input) => onUpdateTask(task.id, input)}
-                      assigneeOptions={assigneeOptions}
                       fields={fields}
                     />
                   ))}
@@ -239,8 +233,6 @@ function KanbanTaskCard({
   onMove,
   onDelete,
   onOpen,
-  onUpdateTask,
-  assigneeOptions,
   fields,
 }: {
   task: Task;
@@ -250,8 +242,6 @@ function KanbanTaskCard({
   onMove: (status: TaskStatus) => void;
   onDelete: () => void;
   onOpen: () => void;
-  onUpdateTask: (input: Partial<TaskInput>) => void;
-  assigneeOptions: AssigneeOption[];
   fields: ProjectTaskFieldVisibility;
 }) {
   const priority = getTaskPriorityOption(task.priority);
@@ -281,23 +271,8 @@ function KanbanTaskCard({
           {priority.label}
         </span> : null}
         {fields.due ? <Badge>{dateLabel(task.dueDate, task.dueTime)}</Badge> : null}
-        {fields.assignee ? <Badge tone={task.assigneeEmail ? "blue" : "slate"}>{task.assigneeEmail || "Unassigned"}</Badge> : null}
       </div>
       <div className="mt-4 grid gap-3">
-        {fields.assignee ? (
-          <TaskAssigneePicker
-            value={task.assigneeEmail ?? ""}
-            options={assigneeOptions}
-            size="compact"
-            onChange={(option) => {
-              onUpdateTask({
-                assigneeEmail: option?.email ?? "",
-                assigneeUserId: option?.userId ?? "",
-                assignedAt: option?.email ? new Date().toISOString() : "",
-              });
-            }}
-          />
-        ) : null}
         {fields.status ? <select
           value={task.status}
           onChange={(event) => onMove(event.target.value as TaskStatus)}
