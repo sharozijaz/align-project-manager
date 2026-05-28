@@ -1,7 +1,7 @@
 import { CalendarDays, CheckCircle2, Plus, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getTaskPriorityOption, getTaskStatusOption, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import type { Project } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
@@ -378,7 +378,7 @@ export function TaskDetailModal({
                     <span className="block truncate text-sm font-bold text-[var(--text)]">{note.title}</span>
                     <span className="mt-1 block text-xs text-[var(--text-muted)]">Open note</span>
                   </button>
-                )) : <p className="text-sm text-[var(--text-muted)]">No team-visible or linked notes for this task yet.</p>}
+                )) : <p className="text-sm text-[var(--text-muted)]">No linked notes for this task yet.</p>}
               </div>
             </InfoCard>
             <InfoCard title="Activity">

@@ -8,7 +8,7 @@ import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { taskAccentClass, taskAccentStyle, taskDateTone } from "../../utils/taskVisuals";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 
 export function TaskCard({

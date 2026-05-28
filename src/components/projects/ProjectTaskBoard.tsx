@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState, type KeyboardEvent } from "reac
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel } from "../../utils/date";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";

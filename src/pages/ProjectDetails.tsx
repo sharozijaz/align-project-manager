@@ -1,21 +1,15 @@
 import { Link, useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
 import { ProjectDetail } from "../components/projects/ProjectDetail";
-import { ProjectCollaboratorsPanel } from "../components/projects/ProjectCollaboratorsPanel";
 import { ProjectSharePanel } from "../components/projects/ProjectSharePanel";
 import { Button } from "../components/ui/Button";
-import { collaboratorAssigneeOptions } from "../integrations/supabase/collaboration";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
-import type { ProjectCollaborator } from "../types/collaboration";
 
 export function ProjectDetails() {
   const { projectId } = useParams();
-  const [collaborators, setCollaborators] = useState<ProjectCollaborator[]>([]);
   const { projects, updateProject } = useProjectStore();
   const { tasks, addTask, updateTask, deleteTask, completeTask, reorderTasks } = useTaskStore();
   const project = projects.find((item) => item.id === projectId);
-  const assigneeOptions = useMemo(() => collaboratorAssigneeOptions(collaborators), [collaborators]);
 
   if (!project) {
     return (
@@ -40,9 +34,7 @@ export function ProjectDetails() {
         onDeleteTask={deleteTask}
         onCompleteTask={completeTask}
         onReorderTasks={reorderTasks}
-        assigneeOptions={assigneeOptions}
       />
-      <ProjectCollaboratorsPanel project={project} collaborators={collaborators} onChange={setCollaborators} />
       <ProjectSharePanel project={project} />
     </div>
   );

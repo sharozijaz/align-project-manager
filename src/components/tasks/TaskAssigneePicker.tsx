@@ -1,6 +1,6 @@
 import { MailPlus, Search, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { Input } from "../ui/Input";
 import { ThemedPortal } from "../ui/ThemedPortal";
 

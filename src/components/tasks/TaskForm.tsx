@@ -18,7 +18,7 @@ import {
 } from "../../config/taskOptions";
 import type { Task, TaskInput } from "../../types/task";
 import type { Project } from "../../types/project";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { TaskAssigneePicker } from "./TaskAssigneePicker";
 import { TaskDateTimeField } from "./TaskDateTimeField";
 

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { getTaskPriorityOption, getTaskStatusOption, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel } from "../../utils/date";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";

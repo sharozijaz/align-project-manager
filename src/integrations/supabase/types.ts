@@ -265,38 +265,6 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["client_share_links"]["Insert"]>;
         Relationships: [];
       };
-      project_collaborators: {
-        Row: {
-          id: string;
-          project_id: string;
-          owner_user_id: string;
-          invitee_email: string;
-          invitee_user_id: string | null;
-          role: "editor";
-          status: "invited" | "active" | "removed";
-          invited_by: string | null;
-          accepted_at: string | null;
-          removed_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          project_id: string;
-          owner_user_id: string;
-          invitee_email: string;
-          invitee_user_id?: string | null;
-          role?: "editor";
-          status?: "invited" | "active" | "removed";
-          invited_by?: string | null;
-          accepted_at?: string | null;
-          removed_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["project_collaborators"]["Insert"]>;
-        Relationships: [];
-      };
       user_preferences: {
         Row: {
           user_id: string;
@@ -352,7 +320,6 @@ export interface Database {
           tags: string | null;
           favorite: boolean;
           client_visible: boolean;
-          team_visible: boolean;
           project_ids: string[] | null;
           created_at: string;
           updated_at: string;
@@ -365,7 +332,6 @@ export interface Database {
           tags?: string | null;
           favorite?: boolean;
           client_visible?: boolean;
-          team_visible?: boolean;
           project_ids?: string[] | null;
           created_at: string;
           updated_at: string;

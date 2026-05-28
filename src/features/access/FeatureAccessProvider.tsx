@@ -89,14 +89,10 @@ export function useFeatureAccess() {
 }
 
 export function RequireFeature({ feature, children }: { feature: FeatureKey; children: ReactNode }) {
-  const { access, hasFeature } = useFeatureAccess();
+  const { hasFeature } = useFeatureAccess();
   const location = useLocation();
 
   if (!hasFeature(feature)) {
-    if (access?.source === "collaboration") {
-      return <Navigate to="/shared" replace />;
-    }
-
     return <AccessShell title="Module not enabled" description={`${featureLabels[feature]} is not enabled for this account.`} from={location.pathname} />;
   }
 

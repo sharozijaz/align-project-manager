@@ -70,7 +70,6 @@ const profileLinks: NavItem[] = [
 ];
 
 export const appNavigationItems = [...primaryLinks, ...workspaceLinks, ...profileLinks];
-const collaborationLinks: NavItem[] = [{ to: "/shared", label: "Shared Projects", hint: "", icon: Folder }];
 
 const sidebarSpring = { type: "spring", stiffness: 520, damping: 44, mass: 0.72 } as const;
 
@@ -94,10 +93,7 @@ export function AppSidebar() {
   const profileAvatarUrl = getProfileAvatarUrl(session?.user.user_metadata);
   const desktopExpanded = railHovered || railPinned || openMenu !== null;
   const logoSrc = isLightThemeMode(theme) ? "/align-logo-light.png" : "/align-logo.png";
-  const isCollaborationOnly = access?.source === "collaboration";
-  const pinnedProjects = isCollaborationOnly
-    ? []
-    : projects
+  const pinnedProjects = projects
     .filter((project) => project.pinnedAt && !project.deletedAt && (project.status === "active" || project.status === "paused"))
     .sort((a, b) => (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
 
@@ -117,17 +113,11 @@ export function AppSidebar() {
     setRailPinned(false);
   };
 
-  const links = isCollaborationOnly
-    ? {
-        primary: collaborationLinks,
-        workspace: [],
-        profile: profileLinks.filter((link) => link.to === "/settings" || link.to === "/help"),
-      }
-    : {
-        primary: primaryLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
-        workspace: workspaceLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
-        profile: profileLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
-      };
+  const links = {
+    primary: primaryLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
+    workspace: workspaceLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
+    profile: profileLinks.filter((link) => canShowLink(link, hasFeature, access?.profile.role)),
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

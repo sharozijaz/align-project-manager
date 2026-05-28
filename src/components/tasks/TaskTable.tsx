@@ -15,7 +15,7 @@ import {
 } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task, TaskCategory, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 import { Input } from "../ui/Input";
 import { OptionBadge } from "../ui/OptionBadge";

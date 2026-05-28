@@ -6,7 +6,7 @@ import { TaskTable } from "./TaskTable";
 import type { TaskViewMode } from "./TaskViewToggle";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
 import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 

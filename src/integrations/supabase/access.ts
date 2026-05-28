@@ -1,7 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { baseMemberFeatures, featureKeys, isFeatureKey, ownerFeatures, type AppRole, type FeatureKey } from "../../features/access/featureRegistry";
 import { isEmailAllowed, isSupabaseConfigured, supabase } from "./client";
-import { hasProjectCollaborations } from "./collaboration";
 
 export interface AccessProfile {
   id: string | null;
@@ -16,7 +15,7 @@ export interface AccessProfile {
 export interface UserAccess {
   profile: AccessProfile;
   features: FeatureKey[];
-  source: "database" | "fallback" | "offline" | "collaboration";
+  source: "database" | "fallback" | "offline";
 }
 
 export interface AdminUser extends AccessProfile {
@@ -82,10 +81,7 @@ export async function getCurrentUserAccess(session: Session | null): Promise<Use
 
     if (profileError) throw profileError;
 
-    if (!profile?.active) {
-      const collaborationAccess = await projectCollaborationAccess(session, email);
-      return collaborationAccess ?? fallbackAccess(session);
-    }
+    if (!profile?.active) return fallbackAccess(session);
 
     const accessProfile = profileFromRow(profile);
     const { data: accessRows, error: accessError } = await supabase
@@ -108,28 +104,8 @@ export async function getCurrentUserAccess(session: Session | null): Promise<Use
     };
   } catch (error) {
     console.warn("Falling back to env-based access while feature access is unavailable.", error);
-    const collaborationAccess = await projectCollaborationAccess(session, email);
-    return collaborationAccess ?? fallbackAccess(session);
+    return fallbackAccess(session);
   }
-}
-
-async function projectCollaborationAccess(session: Session, email: string): Promise<UserAccess | null> {
-  const hasCollaborations = await hasProjectCollaborations(email, session.user.id);
-  if (!hasCollaborations) return null;
-
-  return {
-    profile: {
-      id: session.user.id,
-      email,
-      displayName: session.user.user_metadata?.name ?? email.split("@")[0] ?? "Collaborator",
-      role: "client",
-      active: true,
-      createdAt: null,
-      updatedAt: null,
-    },
-    features: [],
-    source: "collaboration",
-  };
 }
 
 export async function listAdminUsers(): Promise<AdminUser[]> {

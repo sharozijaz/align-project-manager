@@ -18,7 +18,7 @@ import { useStudioStore } from "../../store/studioStore";
 import type { Project, ProjectInput } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
-import type { AssigneeOption } from "../../types/collaboration";
+import type { AssigneeOption } from "../../types/assignee";
 import { dateLabel, durationLabel, startDateLabel } from "../../utils/date";
 
 type ProjectTaskView = "cards" | "table" | "board" | "kanban";
