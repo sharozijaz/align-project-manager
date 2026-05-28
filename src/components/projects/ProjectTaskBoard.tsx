@@ -55,13 +55,13 @@ export function ProjectTaskBoard({
   const fields = mergeProjectTaskFields("board", visibleFields);
   const columnCount = 1 + Number(fields.status) + Number(fields.priority) + Number(fields.start) + Number(fields.due) + Number(fields.notes) + Number(fields.actions);
   const minWidth =
-    420 +
-    (fields.status ? 180 : 0) +
-    (fields.priority ? 160 : 0) +
-    (fields.start ? 250 : 0) +
-    (fields.due ? 250 : 0) +
-    (fields.notes ? 280 : 0) +
-    (fields.actions ? 90 : 0);
+    360 +
+    (fields.status ? 150 : 0) +
+    (fields.priority ? 140 : 0) +
+    (fields.start ? 220 : 0) +
+    (fields.due ? 220 : 0) +
+    (fields.notes ? 240 : 0) +
+    (fields.actions ? 76 : 0);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(tasks.filter((task) => !task.parentTaskId).map((task) => task.id)));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const subtasksByParent = useMemo(() => {
@@ -97,14 +97,14 @@ export function ProjectTaskBoard({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-[var(--text)]">Main table</h2>
           <p className="text-sm text-[var(--text-muted)]">Parent tasks and subitems stay editable without leaving the project.</p>
         </div>
         <span className="text-xs font-bold text-[var(--text-soft)]">{tasks.filter((task) => !task.parentTaskId).length} parent tasks</span>
       </div>
-      <div className="space-y-8 p-2 sm:p-3">
+      <div className="space-y-5 p-2 sm:p-3">
         {boardGroups.map((group) => {
           const groupParents = parentTasks.filter((task) => getGroupKey(task) === group.key);
           const groupTasks = tasks.filter((task) => getGroupKey(task.parentTaskId ? tasks.find((item) => item.id === task.parentTaskId) ?? task : task) === group.key);
@@ -126,13 +126,13 @@ export function ProjectTaskBoard({
                 <table className="w-full table-fixed border-collapse text-sm" style={{ minWidth }}>
                   <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
                     <tr>
-                      <th className="w-[420px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
-                      {fields.status ? <th className="w-[180px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th> : null}
-                      {fields.priority ? <th className="w-[160px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th> : null}
-                      {fields.start ? <th className="w-[250px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th> : null}
-                      {fields.due ? <th className="w-[250px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Due</th> : null}
-                      {fields.notes ? <th className="w-[280px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Notes</th> : null}
-                      {fields.actions ? <th className="w-[90px] border-t border-[var(--border)] px-3 py-2 text-right">Actions</th> : null}
+                      <th className="w-[360px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Task</th>
+                      {fields.status ? <th className="w-[150px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Status</th> : null}
+                      {fields.priority ? <th className="w-[140px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Priority</th> : null}
+                      {fields.start ? <th className="w-[220px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Start</th> : null}
+                      {fields.due ? <th className="w-[220px] border-r border-t border-[var(--border)] px-3 py-2 text-center">Due</th> : null}
+                      {fields.notes ? <th className="w-[240px] border-r border-t border-[var(--border)] px-3 py-2 text-left">Notes</th> : null}
+                      {fields.actions ? <th className="w-[76px] border-t border-[var(--border)] px-3 py-2 text-right">Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -244,12 +244,12 @@ function BoardRow({
         </div>
       </td>
       {fields.status ? <td className="border-r border-t border-[var(--border)] p-0">
-        <Select value={task.status} onChange={(event) => onUpdateTask(task.id, { status: event.target.value as Task["status"] })} className="min-h-11 rounded-none border-0 text-center font-bold sm:min-h-11" style={{ backgroundColor: statusOption.bg, color: statusOption.text, borderColor: statusOption.border }}>
+        <Select value={task.status} onChange={(event) => onUpdateTask(task.id, { status: event.target.value as Task["status"] })} className="min-h-10 rounded-none border-0 text-center font-bold sm:min-h-10" style={{ backgroundColor: statusOption.bg, color: statusOption.text, borderColor: statusOption.border }}>
           {taskStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </Select>
       </td> : null}
       {fields.priority ? <td className="border-r border-t border-[var(--border)] p-0">
-        <Select value={task.priority} onChange={(event) => onUpdateTask(task.id, { priority: event.target.value as Task["priority"] })} className="min-h-11 rounded-none border-0 text-center font-bold sm:min-h-11" style={{ backgroundColor: priorityOption.bg, color: priorityOption.text, borderColor: priorityOption.border }}>
+        <Select value={task.priority} onChange={(event) => onUpdateTask(task.id, { priority: event.target.value as Task["priority"] })} className="min-h-10 rounded-none border-0 text-center font-bold sm:min-h-10" style={{ backgroundColor: priorityOption.bg, color: priorityOption.text, borderColor: priorityOption.border }}>
           {taskPriorityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </Select>
       </td> : null}
@@ -278,7 +278,7 @@ function BoardRow({
         <InlineText value={task.description ?? ""} placeholder="Add note" onSave={(description) => onUpdateTask(task.id, { description: description || undefined })} />
       </td> : null}
       {fields.actions ? <td className="border-t border-[var(--border)] px-2 py-1.5">
-        <div className="flex justify-end opacity-70 transition group-hover:opacity-100">
+        <div className="flex justify-end opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
           <TaskOverflowMenu task={task} onOpen={onOpenTask} onDelete={onDeleteTask} />
         </div>
       </td> : null}

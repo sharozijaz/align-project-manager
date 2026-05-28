@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, FolderKanban, ListChecks, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getTaskPriorityOption, getTaskStatusOption, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
@@ -170,98 +170,45 @@ export function TaskDetailModal({
 
   return (
     <>
-      <Modal title="Task details" open={open} onClose={onClose} className="max-h-[92vh] w-[min(96vw,1180px)] !max-w-none overflow-y-auto">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div className="space-y-5">
-            {error ? (
-              <div className="rounded-[var(--radius-sm)] border border-amber-500/70 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-200">
-                {error}
-              </div>
-            ) : null}
-            <div className="space-y-3">
-              <Input
-                value={draft.title}
-                readOnly={readOnly}
-                onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-                className="min-h-12 text-xl font-black"
-              />
-              <textarea
-                value={draft.description}
-                readOnly={readOnly}
-                onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Add description, handoff notes, acceptance criteria..."
-                className="min-h-28 w-full rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-3 text-sm font-medium leading-6 text-[var(--text)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)]"
-              />
+      <Modal title="Task details" open={open} onClose={onClose} className="max-h-[92vh] w-[min(96vw,1280px)] !max-w-none overflow-y-auto">
+        <div className="space-y-5">
+          {error ? (
+            <div className="rounded-[var(--radius-sm)] border border-amber-500/70 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-200">
+              {error}
             </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Project">
-                <div className="flex min-h-11 items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-bold text-[var(--text)]">
-                  {projectContext?.name ?? task.category}
+          ) : null}
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="space-y-5">
+              <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge tone="slate">{projectContext?.name ?? task.category}</Badge>
+                  <OptionBadge option={statusOption} />
+                  <OptionBadge option={priorityOption} />
+                  <span className="ml-auto text-xs font-bold text-[var(--text-muted)]">
+                    {saving ? "Saving..." : savedAt ? "Saved" : "Autosaves changes"}
+                  </span>
                 </div>
-              </Field>
-              <Field label="Status">
-                <Select
-                  value={draft.status}
-                  disabled={readOnly}
-                  onChange={(event) => {
-                    const status = event.target.value as Task["status"];
-                    updateDraftAndPersist({ status }, { status });
-                  }}
-                >
-                  {taskStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Priority">
-                <Select
-                  value={draft.priority}
-                  disabled={readOnly}
-                  onChange={(event) => {
-                    const priority = event.target.value as Task["priority"];
-                    updateDraftAndPersist({ priority }, { priority });
-                  }}
-                >
-                  {taskPriorityOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-
-            <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
-              <div className="mb-3">
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Timeline</p>
-                <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">Start, due date, and optional time</p>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <TimelineCard
-                  label="Start"
-                  date={draft.startDate}
-                  time={draft.startTime}
-                  disabled={readOnly}
-                  onDateChange={(value) => updateDraftAndPersist({ startDate: value }, { startDate: value })}
-                  onTimeChange={(value) => updateDraftAndPersist({ startTime: value }, { startTime: value })}
+                <Input
+                  value={draft.title}
+                  readOnly={readOnly}
+                  onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+                  className="min-h-14 border-transparent bg-transparent px-0 text-2xl font-black hover:border-transparent focus:border-transparent"
                 />
-                <TimelineCard
-                  label="Due"
-                  date={draft.dueDate}
-                  time={draft.dueTime}
-                  disabled={readOnly}
-                  onDateChange={(value) => updateDraftAndPersist({ dueDate: value }, { dueDate: value })}
-                  onTimeChange={(value) => updateDraftAndPersist({ dueTime: value }, { dueTime: value })}
+                <textarea
+                  value={draft.description}
+                  readOnly={readOnly}
+                  onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Add description, handoff notes, acceptance criteria..."
+                  className="mt-3 min-h-40 w-full rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-sm font-medium leading-7 text-[var(--text)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)]"
                 />
-              </div>
-            </section>
+              </section>
 
-            <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]">
+              <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]">
               <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-                <h3 className="font-bold text-[var(--text)]">Subtasks</h3>
+                <h3 className="flex items-center gap-2 font-bold text-[var(--text)]">
+                  <ListChecks size={16} />
+                  Subtasks
+                </h3>
                 <Badge>{subtasks.length} items</Badge>
               </div>
               <div className="space-y-2 p-3">
@@ -303,38 +250,69 @@ export function TaskDetailModal({
                 ) : null}
               </div>
             </section>
-
-            <div className="flex flex-wrap justify-between gap-2 border-t border-[var(--border)] pt-4">
-              {canDelete && onDeleteTask && !readOnly ? (
-                <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => void deleteTask()}>
-                  Delete
-                </Button>
-              ) : <span />}
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-[var(--text-muted)]">{saving ? "Saving..." : savedAt ? "Saved" : "Autosaves changes"}</span>
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    await saveTaskBeforeClose();
-                    onClose();
-                  }}
-                >
-                  Close
-                </Button>
-              </div>
             </div>
-          </div>
 
-          <aside className="space-y-3">
+            <aside className="space-y-3 xl:sticky xl:top-0 xl:self-start">
+              <InfoCard icon={<FolderKanban size={16} />} title="Project">
+                <p className="text-sm font-bold text-[var(--text)]">{projectContext?.name ?? task.category}</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">{task.parentTaskId ? "Subtask" : "Parent task"}</p>
+              </InfoCard>
             <InfoCard icon={<CheckCircle2 size={16} />} title="Workflow">
-              <div className="flex flex-wrap gap-2">
-                <OptionBadge option={statusOption} />
-                <OptionBadge option={priorityOption} />
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <Field label="Status">
+                  <Select
+                    value={draft.status}
+                    disabled={readOnly}
+                    onChange={(event) => {
+                      const status = event.target.value as Task["status"];
+                      updateDraftAndPersist({ status }, { status });
+                    }}
+                  >
+                    {taskStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Priority">
+                  <Select
+                    value={draft.priority}
+                    disabled={readOnly}
+                    onChange={(event) => {
+                      const priority = event.target.value as Task["priority"];
+                      updateDraftAndPersist({ priority }, { priority });
+                    }}
+                  >
+                    {taskPriorityOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
               </div>
             </InfoCard>
             <InfoCard icon={<CalendarDays size={16} />} title="Timeline">
-              <p className="text-sm text-[var(--text-muted)]">{startDateLabel(draft.startDate, draft.startTime)}</p>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">{dateLabel(draft.dueDate, draft.dueTime)}</p>
+              <div className="grid gap-3">
+                <TimelineCard
+                  label="Start"
+                  date={draft.startDate}
+                  time={draft.startTime}
+                  disabled={readOnly}
+                  onDateChange={(value) => updateDraftAndPersist({ startDate: value }, { startDate: value })}
+                  onTimeChange={(value) => updateDraftAndPersist({ startTime: value }, { startTime: value })}
+                />
+                <TimelineCard
+                  label="Due"
+                  date={draft.dueDate}
+                  time={draft.dueTime}
+                  disabled={readOnly}
+                  onDateChange={(value) => updateDraftAndPersist({ dueDate: value }, { dueDate: value })}
+                  onTimeChange={(value) => updateDraftAndPersist({ dueTime: value }, { dueTime: value })}
+                />
+              </div>
+              <p className="mt-3 text-xs font-bold text-[var(--text-muted)]">{startDateLabel(draft.startDate, draft.startTime)} · {dateLabel(draft.dueDate, draft.dueTime)}</p>
             </InfoCard>
             <InfoCard title="Linked notes">
               <div className="space-y-2">
@@ -355,6 +333,27 @@ export function TaskDetailModal({
               <p className="text-sm text-[var(--text-muted)]">Saving states are tracked now. Full activity history can come later.</p>
             </InfoCard>
           </aside>
+          </div>
+
+          <div className="flex flex-wrap justify-between gap-2 border-t border-[var(--border)] pt-4">
+            {canDelete && onDeleteTask && !readOnly ? (
+              <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => void deleteTask()}>
+                Delete
+              </Button>
+            ) : <span />}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-[var(--text-muted)]">{saving ? "Saving..." : savedAt ? "Saved" : "Autosaves changes"}</span>
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  await saveTaskBeforeClose();
+                  onClose();
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       </Modal>
       <NoteReaderModal note={selectedNote ? { title: selectedNote.title, body: selectedNote.body, tags: selectedNote.tags, favorite: selectedNote.favorite, updatedAt: selectedNote.updatedAt } : null} onClose={() => setSelectedNote(null)} />

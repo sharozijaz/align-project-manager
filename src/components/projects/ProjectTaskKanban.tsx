@@ -132,21 +132,21 @@ export function ProjectTaskKanban({
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
-      <div className="grid min-w-[1680px] grid-cols-7 gap-4 2xl:min-w-0">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
+      <div className="grid min-w-[1540px] grid-cols-7 gap-3 2xl:min-w-0">
         {taskStatusOptions.map((status) => {
           const columnTasks = parentTasks.filter((task) => task.status === status.value);
 
           return (
             <motion.section
               key={status.value}
-              className="flex min-h-[560px] flex-col overflow-hidden rounded-[var(--radius-md)] border bg-[var(--surface-raised)]"
+              className="flex min-h-[520px] flex-col overflow-hidden rounded-[var(--radius-md)] border bg-[var(--surface-raised)]"
               style={{ borderColor: dragOverStatus === status.value ? status.border : "var(--border)" }}
               layout
               transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.8 }}
             >
               <header
-                className="flex items-center justify-between gap-2 border-b px-4 py-4"
+                className="flex items-center justify-between gap-2 border-b px-3 py-3"
                 style={{ borderColor: status.border, background: `linear-gradient(135deg, ${status.bg}, var(--surface-raised))` }}
               >
                 <span
@@ -158,7 +158,7 @@ export function ProjectTaskKanban({
                 <span className="text-xs font-bold text-[var(--text-soft)]">{columnTasks.length}</span>
               </header>
               <div
-                className={`grid flex-1 content-start gap-4 rounded-b-[var(--radius-md)] p-4 transition ${
+                className={`grid flex-1 content-start gap-3 rounded-b-[var(--radius-md)] p-3 transition ${
                   dragOverStatus === status.value ? "bg-[var(--brand-50)] shadow-[inset_0_0_0_2px_var(--brand-primary)]" : ""
                 }`}
                 data-kanban-status={status.value}
@@ -192,7 +192,7 @@ export function ProjectTaskKanban({
                 {onAddTask && project ? (
                   <div className="mt-1 grid gap-2 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-2">
                     <Input
-                      className="min-h-9 border-transparent bg-transparent text-xs hover:border-[var(--border)] focus:bg-[var(--surface-raised)] sm:min-h-9"
+                      className="min-h-8 border-transparent bg-transparent text-xs hover:border-[var(--border)] focus:bg-[var(--surface-raised)] sm:min-h-8"
                       value={drafts[status.value] ?? ""}
                       placeholder="+ Add task"
                       onChange={(event) => setDrafts((current) => ({ ...current, [status.value]: event.target.value }))}
@@ -249,7 +249,7 @@ function KanbanTaskCard({
 
   return (
     <Card
-      className={`touch-none select-none p-4 transition duration-200 ${
+      className={`group touch-none select-none p-3 transition duration-200 ${
         dragging ? "rotate-2 scale-[1.03] border-[var(--brand-primary)] opacity-45 shadow-[var(--shadow-md)]" : "cursor-grab hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)] active:cursor-grabbing"
       }`}
       layout
@@ -265,14 +265,14 @@ function KanbanTaskCard({
         </button>
         {fields.subtasks && subtaskCount ? <Badge>{subtaskCount} sub</Badge> : null}
       </div>
-      {fields.notes && task.description ? <p className="mt-3 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
-      <div className="mt-4 flex flex-wrap gap-2">
+      {fields.notes && task.description ? <p className="mt-2 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
+      <div className="mt-3 flex flex-wrap gap-2">
         {fields.priority ? <span className="rounded border px-2 py-1 text-xs font-bold" style={{ backgroundColor: priority.bg, borderColor: priority.border, color: priority.text }}>
           {priority.label}
         </span> : null}
         {fields.due ? <Badge>{dateLabel(task.dueDate, task.dueTime)}</Badge> : null}
       </div>
-      <div className="mt-4 grid gap-3">
+      <div className="mt-3 grid gap-2">
         {fields.status ? <select
           value={task.status}
           onChange={(event) => onMove(event.target.value as TaskStatus)}
@@ -285,7 +285,7 @@ function KanbanTaskCard({
             </option>
           ))}
         </select> : null}
-        {fields.actions ? <div className="flex justify-end opacity-70 transition group-hover:opacity-100">
+        {fields.actions ? <div className="flex justify-end opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
           <TaskOverflowMenu task={task} onOpen={() => onOpen()} onDelete={() => onDelete()} />
         </div> : null}
       </div>
@@ -298,7 +298,7 @@ function KanbanDragPreview({ task, subtaskCount, x, y }: { task: Task; subtaskCo
 
   return (
     <motion.div
-      className="pointer-events-none fixed z-[80] w-[260px] rounded-[var(--radius-sm)] border border-[var(--brand-primary)] bg-[var(--surface-raised)] p-4 shadow-[var(--shadow-md)]"
+      className="pointer-events-none fixed z-[80] w-[240px] rounded-[var(--radius-sm)] border border-[var(--brand-primary)] bg-[var(--surface-raised)] p-3 shadow-[var(--shadow-md)]"
       style={{ left: x, top: y, translateX: "-50%", translateY: "-45%" }}
       initial={{ opacity: 0, scale: 0.96, rotate: -1.5 }}
       animate={{ opacity: 0.92, scale: 1, rotate: 2 }}

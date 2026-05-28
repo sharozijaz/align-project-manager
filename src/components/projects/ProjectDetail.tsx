@@ -1,4 +1,4 @@
-import { Columns3, KanbanSquare, ListTree, Pin, Plus, Search, Settings2, Table2 } from "lucide-react";
+import { Check, Columns3, KanbanSquare, ListTree, Pin, Plus, RotateCcw, Search, Settings2, Table2 } from "lucide-react";
 import { TaskForm } from "../tasks/TaskForm";
 import { TaskList } from "../tasks/TaskList";
 import { Card } from "../ui/Card";
@@ -91,18 +91,24 @@ export function ProjectDetail({
 
   return (
     <div className="space-y-4">
-      <Card className="p-5">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text)]">{project.name}</h1>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">{project.description || "Project details and tasks."}</p>
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-col justify-between gap-4 px-4 py-4 sm:flex-row sm:items-start sm:px-5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-2xl font-bold text-[var(--text)]">{project.name}</h1>
+              {project.pinnedAt ? <Badge tone="purple">Pinned</Badge> : null}
+              <Badge tone={project.status === "active" ? "emerald" : project.status === "paused" ? "amber" : "slate"}>{project.status}</Badge>
+            </div>
+            <p className="mt-1 max-w-3xl text-sm text-[var(--text-muted)]">{project.description || "Project details and tasks."}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--text-muted)]">
-              <span>{startDateLabel(project.startDate, project.startTime)}</span>
-              <span>{dateLabel(project.dueDate, project.dueTime)}</span>
-              {project.startDate ? <span>{durationLabel(project.startDate, project.dueDate)}</span> : null}
+              <Badge tone="slate">{startDateLabel(project.startDate, project.startTime)}</Badge>
+              <Badge tone="slate">{dateLabel(project.dueDate, project.dueTime)}</Badge>
+              {project.startDate ? <Badge tone="slate">{durationLabel(project.startDate, project.dueDate)}</Badge> : null}
+              <Badge tone="slate">{tasks.length} tasks</Badge>
+              <Badge tone="slate">{complete} done</Badge>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {project.status === "active" || project.status === "paused" ? (
               <Button
                 variant="secondary"
@@ -115,11 +121,12 @@ export function ProjectDetail({
             <strong className="text-2xl text-[var(--text)]">{progress}%</strong>
           </div>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+        <div className="h-1.5 overflow-hidden bg-[var(--bg-muted)]">
           <div className="h-full align-gradient" style={{ width: `${progress}%` }} />
         </div>
       </Card>
-      <div className="align-toolbar">
+      <div className="align-toolbar items-start">
+        <ProjectTaskViewToggle value={view} onChange={setView} />
         <div className="grid flex-1 gap-2 lg:grid-cols-[minmax(240px,1fr)_170px_170px]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={16} />
@@ -144,12 +151,11 @@ export function ProjectDetail({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" icon={<Settings2 size={15} />} onClick={() => setCustomizeOpen(true)}>
-            Customize
+            Fields
           </Button>
           <Button icon={<Plus size={16} />} onClick={() => setTaskModalOpen(true)}>
             Add Task
           </Button>
-          <ProjectTaskViewToggle value={view} onChange={setView} />
         </div>
       </div>
       {view === "board" ? (
@@ -210,22 +216,45 @@ export function ProjectDetail({
         onAddTask={onAddTask}
         onDeleteTask={onDeleteTask}
       />
-      <Modal title={`Customize ${view === "cards" ? "List" : view} fields`} open={customizeOpen} onClose={() => setCustomizeOpen(false)}>
-        <div className="space-y-3">
-          <p className="text-sm leading-6 text-[var(--text-muted)]">Choose which fields are visible in this project view. These preferences stay on this device.</p>
+      <Modal title={`${view === "cards" ? "List" : view} fields`} open={customizeOpen} onClose={() => setCustomizeOpen(false)} className="w-[min(94vw,780px)] !max-w-none">
+        <div className="space-y-4">
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-sm font-semibold leading-6 text-[var(--text-muted)]">
+              Keep each view focused by showing only the fields you need. These preferences stay on this device.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge tone="slate">{Object.values(fields).filter(Boolean).length} visible</Badge>
+              <Badge tone="slate">{view === "cards" ? "List" : view} view</Badge>
+            </div>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {PROJECT_TASK_FIELDS.map((field) => (
-              <label key={field.key} className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-                <span>
+              <button
+                key={field.key}
+                type="button"
+                className={`flex min-h-[88px] items-start justify-between gap-3 rounded-[var(--radius-sm)] border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] ${
+                  fields[field.key]
+                    ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)]"
+                    : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)]"
+                }`}
+                onClick={() => updateVisibleField(field.key, !fields[field.key])}
+              >
+                <span className="min-w-0">
                   <span className="block font-bold text-[var(--text)]">{field.label}</span>
                   <span className="text-xs text-[var(--text-muted)]">{field.description}</span>
                 </span>
-                <input type="checkbox" checked={fields[field.key]} onChange={(event) => updateVisibleField(field.key, event.target.checked)} />
-              </label>
+                <span
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                    fields[field.key] ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white" : "border-[var(--border-strong)]"
+                  }`}
+                >
+                  {fields[field.key] ? <Check size={14} /> : null}
+                </span>
+              </button>
             ))}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setFieldPreferences((current) => ({ ...current, [view]: {} }))}>
+            <Button variant="secondary" icon={<RotateCcw size={15} />} onClick={() => setFieldPreferences((current) => ({ ...current, [view]: {} }))}>
               Reset view
             </Button>
             <Button onClick={() => setCustomizeOpen(false)}>Done</Button>

@@ -43,14 +43,14 @@ export function TaskTable({
 }) {
   const fields = mergeProjectTaskFields("table", visibleFields);
   const minWidth =
-    340 +
-    (fields.project ? 230 : 0) +
-    (fields.priority ? 170 : 0) +
-    (fields.status ? 190 : 0) +
-    (fields.start ? 300 : 0) +
-    (fields.due ? 300 : 0) +
-    (visibleFields ? 0 : 380) +
-    (fields.actions ? 130 : 0);
+    320 +
+    (fields.project ? 210 : 0) +
+    (fields.priority ? 150 : 0) +
+    (fields.status ? 170 : 0) +
+    (fields.start ? 250 : 0) +
+    (fields.due ? 250 : 0) +
+    (visibleFields ? 0 : 340) +
+    (fields.actions ? 92 : 0);
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
@@ -58,15 +58,15 @@ export function TaskTable({
         <table className="w-full table-fixed border-collapse text-left text-sm" style={{ minWidth }}>
           <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
             <tr>
-              <th className="w-[340px] px-4 py-3">Task</th>
-              {fields.project ? <th className="w-[230px] px-4 py-3">Project / Category</th> : null}
-              {fields.priority ? <th className="w-[170px] px-4 py-3">Priority</th> : null}
-              {fields.status ? <th className="w-[190px] px-4 py-3">Status</th> : null}
-              {fields.start ? <th className="w-[300px] px-4 py-3">Start</th> : null}
-              {fields.due ? <th className="w-[300px] px-4 py-3">Due</th> : null}
-              {!visibleFields ? <th className="w-[190px] px-4 py-3">Reminder</th> : null}
-              {!visibleFields ? <th className="w-[190px] px-4 py-3">Repeats</th> : null}
-              {fields.actions ? <th className="w-[130px] px-4 py-3 text-right">Actions</th> : null}
+              <th className="w-[320px] px-3 py-2.5">Task</th>
+              {fields.project ? <th className="w-[210px] px-3 py-2.5">Project / Category</th> : null}
+              {fields.priority ? <th className="w-[150px] px-3 py-2.5">Priority</th> : null}
+              {fields.status ? <th className="w-[170px] px-3 py-2.5">Status</th> : null}
+              {fields.start ? <th className="w-[250px] px-3 py-2.5">Start</th> : null}
+              {fields.due ? <th className="w-[250px] px-3 py-2.5">Due</th> : null}
+              {!visibleFields ? <th className="w-[170px] px-3 py-2.5">Reminder</th> : null}
+              {!visibleFields ? <th className="w-[170px] px-3 py-2.5">Repeats</th> : null}
+              {fields.actions ? <th className="w-[92px] px-3 py-2.5 text-right">Actions</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -143,7 +143,7 @@ function TaskTableRow({
 
   return (
     <tr className="group border-t border-[var(--border)] align-top transition hover:bg-[var(--surface-hover)]" onDoubleClick={() => onOpen?.(task)}>
-      <td className="px-4 py-3">
+      <td className="px-3 py-2">
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -153,7 +153,7 @@ function TaskTableRow({
         />
         {fields.notes && task.description ? <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{task.description}</p> : null}
       </td>
-      {fields.project ? <td className="px-4 py-3">
+      {fields.project ? <td className="px-3 py-2">
         {lockedProjectId ? (
           <OptionBadge
             option={{
@@ -186,7 +186,7 @@ function TaskTableRow({
           </Select>
         )}
       </td> : null}
-      {fields.priority ? <td className="px-4 py-3">
+      {fields.priority ? <td className="px-3 py-2">
         <Select
           value={task.priority}
           onChange={(event) => onUpdate(task.id, { priority: event.target.value as Task["priority"] })}
@@ -201,7 +201,7 @@ function TaskTableRow({
           ))}
         </Select>
       </td> : null}
-      {fields.status ? <td className="px-4 py-3">
+      {fields.status ? <td className="px-3 py-2">
         <Select
           value={task.status}
           onChange={(event) => onUpdate(task.id, { status: event.target.value as Task["status"] })}
@@ -216,7 +216,7 @@ function TaskTableRow({
           ))}
         </Select>
       </td> : null}
-      {fields.start ? <td className="px-4 py-3">
+      {fields.start ? <td className="px-3 py-2">
         <TaskDateTimeField
           label="Start"
           summary={startDateLabel(task.startDate, task.startTime)}
@@ -226,7 +226,7 @@ function TaskTableRow({
           onTimeChange={(value) => onUpdate(task.id, { startTime: value || undefined })}
         />
       </td> : null}
-      {fields.due ? <td className="px-4 py-3">
+      {fields.due ? <td className="px-3 py-2">
         <TaskDateTimeField
           label="Due"
           summary={dateLabel(task.dueDate, task.dueTime)}
@@ -237,7 +237,7 @@ function TaskTableRow({
         />
         {task.startDate ? <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{durationLabel(task.startDate, task.dueDate)}</p> : null}
       </td> : null}
-      {showReminderRepeat ? <td className="px-4 py-3">
+      {showReminderRepeat ? <td className="px-3 py-2">
         <Select
           value={task.reminder ?? "none"}
           onChange={(event) => onUpdate(task.id, { reminder: event.target.value as Task["reminder"] })}
@@ -251,7 +251,7 @@ function TaskTableRow({
           ))}
         </Select>
       </td> : null}
-      {showReminderRepeat ? <td className="px-4 py-3">
+      {showReminderRepeat ? <td className="px-3 py-2">
         <Select
           value={task.recurrence ?? "none"}
           onChange={(event) => onUpdate(task.id, { recurrence: event.target.value as Task["recurrence"] })}
@@ -265,8 +265,8 @@ function TaskTableRow({
           ))}
         </Select>
       </td> : null}
-      {fields.actions ? <td className="px-4 py-3">
-        <div className="flex justify-end opacity-75 transition group-hover:opacity-100">
+      {fields.actions ? <td className="px-3 py-2">
+        <div className="flex justify-end opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
           <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} />
         </div>
       </td> : null}
