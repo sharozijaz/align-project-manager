@@ -309,8 +309,8 @@ async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[], userId: 
   if (rows.length) {
     const { error: upsertError } = await client.from("hub_notes").upsert(rows);
     if (isMissingRelation(upsertError)) return;
-    if (upsertError && isMissingColumn(upsertError, "project_ids")) {
-      const retryRows = rows.map(({ project_ids: _projectIds, ...row }) => row);
+    if (upsertError && ["collection", "project_ids", "related_note_ids"].some((column) => isMissingColumn(upsertError, column))) {
+      const retryRows = rows.map(({ collection: _collection, project_ids: _projectIds, related_note_ids: _relatedNoteIds, ...row }) => row);
       const { error: retryError } = await client.from("hub_notes").upsert(retryRows);
       if (!retryError) return;
       throw new Error(errorMessage(retryError, "Could not upload hub notes."));

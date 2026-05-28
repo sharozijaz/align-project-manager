@@ -309,10 +309,12 @@ export interface Database {
           user_id: string;
           title: string;
           body: string;
+          collection: string | null;
           tags: string | null;
           favorite: boolean;
           client_visible: boolean;
           project_ids: string[] | null;
+          related_note_ids: string[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -321,10 +323,12 @@ export interface Database {
           user_id: string;
           title: string;
           body: string;
+          collection?: string | null;
           tags?: string | null;
           favorite?: boolean;
           client_visible?: boolean;
           project_ids?: string[] | null;
+          related_note_ids?: string[] | null;
           created_at: string;
           updated_at: string;
         };

@@ -18,10 +18,12 @@ export interface HubNote {
   id: string;
   title: string;
   body: string;
+  collection?: string;
   tags?: string;
   favorite?: boolean;
   clientVisible?: boolean;
   projectIds: string[];
+  relatedNoteIds: string[];
   createdAt: string;
   updatedAt: string;
 }

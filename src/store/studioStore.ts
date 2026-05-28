@@ -30,7 +30,13 @@ function createItem<T extends object>(input: T): T & { id: string; createdAt: st
 }
 
 function normalizeNote(note: HubNote): HubNote {
-  return { ...note, clientVisible: Boolean(note.clientVisible), projectIds: note.projectIds ?? [] };
+  return {
+    ...note,
+    collection: note.collection?.trim() || undefined,
+    clientVisible: Boolean(note.clientVisible),
+    projectIds: note.projectIds ?? [],
+    relatedNoteIds: note.relatedNoteIds ?? [],
+  };
 }
 
 function legacyProjectNoteId(projectId: string, noteId: string) {
@@ -72,7 +78,7 @@ export const useStudioStore = create<StudioState>()(
       updateResource: (itemId, updates) => set((state) => ({ resources: updateItems(state.resources, itemId, updates) })),
       deleteResource: (itemId) => set((state) => ({ resources: state.resources.filter((item) => item.id !== itemId) })),
       addNote: (input) => {
-        const note = createItem({ ...input, projectIds: input.projectIds ?? [] });
+        const note = createItem({ ...input, collection: input.collection?.trim() || undefined, projectIds: input.projectIds ?? [], relatedNoteIds: input.relatedNoteIds ?? [] });
         set((state) => ({ notes: [note, ...state.notes] }));
         return note;
       },
@@ -104,6 +110,7 @@ export const useStudioStore = create<StudioState>()(
                 favorite: false,
                 clientVisible: note.visibility === "client",
                 projectIds: note.visibility === "client" ? [project.id] : [],
+                relatedNoteIds: [],
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt,
               });

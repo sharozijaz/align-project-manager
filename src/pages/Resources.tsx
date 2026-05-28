@@ -1,6 +1,9 @@
 import {
+  CalendarDays,
   Check,
   CheckSquare,
+  ChevronDown,
+  ChevronRight,
   Code2,
   Copy,
   Download,
@@ -8,12 +11,15 @@ import {
   Eye,
   ExternalLink,
   FileText,
+  Folder,
+  FolderOpen,
   Bold,
   Heading1,
   Heading2,
   Heading3,
   Italic,
   Link,
+  Link2,
   List,
   ListOrdered,
   Minus,
@@ -72,13 +78,15 @@ type ResourceFormState = {
 };
 
 type ResourceFilter = HubResourceType | "all" | "favorites";
-type NoteFilter = "all" | "pinned" | "linked";
+type NoteFilter = "all" | "favorites" | "connected" | "recent" | "unfiled";
 type NoteFormState = {
   title: string;
   body: string;
+  collection: string;
   tags: string;
   clientVisible: boolean;
   projectIds: string[];
+  relatedNoteIds: string[];
 };
 
 const emptyResourceForm: ResourceFormState = {
@@ -93,9 +101,11 @@ const emptyResourceForm: ResourceFormState = {
 const emptyNoteForm: NoteFormState = {
   title: "",
   body: "",
+  collection: "",
   tags: "",
   clientVisible: false,
   projectIds: [],
+  relatedNoteIds: [],
 };
 
 function normalizeResourceUrl(url?: string) {
@@ -149,10 +159,31 @@ function normalizeNoteFormForSave(form: NoteFormState): NoteFormState {
   return {
     title: form.title.trim() || "Untitled note",
     body: form.body,
+    collection: form.collection.trim(),
     tags: form.tags.trim() || "",
     clientVisible: Boolean(form.clientVisible),
     projectIds: form.projectIds,
+    relatedNoteIds: normalizeRelatedNoteIds(form.relatedNoteIds),
   };
+}
+
+function normalizeRelatedNoteIds(noteIds: string[]) {
+  return [...new Set(noteIds.filter(Boolean))];
+}
+
+function isRecentlyEdited(value: string) {
+  const updated = new Date(value).getTime();
+  if (!Number.isFinite(updated)) return false;
+  return Date.now() - updated <= 1000 * 60 * 60 * 24 * 7;
+}
+
+function getWordCount(body: string) {
+  return body.trim() ? body.trim().split(/\s+/).length : 0;
+}
+
+function getReadTimeLabel(body: string) {
+  const minutes = Math.max(1, Math.ceil(getWordCount(body) / 220));
+  return `${minutes} min read`;
 }
 
 function toggleChecklistLineInMarkdown(body: string, lineIndex: number) {
@@ -186,6 +217,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ResourceFilter>("all");
   const [noteFilter, setNoteFilter] = useState<NoteFilter>("all");
+  const [collectionFilter, setCollectionFilter] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
@@ -227,26 +259,37 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     [query, resources, type],
   );
 
+  const noteCollections = useMemo(() => getNoteCollections(notes), [notes]);
+  const collectionNoteIds = useMemo(() => (collectionFilter ? getCollectionNoteIds(notes, collectionFilter) : new Set<string>()), [collectionFilter, notes]);
+
   const filteredNotes = useMemo(
     () =>
       notes
         .filter((note) => {
-          const matchesQuery = `${note.title} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase());
+          const wikiLinkedIds = getWikiLinkedNoteIds(note.body, notes);
+          const matchesQuery = `${note.title} ${note.collection ?? ""} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase());
+          const matchesCollection = !collectionFilter || collectionNoteIds.has(note.id);
           const matchesFilter =
             noteFilter === "all" ||
-            (noteFilter === "pinned" && Boolean(note.favorite)) ||
-            (noteFilter === "linked" && Boolean(note.projectIds?.length));
-          return matchesQuery && matchesFilter;
+            (noteFilter === "favorites" && Boolean(note.favorite)) ||
+            (noteFilter === "connected" && Boolean(note.projectIds?.length || note.relatedNoteIds?.length || wikiLinkedIds.length)) ||
+            (noteFilter === "recent" && isRecentlyEdited(note.updatedAt)) ||
+            (noteFilter === "unfiled" && !note.collection?.trim());
+          return matchesQuery && matchesCollection && matchesFilter;
         })
         .sort((left, right) => {
           if (Boolean(left.favorite) !== Boolean(right.favorite)) return left.favorite ? -1 : 1;
           return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
         }),
-    [notes, noteFilter, query],
+    [collectionFilter, collectionNoteIds, notes, noteFilter, query],
   );
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
   const selectedResource = selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId) ?? null : null;
+  const collectionNotes = useMemo(
+    () => (collectionFilter ? sortNotes(notes.filter((note) => collectionNoteIds.has(note.id))) : []),
+    [collectionFilter, collectionNoteIds, notes],
+  );
 
   useEffect(() => {
     if (view !== "notes") return;
@@ -262,10 +305,35 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     }
   }, [resources, selectedResourceId]);
 
+  const updateNoteWithRelationships = (noteId: string, payload: NoteFormState) => {
+    const normalizedPayload = normalizeNoteFormForSave(payload);
+    updateNote(noteId, normalizedPayload);
+    reconcileRelatedNotes({
+      noteId,
+      notes,
+      relatedNoteIds: normalizedPayload.relatedNoteIds,
+      collection: normalizedPayload.collection,
+      updateNote,
+    });
+  };
+
+  const addNoteWithRelationships = (payload: NoteFormState) => {
+    const normalizedPayload = normalizeNoteFormForSave(payload);
+    const note = addNote(normalizedPayload);
+    reconcileRelatedNotes({
+      noteId: note.id,
+      notes: [note, ...notes],
+      relatedNoteIds: normalizedPayload.relatedNoteIds,
+      collection: normalizedPayload.collection,
+      updateNote,
+    });
+    return note;
+  };
+
   useEffect(() => {
     if (showForm !== "note") return;
 
-    const hasDraftContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.tags.trim() || noteForm.projectIds.length);
+    const hasDraftContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.collection.trim() || noteForm.tags.trim() || noteForm.projectIds.length || noteForm.relatedNoteIds.length);
     if (!hasDraftContent) {
       setNoteAutosaveStatus("");
       return;
@@ -276,10 +344,10 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       const payload = normalizeNoteFormForSave(noteForm);
 
       if (draftNoteId) {
-        updateNote(draftNoteId, payload);
+        updateNoteWithRelationships(draftNoteId, payload);
         setSelectedNoteId(draftNoteId);
       } else {
-        const draft = addNote(payload);
+        const draft = addNoteWithRelationships(payload);
         setDraftNoteId(draft.id);
         setSelectedNoteId(draft.id);
       }
@@ -295,7 +363,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
 
     setNoteAutosaveStatus("Saving changes...");
     const timeout = window.setTimeout(() => {
-      updateNote(editingNoteId, normalizeNoteFormForSave(editNoteForm));
+      updateNoteWithRelationships(editingNoteId, editNoteForm);
       setNoteAutosaveStatus("Changes saved");
     }, 900);
 
@@ -320,14 +388,14 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   };
 
   const saveNewNote = () => {
-    const hasContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.tags.trim() || noteForm.projectIds.length);
+    const hasContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.collection.trim() || noteForm.tags.trim() || noteForm.projectIds.length || noteForm.relatedNoteIds.length);
     if (!hasContent) return;
 
     if (draftNoteId) {
-      updateNote(draftNoteId, normalizeNoteFormForSave(noteForm));
+      updateNoteWithRelationships(draftNoteId, noteForm);
       setSelectedNoteId(draftNoteId);
     } else {
-      const saved = addNote(normalizeNoteFormForSave(noteForm));
+      const saved = addNoteWithRelationships(noteForm);
       setSelectedNoteId(saved.id);
     }
 
@@ -340,6 +408,11 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
 
   const handleDeleteNote = (noteId: string) => {
     const nextVisibleNote = filteredNotes.find((note) => note.id !== noteId) ?? null;
+    notes.forEach((note) => {
+      if (note.relatedNoteIds?.includes(noteId)) {
+        updateNote(note.id, { relatedNoteIds: note.relatedNoteIds.filter((relatedNoteId) => relatedNoteId !== noteId) });
+      }
+    });
     deleteNote(noteId);
     if (selectedNoteId === noteId) setSelectedNoteId(nextVisibleNote?.id ?? null);
     if (editingNoteId === noteId) setEditingNoteId(null);
@@ -351,21 +424,28 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     setEditNoteForm({
       title: note.title,
       body: note.body,
+      collection: note.collection ?? "",
       tags: note.tags ?? "",
       clientVisible: Boolean(note.clientVisible),
       projectIds: note.projectIds ?? [],
+      relatedNoteIds: getExplicitRelatedNoteIds(note, notes),
     });
   };
 
   const saveEditingNote = () => {
     if (!editingNoteId) return;
-    updateNote(editingNoteId, normalizeNoteFormForSave(editNoteForm));
+    updateNoteWithRelationships(editingNoteId, editNoteForm);
     setNoteAutosaveStatus("");
     setEditingNoteId(null);
   };
 
   const toggleSelectedNoteChecklistLine = (note: HubNote, lineIndex: number) => {
     updateNote(note.id, { body: toggleChecklistLineInMarkdown(note.body, lineIndex) });
+  };
+
+  const selectNote = (noteId: string) => {
+    if (collectionFilter && !collectionNoteIds.has(noteId)) setCollectionFilter(null);
+    setSelectedNoteId(noteId);
   };
 
   const exportNotes = (format: "json" | "markdown", scope: "current" | "all") => {
@@ -490,6 +570,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
                   variant="secondary"
                   icon={<StickyNote size={16} />}
                   onClick={() => {
+                    setNoteForm({ ...emptyNoteForm, collection: collectionFilter ?? "" });
                     setShowForm("note");
                     setView("notes");
                   }}
@@ -518,7 +599,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         </Card>
       ) : null}
 
-      <Card className="p-3">
+      <Card className="p-2">
         <div className="grid gap-3">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={17} />
@@ -547,17 +628,30 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         ) : null}
       </Card>
 
-      <div className={`grid gap-5 ${view === "notes" ? "xl:grid-cols-[320px_minmax(0,1fr)]" : "2xl:grid-cols-[minmax(0,1fr)_400px]"}`}>
+      <div className={`grid gap-5 ${view === "notes" ? "xl:grid-cols-[360px_minmax(0,1fr)]" : "2xl:grid-cols-[minmax(0,1fr)_400px]"}`}>
         {view === "notes" ? (
           <aside className="space-y-4">
             <NoteListPanel
               notes={filteredNotes}
               allNotes={notes}
+              collections={noteCollections}
+              collectionFilter={collectionFilter}
               projects={projects}
               selectedNote={selectedNote}
               filter={noteFilter}
-              onFilterChange={setNoteFilter}
-              onSelectNote={(note) => setSelectedNoteId(note.id)}
+              onFilterChange={(filter) => {
+                setNoteFilter(filter);
+                setCollectionFilter(null);
+              }}
+              onCollectionFilterChange={(collection) => {
+                setNoteFilter("all");
+                setCollectionFilter(collection);
+                if (collection) {
+                  const firstCollectionNote = sortNotes(notes.filter((note) => note.collection === collection))[0];
+                  setSelectedNoteId(firstCollectionNote?.id ?? null);
+                }
+              }}
+              onSelectNote={(note) => selectNote(note.id)}
             />
           </aside>
         ) : null}
@@ -619,6 +713,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
           ) : (
             <NotesWorkspace
               projects={projects}
+              allNotes={notes}
+              collectionNotes={collectionNotes}
+              selectedCollection={collectionFilter}
               selectedNote={selectedNote}
               editingNoteId={editingNoteId}
               editNoteForm={editNoteForm}
@@ -629,6 +726,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               onDelete={handleDeleteNote}
               onToggleFavorite={(note) => updateNote(note.id, { favorite: !note.favorite })}
               onToggleChecklistLine={toggleSelectedNoteChecklistLine}
+              onSelectNote={selectNote}
               creatingNote={showForm === "note"}
               noteForm={noteForm}
               autosaveStatus={noteAutosaveStatus}
@@ -718,6 +816,115 @@ function isProject(project: Project | undefined): project is Project {
   return Boolean(project);
 }
 
+function sortNotes(notes: HubNote[]) {
+  return [...notes].sort((left, right) => {
+    if (Boolean(left.favorite) !== Boolean(right.favorite)) return left.favorite ? -1 : 1;
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  });
+}
+
+function getNoteCollections(notes: HubNote[]) {
+  const counts = new Map<string, number>();
+  notes.forEach((note) => {
+    const collection = note.collection?.trim();
+    if (!collection) return;
+    counts.set(collection, (counts.get(collection) ?? 0) + 1);
+  });
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function getCollectionNoteIds(notes: HubNote[], collection: string) {
+  const ids = new Set(notes.filter((note) => note.collection === collection).map((note) => note.id));
+  notes.forEach((note) => {
+    if (!ids.has(note.id)) return;
+    getExplicitRelatedNoteIds(note, notes).forEach((relatedNoteId) => ids.add(relatedNoteId));
+  });
+  return ids;
+}
+
+function findNoteByTitle(notes: HubNote[], title: string) {
+  const normalizedTitle = title.trim().toLowerCase();
+  return notes.find((note) => note.title.trim().toLowerCase() === normalizedTitle) ?? null;
+}
+
+function getWikiLinkedNoteIds(body: string, notes: HubNote[]) {
+  const ids = new Set<string>();
+  const matches = body.matchAll(/\[\[([^\]]+)\]\]/g);
+  for (const match of matches) {
+    const note = findNoteByTitle(notes, match[1]);
+    if (note) ids.add(note.id);
+  }
+  return [...ids];
+}
+
+function getExplicitRelatedNoteIds(note: HubNote, allNotes: HubNote[]) {
+  const relatedIds = new Set(note.relatedNoteIds ?? []);
+  allNotes.forEach((candidate) => {
+    if (candidate.id !== note.id && candidate.relatedNoteIds?.includes(note.id)) relatedIds.add(candidate.id);
+  });
+  relatedIds.delete(note.id);
+  return [...relatedIds];
+}
+
+function getLinkedNoteContext(note: HubNote, allNotes: HubNote[]) {
+  const relatedIds = new Set(getExplicitRelatedNoteIds(note, allNotes));
+  const wikiIds = new Set(getWikiLinkedNoteIds(note.body, allNotes).filter((noteId) => noteId !== note.id));
+  const backlinks = allNotes.filter((candidate) => {
+    if (candidate.id === note.id) return false;
+    return !relatedIds.has(candidate.id) && getWikiLinkedNoteIds(candidate.body, allNotes).includes(note.id);
+  });
+
+  return {
+    related: sortNotes(allNotes.filter((candidate) => relatedIds.has(candidate.id) && candidate.id !== note.id)),
+    wikiLinks: sortNotes(allNotes.filter((candidate) => wikiIds.has(candidate.id))),
+    backlinks: sortNotes(backlinks),
+  };
+}
+
+function reconcileRelatedNotes({
+  noteId,
+  notes,
+  relatedNoteIds,
+  collection,
+  updateNote,
+}: {
+  noteId: string;
+  notes: HubNote[];
+  relatedNoteIds: string[];
+  collection: string;
+  updateNote: (id: string, updates: Partial<NoteFormState>) => void;
+}) {
+  const selectedRelatedIds = new Set(relatedNoteIds.filter((relatedNoteId) => relatedNoteId !== noteId));
+
+  notes.forEach((note) => {
+    if (note.id === noteId) return;
+
+    const existingRelatedIds = note.relatedNoteIds ?? [];
+    const shouldBeRelated = selectedRelatedIds.has(note.id);
+    const hasReciprocalLink = existingRelatedIds.includes(noteId);
+    const nextRelatedIds = shouldBeRelated
+      ? normalizeRelatedNoteIds([...existingRelatedIds, noteId])
+      : existingRelatedIds.filter((relatedNoteId) => relatedNoteId !== noteId);
+
+    const updates: Partial<NoteFormState> = {};
+    if (nextRelatedIds.length !== existingRelatedIds.length || nextRelatedIds.some((relatedNoteId, index) => relatedNoteId !== existingRelatedIds[index])) {
+      updates.relatedNoteIds = nextRelatedIds;
+    }
+
+    if (shouldBeRelated && collection && !note.collection) {
+      updates.collection = collection;
+    }
+
+    if (!shouldBeRelated && hasReciprocalLink && !updates.relatedNoteIds) {
+      updates.relatedNoteIds = nextRelatedIds;
+    }
+
+    if (Object.keys(updates).length) updateNote(note.id, updates);
+  });
+}
+
 function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[]; selectedIds: string[]; onChange: (projectIds: string[]) => void }) {
   const selectableProjects = projects.filter((project) => project.status === "active" || project.status === "paused" || selectedIds.includes(project.id));
 
@@ -728,12 +935,12 @@ function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[
   };
 
   return (
-    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Linked projects</p>
         <span className="text-xs font-semibold text-[var(--text-soft)]">{selectedIds.length} selected</span>
       </div>
-      <div className="mt-3 flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1">
+      <div className="mt-3 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1">
         {selectableProjects.map((project) => {
           const selected = selectedIds.includes(project.id);
           return (
@@ -756,23 +963,72 @@ function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[
   );
 }
 
+function RelatedNotesPicker({
+  notes,
+  currentNoteId,
+  selectedIds,
+  onChange,
+}: {
+  notes: HubNote[];
+  currentNoteId?: string;
+  selectedIds: string[];
+  onChange: (noteIds: string[]) => void;
+}) {
+  const selectableNotes = notes.filter((note) => note.id !== currentNoteId);
+  if (!selectableNotes.length) return null;
+
+  const selectedSet = new Set(selectedIds);
+  const toggleNote = (noteId: string) => {
+    onChange(selectedSet.has(noteId) ? selectedIds.filter((id) => id !== noteId) : [...selectedIds, noteId]);
+  };
+
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Related notes</p>
+        <span className="text-xs font-semibold text-[var(--text-soft)]">{selectedIds.length} selected</span>
+      </div>
+      <div className="mt-3 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1">
+        {selectableNotes.map((note) => {
+          const selected = selectedSet.has(note.id);
+          return (
+            <button
+              key={note.id}
+              type="button"
+              onClick={() => toggleNote(note.id)}
+              className={`inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-xs font-semibold transition ${
+                selected
+                  ? "border-[var(--brand-primary)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+              }`}
+            >
+              <Link2 size={13} />
+              <span className="truncate">{note.title}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ClientVisibilityToggle({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`flex items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-left text-sm transition ${
+      className={`flex h-full items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-left text-sm transition ${
         checked
           ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)] text-[var(--text)]"
           : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
       }`}
     >
-      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--brand-primary)]">
+      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-[var(--brand-primary)]">
         <Eye size={16} />
       </span>
       <span>
-        <span className="block font-bold text-[var(--text)]">{checked ? "Client-visible note" : "Private note"}</span>
-        <span className="mt-1 block text-xs">
+        <span className="block font-bold text-[var(--text)]">{checked ? "Client-visible" : "Private"}</span>
+        <span className="mt-1 block text-xs leading-5">
           {checked
             ? "This note can appear on password-protected client share links for linked projects."
             : "This note stays private even when linked projects are shared."}
@@ -1187,59 +1443,117 @@ function wrapMarkdown(value: string, marker: string) {
 function NoteListPanel({
   notes,
   allNotes,
+  collections,
+  collectionFilter,
   projects,
   selectedNote,
   filter,
   onFilterChange,
+  onCollectionFilterChange,
   onSelectNote,
 }: {
   notes: HubNote[];
   allNotes: HubNote[];
+  collections: Array<{ name: string; count: number }>;
+  collectionFilter: string | null;
   projects: Project[];
   selectedNote: HubNote | null;
   filter: NoteFilter;
   onFilterChange: (filter: NoteFilter) => void;
+  onCollectionFilterChange: (collection: string | null) => void;
   onSelectNote: (note: HubNote) => void;
 }) {
   const projectLookup = new Map(projects.map((project) => [project.id, project]));
-  const pinnedCount = allNotes.filter((note) => note.favorite).length;
-  const linkedCount = allNotes.filter((note) => note.projectIds?.length).length;
+  const favoriteCount = allNotes.filter((note) => note.favorite).length;
+  const connectedCount = allNotes.filter((note) => note.projectIds?.length || note.relatedNoteIds?.length || getWikiLinkedNoteIds(note.body, allNotes).length).length;
+  const recentCount = allNotes.filter((note) => isRecentlyEdited(note.updatedAt)).length;
+  const unfiledCount = allNotes.filter((note) => !note.collection?.trim()).length;
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-bold text-[var(--text)]">Saved Notes</h2>
-            <p className="text-sm text-[var(--text-muted)]">{allNotes.length} private notes</p>
+            <h2 className="font-display text-lg font-bold text-[var(--text)]">Notes Library</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{allNotes.length} notes · {collections.length || 0} collections</p>
           </div>
-          <SlidersHorizontal size={17} className="text-[var(--text-soft)]" />
+          <SlidersHorizontal size={16} className="mt-1 text-[var(--text-soft)]" />
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <NoteFilterButton active={filter === "all"} label="All" count={allNotes.length} onClick={() => onFilterChange("all")} />
-          <NoteFilterButton active={filter === "pinned"} label="Pinned" count={pinnedCount} onClick={() => onFilterChange("pinned")} />
-          <NoteFilterButton active={filter === "linked"} label="Linked" count={linkedCount} onClick={() => onFilterChange("linked")} />
+        <div className="mt-4">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Views</p>
+          <div className="grid gap-0.5">
+            <NoteTreeButton active={!collectionFilter && filter === "all"} icon={<FileText size={15} />} label="Everything" count={allNotes.length} onClick={() => onFilterChange("all")} />
+            <NoteTreeButton active={!collectionFilter && filter === "favorites"} icon={<Star size={15} />} label="Favorites" count={favoriteCount} onClick={() => onFilterChange("favorites")} />
+            <NoteTreeButton active={!collectionFilter && filter === "connected"} icon={<Link2 size={15} />} label="Connected" count={connectedCount} onClick={() => onFilterChange("connected")} />
+            <NoteTreeButton active={!collectionFilter && filter === "recent"} icon={<ClockIcon />} label="Recently Edited" count={recentCount} onClick={() => onFilterChange("recent")} />
+            <NoteTreeButton active={!collectionFilter && filter === "unfiled"} icon={<FolderOpen size={15} />} label="Unfiled" count={unfiledCount} onClick={() => onFilterChange("unfiled")} />
+          </div>
+        </div>
+        {collections.length ? (
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Collections</p>
+              {collectionFilter ? (
+                <button type="button" className="text-xs font-semibold text-[var(--text-brand)] hover:underline" onClick={() => onCollectionFilterChange(null)}>
+                  All notes
+                </button>
+              ) : null}
+            </div>
+            <div className="grid max-h-48 gap-0.5 overflow-y-auto pr-1">
+              {collections.map((collection) => (
+                <button
+                  key={collection.name}
+                  type="button"
+                  onClick={() => onCollectionFilterChange(collection.name)}
+                  className={`group relative flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm transition ${
+                    collectionFilter === collection.name
+                      ? "bg-[var(--surface-hover)] text-[var(--text)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {collectionFilter === collection.name ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-primary)]" /> : null}
+                  {collectionFilter === collection.name ? <ChevronDown size={14} className="text-[var(--brand-primary)]" /> : <ChevronRight size={14} className="text-[var(--text-soft)] group-hover:text-[var(--text-muted)]" />}
+                  <Folder size={14} className={collectionFilter === collection.name ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"} />
+                  <span className="min-w-0 flex-1 truncate font-medium">{collection.name}</span>
+                  <span className="text-xs text-[var(--text-soft)]">{collection.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Collections</p>
+            <p className="rounded-[var(--radius-sm)] px-2 py-1.5 text-xs leading-5 text-[var(--text-soft)]">
+              Collections appear here after you add one to a note.
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="border-b border-[var(--border)] px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">{collectionFilter || "Notes"}</p>
+          <span className="text-xs font-semibold text-[var(--text-soft)]">{notes.length}</span>
         </div>
       </div>
-      <div className="max-h-[calc(100vh-16rem)] overflow-y-auto p-3">
+      <div className="max-h-[calc(100vh-16rem)] overflow-y-auto p-2">
         {!notes.length ? <EmptyState>No matching notes yet.</EmptyState> : null}
         {notes.map((note) => (
           <button
             key={note.id}
             type="button"
             onClick={() => onSelectNote(note)}
-            className={`mb-2 block w-full rounded-[var(--radius-sm)] border p-4 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 ${
+            className={`mb-2 block w-full rounded-[var(--radius-sm)] border p-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 ${
               selectedNote?.id === note.id
                 ? "border-[var(--brand-primary)] bg-[var(--surface-raised)] shadow-[0_0_0_1px_var(--brand-primary),var(--shadow-sm)]"
                 : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="line-clamp-1 font-display text-base font-bold text-[var(--text)]">{note.title}</h3>
+              <h3 className="line-clamp-1 text-sm font-bold text-[var(--text)]">{note.title}</h3>
               <Pin size={15} className={note.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
             </div>
             {note.body ? <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{note.body.replace(/[#>*_`[\]-]/g, " ").replace(/\s+/g, " ").trim()}</p> : null}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-[var(--text-soft)]">{format(new Date(note.updatedAt), "MMM d, yyyy")}</span>
               {(note.projectIds ?? [])
                 .map((projectId) => projectLookup.get(projectId))
@@ -1255,6 +1569,7 @@ function NoteListPanel({
                 .map((tag) => (
                   <Badge key={tag.trim()}>{tag.trim()}</Badge>
                 ))}
+              {note.collection ? <Badge tone="slate">{note.collection}</Badge> : null}
             </div>
           </button>
         ))}
@@ -1263,25 +1578,34 @@ function NoteListPanel({
   );
 }
 
-function NoteFilterButton({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+function ClockIcon() {
+  return <CalendarDays size={15} />;
+}
+
+function NoteTreeButton({ active, icon, label, count, onClick }: { active: boolean; icon: ReactNode; label: string; count: number; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-[var(--radius-sm)] border px-2.5 py-2 text-left transition ${
+      className={`group relative flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm transition ${
         active
-          ? "border-[var(--brand-primary)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)] shadow-[var(--shadow-sm)]"
-          : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+          ? "bg-[var(--surface-hover)] text-[var(--text)]"
+          : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
       }`}
     >
-      <span className="block text-xs font-bold">{label}</span>
-      <span className="mt-0.5 block text-[11px] opacity-80">{count}</span>
+      {active ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-primary)]" /> : null}
+      <span className={active ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"}>{icon}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+      <span className="text-xs text-[var(--text-soft)]">{count}</span>
     </button>
   );
 }
 
 function NotesWorkspace({
   projects,
+  allNotes,
+  collectionNotes,
+  selectedCollection,
   selectedNote,
   editingNoteId,
   editNoteForm,
@@ -1300,8 +1624,12 @@ function NotesWorkspace({
   onDelete,
   onToggleFavorite,
   onToggleChecklistLine,
+  onSelectNote,
 }: {
   projects: Project[];
+  allNotes: HubNote[];
+  collectionNotes: HubNote[];
+  selectedCollection: string | null;
   selectedNote: HubNote | null;
   editingNoteId: string | null;
   editNoteForm: NoteFormState;
@@ -1320,10 +1648,12 @@ function NotesWorkspace({
   onDelete: (id: string) => void;
   onToggleFavorite: (note: HubNote) => void;
   onToggleChecklistLine: (note: HubNote, lineIndex: number) => void;
+  onSelectNote: (noteId: string) => void;
 }) {
   const isEditing = selectedNote ? editingNoteId === selectedNote.id : false;
   const projectLookup = new Map(projects.map((project) => [project.id, project]));
   const selectedProjects = selectedNote?.projectIds?.map((projectId) => projectLookup.get(projectId)).filter(isProject);
+  const linkedContext = selectedNote ? getLinkedNoteContext(selectedNote, allNotes) : { related: [], backlinks: [], wikiLinks: [] };
 
   return (
     <div className="min-h-[760px]">
@@ -1345,35 +1675,51 @@ function NotesWorkspace({
                 </>
               }
             />
-            <div className="grid flex-1 gap-4 p-5 lg:p-6">
-              <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
-                <Input value={noteForm.title} onChange={(event) => onNoteFormChange({ ...noteForm, title: event.target.value })} placeholder="Note title" />
-                <Input value={noteForm.tags} onChange={(event) => onNoteFormChange({ ...noteForm, tags: event.target.value })} placeholder="Tags, comma separated" />
+            <div className="grid flex-1 gap-5 p-5 lg:p-6">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <FieldBlock label="Title">
+                  <Input value={noteForm.title} onChange={(event) => onNoteFormChange({ ...noteForm, title: event.target.value })} placeholder="Note title" />
+                </FieldBlock>
+                <FieldBlock label="Tags">
+                  <Input value={noteForm.tags} onChange={(event) => onNoteFormChange({ ...noteForm, tags: event.target.value })} placeholder="Services, UX, handoff" />
+                </FieldBlock>
               </div>
-              <ProjectPicker projects={projects} selectedIds={noteForm.projectIds} onChange={(projectIds) => onNoteFormChange({ ...noteForm, projectIds })} />
-              <div className="grid gap-3">
-                <ClientVisibilityToggle
-                  checked={noteForm.clientVisible}
-                  onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
-                />
+              <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+                <div className="mb-3 flex w-full items-center justify-between gap-3 text-left">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">
+                    <FolderOpen size={14} />
+                    Organize
+                  </p>
+                  <span className="text-xs font-semibold text-[var(--text-soft)]">Collection, links, visibility</span>
+                </div>
+                <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.8fr)_minmax(0,1fr)]">
+                  <FieldBlock label="Collection">
+                    <Input value={noteForm.collection} onChange={(event) => onNoteFormChange({ ...noteForm, collection: event.target.value })} placeholder="Provider International" />
+                  </FieldBlock>
+                  <ClientVisibilityToggle
+                    checked={noteForm.clientVisible}
+                    onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
+                  />
+                </div>
+                <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                  <ProjectPicker projects={projects} selectedIds={noteForm.projectIds} onChange={(projectIds) => onNoteFormChange({ ...noteForm, projectIds })} />
+                  <RelatedNotesPicker notes={allNotes} selectedIds={noteForm.relatedNoteIds} onChange={(relatedNoteIds) => onNoteFormChange({ ...noteForm, relatedNoteIds })} />
+                </div>
               </div>
               <MarkdownEditor value={noteForm.body} onChange={(body) => onNoteFormChange({ ...noteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
             </div>
           </div>
         ) : selectedNote ? (
           <div className="flex h-full min-h-[760px] flex-col">
-            <div className="border-b border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(80,151,255,0.12),transparent_35%),linear-gradient(180deg,var(--surface-raised),var(--surface))] px-5 py-5 lg:px-8">
+            <div className="border-b border-[var(--border)] bg-[linear-gradient(180deg,var(--surface-raised),var(--surface))] px-5 py-4 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
-                    <span className="grid h-8 w-8 place-items-center rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] text-[var(--brand-primary)]">
-                      <FileText size={16} />
-                    </span>
-                    <span>Note</span>
-                    {selectedNote.favorite ? <Badge tone="purple">Pinned</Badge> : null}
-                    {selectedNote.clientVisible ? <Badge tone="emerald">Client-visible</Badge> : null}
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-soft)]">
+                    <span className="inline-flex items-center gap-1.5"><FolderOpen size={14} />{selectedNote.collection || "Notes"}</span>
+                    <ChevronRight size={13} />
+                    <span className="truncate">{selectedNote.title}</span>
                   </div>
-                  <h2 className="mt-3 max-w-4xl font-display text-2xl font-bold leading-tight text-[var(--text)] lg:text-3xl">{selectedNote.title}</h2>
+                  <h2 className="mt-3 max-w-4xl font-display text-2xl font-bold leading-tight text-[var(--text)]">{selectedNote.title}</h2>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {selectedProjects?.map((project) => (
                       <Badge key={project.id} tone="blue">{project.name}</Badge>
@@ -1389,7 +1735,7 @@ function NotesWorkspace({
                 <div className="grid gap-3 text-right">
                   <div className="text-xs font-semibold leading-5 text-[var(--text-soft)]">
                     <p>Updated {format(new Date(selectedNote.updatedAt), "MMM d, yyyy h:mm a")}</p>
-                    <p>Created {format(new Date(selectedNote.createdAt), "MMM d, yyyy")}</p>
+                    <p>{getWordCount(selectedNote.body)} words · {getReadTimeLabel(selectedNote.body)}</p>
                     {isEditing && autosaveStatus ? <p className="text-[var(--text-brand)]">{autosaveStatus}</p> : null}
                   </div>
                   <div className="flex flex-wrap justify-end gap-2">
@@ -1404,13 +1750,13 @@ function NotesWorkspace({
                       </>
                     ) : (
                       <>
-                        <Button type="button" variant="secondary" icon={<Pin size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
+                        <Button type="button" variant="secondary" className="px-3" icon={<Pin size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
                           {selectedNote.favorite ? "Pinned" : "Pin"}
                         </Button>
-                        <Button type="button" icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
+                        <Button type="button" className="px-3" icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
                           Edit
                         </Button>
-                        <Button type="button" variant="danger" icon={<Trash2 size={15} />} onClick={() => onDelete(selectedNote.id)}>
+                        <Button type="button" variant="danger" className="px-3" icon={<Trash2 size={15} />} onClick={() => onDelete(selectedNote.id)}>
                           Delete
                         </Button>
                       </>
@@ -1421,24 +1767,45 @@ function NotesWorkspace({
             </div>
 
             {isEditing ? (
-              <div className="grid flex-1 gap-4 p-5 lg:p-6">
-                <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
-                  <Input value={editNoteForm.title} onChange={(event) => onEditFormChange({ ...editNoteForm, title: event.target.value })} placeholder="Note title" />
-                  <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Tags" />
+              <div className="grid flex-1 gap-5 p-5 lg:p-6">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+                  <FieldBlock label="Title">
+                    <Input value={editNoteForm.title} onChange={(event) => onEditFormChange({ ...editNoteForm, title: event.target.value })} placeholder="Note title" />
+                  </FieldBlock>
+                  <FieldBlock label="Tags">
+                    <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Services, UX, handoff" />
+                  </FieldBlock>
                 </div>
-                <ProjectPicker projects={projects} selectedIds={editNoteForm.projectIds} onChange={(projectIds) => onEditFormChange({ ...editNoteForm, projectIds })} />
-                <div className="grid gap-3">
-                  <ClientVisibilityToggle
-                    checked={editNoteForm.clientVisible}
-                    onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
-                  />
+                <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+                  <div className="mb-3 flex w-full items-center justify-between gap-3 text-left">
+                    <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">
+                      <FolderOpen size={14} />
+                      Organize
+                    </p>
+                    <span className="text-xs font-semibold text-[var(--text-soft)]">{autosaveStatus || "Collection, links, visibility"}</span>
+                  </div>
+                  <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.8fr)_minmax(0,1fr)]">
+                    <FieldBlock label="Collection">
+                      <Input value={editNoteForm.collection} onChange={(event) => onEditFormChange({ ...editNoteForm, collection: event.target.value })} placeholder="Provider International" />
+                    </FieldBlock>
+                    <ClientVisibilityToggle
+                      checked={editNoteForm.clientVisible}
+                      onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
+                    />
+                  </div>
+                  <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                    <ProjectPicker projects={projects} selectedIds={editNoteForm.projectIds} onChange={(projectIds) => onEditFormChange({ ...editNoteForm, projectIds })} />
+                    <RelatedNotesPicker notes={allNotes} currentNoteId={selectedNote.id} selectedIds={editNoteForm.relatedNoteIds} onChange={(relatedNoteIds) => onEditFormChange({ ...editNoteForm, relatedNoteIds })} />
+                  </div>
                 </div>
                 <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,var(--surface),var(--bg))] p-6 lg:p-10">
-                <div className="mx-auto max-w-[1280px] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow-sm)] lg:px-14 lg:py-10">
-                  <NoteReader body={selectedNote.body} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
+              <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,var(--surface),var(--bg))] p-5 lg:p-8">
+                <div className="min-h-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow-sm)] lg:px-12 lg:py-10">
+                  {selectedCollection ? <CollectionOverview collection={selectedCollection} notes={collectionNotes} selectedNoteId={selectedNote.id} onSelectNote={onSelectNote} /> : null}
+                  <NoteReader body={selectedNote.body} allNotes={allNotes} onOpenNote={onSelectNote} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
+                  <CompactLinkedNotes notes={[...linkedContext.related, ...linkedContext.wikiLinks, ...linkedContext.backlinks]} onSelectNote={onSelectNote} />
                   <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4 text-xs font-semibold text-[var(--text-soft)]">
                     <span>{selectedNote.body.trim() ? selectedNote.body.trim().split(/\s+/).length : 0} words</span>
                     <span>Click checklist boxes to update this note.</span>
@@ -1458,7 +1825,7 @@ function NotesWorkspace({
 
 function NotePanelHeader({ label, title, actions, meta }: { label: string; title: string; actions: ReactNode; meta?: string }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-raised)] px-5 py-4">
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">{label}</p>
         <h2 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{title}</h2>
@@ -1466,6 +1833,15 @@ function NotePanelHeader({ label, title, actions, meta }: { label: string; title
       </div>
       <div className="flex flex-wrap gap-2">{actions}</div>
     </div>
+  );
+}
+
+function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -1669,11 +2045,129 @@ function ResourceDetailInline({
   );
 }
 
-function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChecklistLine?: (lineIndex: number) => void }) {
+function CollectionOverview({
+  collection,
+  notes,
+  selectedNoteId,
+  onSelectNote,
+}: {
+  collection: string;
+  notes: HubNote[];
+  selectedNoteId?: string;
+  onSelectNote: (noteId: string) => void;
+}) {
+  return (
+    <section className="mb-8 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
+            <FolderOpen size={15} />
+            Collection
+          </p>
+          <h3 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{collection}</h3>
+        </div>
+        <Badge tone="slate">{notes.length} notes</Badge>
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        {notes.map((note) => (
+          <button
+            key={note.id}
+            type="button"
+            onClick={() => onSelectNote(note.id)}
+            className={`rounded-[var(--radius-sm)] border p-3 text-left transition ${
+              selectedNoteId === note.id
+                ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)]"
+                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            <span className="block truncate text-sm font-bold text-[var(--text)]">{note.title}</span>
+            <span className="mt-1 block truncate text-xs text-[var(--text-soft)]">{note.tags || `${note.body.trim() ? note.body.trim().split(/\s+/).length : 0} words`}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CompactLinkedNotes({ notes, onSelectNote }: { notes: HubNote[]; onSelectNote: (noteId: string) => void }) {
+  const uniqueNotes = [...new Map(notes.map((note) => [note.id, note])).values()];
+  if (!uniqueNotes.length) return null;
+
+  return (
+    <section className="mt-8 border-t border-[var(--border)] pt-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
+          <Link2 size={14} />
+          Connected notes
+        </p>
+        <Badge tone="slate">{uniqueNotes.length}</Badge>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {uniqueNotes.map((note) => (
+          <button
+            key={note.id}
+            type="button"
+            onClick={() => onSelectNote(note.id)}
+            className="inline-flex max-w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+          >
+            <FileText size={14} />
+            <span className="truncate">{note.title}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LinkedNotesPanel({ title, notes, emptyText, onSelectNote }: { title: string; notes: HubNote[]; emptyText: string; onSelectNote: (noteId: string) => void }) {
+  if (!notes.length && !emptyText) return null;
+
+  return (
+    <section className="mt-8 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
+          <Link2 size={15} />
+          {title}
+        </p>
+        {notes.length ? <Badge tone="blue">{notes.length}</Badge> : null}
+      </div>
+      {notes.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {notes.map((note) => (
+            <button
+              key={note.id}
+              type="button"
+              onClick={() => onSelectNote(note.id)}
+              className="inline-flex max-w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+            >
+              <FileText size={14} />
+              <span className="truncate">{note.title}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-[var(--text-muted)]">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
+function NoteReader({
+  body,
+  allNotes = [],
+  onOpenNote,
+  onToggleChecklistLine,
+}: {
+  body: string;
+  allNotes?: HubNote[];
+  onOpenNote?: (noteId: string) => void;
+  onToggleChecklistLine?: (lineIndex: number) => void;
+}) {
   const lines = body.split("\n");
   const nodes: ReactNode[] = [];
   let codeLines: string[] = [];
   let inCodeBlock = false;
+  const inlineOptions = { notes: allNotes, onOpenNote };
 
   const pushCodeBlock = (key: string) => {
     nodes.push(
@@ -1729,7 +2223,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
               <tr>
                 {headerCells.map((cell, cellIndex) => (
                   <th key={cellIndex} className="border-b border-[var(--border)] px-3 py-2 font-bold">
-                    {renderInlineMarkdown(cell)}
+                    {renderInlineMarkdown(cell, inlineOptions)}
                   </th>
                 ))}
               </tr>
@@ -1739,7 +2233,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
                 <tr key={rowNumber} className="border-t border-[var(--border)]">
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex} className="px-3 py-2 text-[var(--text-muted)]">
-                      {renderInlineMarkdown(cell)}
+                      {renderInlineMarkdown(cell, inlineOptions)}
                     </td>
                   ))}
                 </tr>
@@ -1755,7 +2249,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
     if (line.startsWith("# ")) {
       nodes.push(
         <h1 key={index} className="pt-2 font-display text-3xl font-bold leading-tight text-[var(--text)]">
-          {renderInlineMarkdown(line.slice(2))}
+          {renderInlineMarkdown(line.slice(2), inlineOptions)}
         </h1>,
       );
       continue;
@@ -1764,7 +2258,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
     if (line.startsWith("## ")) {
       nodes.push(
         <h2 key={index} className="pt-2 font-display text-2xl font-bold leading-tight text-[var(--text)]">
-          {renderInlineMarkdown(line.slice(3))}
+          {renderInlineMarkdown(line.slice(3), inlineOptions)}
         </h2>,
       );
       continue;
@@ -1773,7 +2267,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
     if (line.startsWith("### ")) {
       nodes.push(
         <h3 key={index} className="pt-2 font-display text-xl font-bold leading-tight text-[var(--text)]">
-          {renderInlineMarkdown(line.slice(4))}
+          {renderInlineMarkdown(line.slice(4), inlineOptions)}
         </h3>,
       );
       continue;
@@ -1789,7 +2283,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
       nodes.push(
         <blockquote key={`quote-${index}`} className="border-l-4 border-[var(--brand-primary)] bg-[var(--bg-soft)] px-4 py-3 text-[var(--text-muted)]">
           {quoteLines.map((quoteLine, quoteLineIndex) => (
-            <p key={quoteLineIndex}>{renderInlineMarkdown(quoteLine)}</p>
+            <p key={quoteLineIndex}>{renderInlineMarkdown(quoteLine, inlineOptions)}</p>
           ))}
         </blockquote>,
       );
@@ -1824,7 +2318,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
               >
                 {item.checked ? <Check size={13} strokeWidth={3} /> : ""}
               </button>
-              <span>{renderInlineMarkdown(item.text)}</span>
+              <span>{renderInlineMarkdown(item.text, inlineOptions)}</span>
             </li>
           ))}
         </ul>,
@@ -1846,7 +2340,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
       nodes.push(
         <ul key={`list-${index}`} className="list-disc space-y-1 pl-6 text-[var(--text-muted)] marker:text-[var(--brand-primary)]">
           {items.map((item, itemNumber) => (
-            <li key={itemNumber}>{renderInlineMarkdown(item)}</li>
+            <li key={itemNumber}>{renderInlineMarkdown(item, inlineOptions)}</li>
           ))}
         </ul>,
       );
@@ -1867,7 +2361,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
       nodes.push(
         <ol key={`ordered-${index}`} className="list-decimal space-y-1 pl-6 text-[var(--text-muted)] marker:text-[var(--brand-primary)]">
           {items.map((item, itemNumber) => (
-            <li key={itemNumber}>{renderInlineMarkdown(item)}</li>
+            <li key={itemNumber}>{renderInlineMarkdown(item, inlineOptions)}</li>
           ))}
         </ol>,
       );
@@ -1875,7 +2369,7 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
       continue;
     }
 
-    nodes.push(<p key={index}>{renderInlineMarkdown(line)}</p>);
+    nodes.push(<p key={index}>{renderInlineMarkdown(line, inlineOptions)}</p>);
   }
 
   if (inCodeBlock && codeLines.length) {
@@ -1885,9 +2379,32 @@ function NoteReader({ body, onToggleChecklistLine }: { body: string; onToggleChe
   return <article className="space-y-4 text-base leading-8 text-[var(--text-muted)]">{nodes}</article>;
 }
 
-function renderInlineMarkdown(value: string) {
-  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
+type InlineMarkdownOptions = {
+  notes?: HubNote[];
+  onOpenNote?: (noteId: string) => void;
+};
+
+function renderInlineMarkdown(value: string, options: InlineMarkdownOptions = {}) {
+  const parts = value.split(/(\[\[[^\]]+\]\]|`[^`]+`|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, index) => {
+    const wikiMatch = part.match(/^\[\[([^\]]+)\]\]$/);
+    if (wikiMatch) {
+      const title = wikiMatch[1].trim();
+      const linkedNote = findNoteByTitle(options.notes ?? [], title);
+      return linkedNote && options.onOpenNote ? (
+        <button
+          key={index}
+          type="button"
+          className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--button-secondary-bg)] px-1.5 py-0.5 font-semibold text-[var(--text-brand)] hover:underline"
+          onClick={() => options.onOpenNote?.(linkedNote.id)}
+        >
+          <Link2 size={13} />
+          {title}
+        </button>
+      ) : (
+        <span key={index}>{part}</span>
+      );
+    }
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {
       const href = sanitizeMarkdownUrl(linkMatch[2]);

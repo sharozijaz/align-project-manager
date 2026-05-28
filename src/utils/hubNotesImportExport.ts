@@ -41,9 +41,11 @@ export function exportHubNotesMarkdown(notes: HubNote[]) {
       const normalized = normalizeNote(note);
       const metadata = [
         normalized.tags ? `Tags: ${normalized.tags}` : "",
+        normalized.collection ? `Collection: ${normalized.collection}` : "",
         normalized.favorite ? "Favorite: yes" : "",
         normalized.clientVisible ? "Client-visible: yes" : "",
         normalized.projectIds.length ? `Linked project IDs: ${normalized.projectIds.join(", ")}` : "",
+        normalized.relatedNoteIds.length ? `Related note IDs: ${normalized.relatedNoteIds.join(", ")}` : "",
         `Created: ${normalized.createdAt}`,
         `Updated: ${normalized.updatedAt}`,
       ].filter(Boolean);
@@ -51,10 +53,12 @@ export function exportHubNotesMarkdown(notes: HubNote[]) {
       return [
         "<!-- align-note-start -->",
         `<!-- align-note-id: ${normalized.id} -->`,
+        `<!-- align-note-collection: ${escapeMetadata(normalized.collection ?? "")} -->`,
         `<!-- align-note-tags: ${escapeMetadata(normalized.tags ?? "")} -->`,
         `<!-- align-note-favorite: ${normalized.favorite ? "true" : "false"} -->`,
         `<!-- align-note-client-visible: ${normalized.clientVisible ? "true" : "false"} -->`,
         `<!-- align-note-project-ids: ${normalized.projectIds.join(",")} -->`,
+        `<!-- align-note-related-note-ids: ${normalized.relatedNoteIds.join(",")} -->`,
         `<!-- align-note-created-at: ${normalized.createdAt} -->`,
         `<!-- align-note-updated-at: ${normalized.updatedAt} -->`,
         `## ${normalized.title}`,
@@ -179,10 +183,12 @@ function parseMarkdownNotes(content: string): HubNote[] {
       id: metadata["align-note-id"],
       title: metadata.title || "Imported note",
       body,
+      collection: metadata.collection || metadata["align-note-collection"] || undefined,
       tags: metadata.tags || undefined,
       favorite: metadata.favorite === "true",
       clientVisible: metadata["client-visible"] === "true",
       projectIds: splitCsv(metadata["project-ids"]),
+      relatedNoteIds: splitCsv(metadata["related-note-ids"]),
       createdAt: metadata["created-at"],
       updatedAt: metadata["updated-at"],
     });
@@ -213,10 +219,12 @@ function parseReadableMarkdownNotes(content: string): HubNote[] {
       id: comments["align-note-id"],
       title,
       body,
+      collection: comments["align-note-collection"] || undefined,
       tags: comments["align-note-tags"] || undefined,
       favorite: comments["align-note-favorite"] === "true",
       clientVisible: comments["align-note-client-visible"] === "true",
       projectIds: splitCsv(comments["align-note-project-ids"]),
+      relatedNoteIds: splitCsv(comments["align-note-related-note-ids"]),
       createdAt: comments["align-note-created-at"],
       updatedAt: comments["align-note-updated-at"],
     });
@@ -229,17 +237,25 @@ function normalizeImportedNote(note: Partial<HubNote>): HubNote {
     id: note.id || createNoteId(),
     title: String(note.title ?? "Imported note").trim() || "Imported note",
     body: String(note.body ?? "").trim(),
+    collection: note.collection?.trim() || undefined,
     tags: note.tags?.trim() || undefined,
     favorite: Boolean(note.favorite),
     clientVisible: Boolean(note.clientVisible),
     projectIds: Array.isArray(note.projectIds) ? note.projectIds.filter(Boolean) : [],
+    relatedNoteIds: Array.isArray(note.relatedNoteIds) ? note.relatedNoteIds.filter(Boolean) : [],
     createdAt: validDate(note.createdAt) || now,
     updatedAt: validDate(note.updatedAt) || now,
   };
 }
 
 function normalizeNote(note: HubNote): HubNote {
-  return { ...note, clientVisible: Boolean(note.clientVisible), projectIds: note.projectIds ?? [] };
+  return {
+    ...note,
+    collection: note.collection?.trim() || undefined,
+    clientVisible: Boolean(note.clientVisible),
+    projectIds: note.projectIds ?? [],
+    relatedNoteIds: note.relatedNoteIds ?? [],
+  };
 }
 
 function parseMetadata(value: string) {

@@ -94,16 +94,24 @@ create table if not exists public.hub_notes (
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
   body text not null,
+  collection text,
   tags text,
   favorite boolean not null default false,
   client_visible boolean not null default false,
   project_ids text[] not null default '{}',
+  related_note_ids text[] not null default '{}',
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
 
 alter table public.hub_notes
+add column if not exists collection text;
+
+alter table public.hub_notes
 add column if not exists project_ids text[] not null default '{}';
+
+alter table public.hub_notes
+add column if not exists related_note_ids text[] not null default '{}';
 
 alter table public.hub_notes
 add column if not exists client_visible boolean not null default false;
@@ -263,7 +271,9 @@ create index if not exists hub_resources_user_id_idx on public.hub_resources(use
 create index if not exists hub_resources_type_idx on public.hub_resources(type);
 create index if not exists hub_resources_collection_idx on public.hub_resources(collection);
 create index if not exists hub_notes_user_id_idx on public.hub_notes(user_id);
+create index if not exists hub_notes_collection_idx on public.hub_notes(collection);
 create index if not exists hub_notes_project_ids_idx on public.hub_notes using gin(project_ids);
+create index if not exists hub_notes_related_note_ids_idx on public.hub_notes using gin(related_note_ids);
 create unique index if not exists google_todo_links_align_task_idx on public.google_todo_links(user_id, align_task_id);
 create index if not exists google_todo_links_user_id_idx on public.google_todo_links(user_id);
 
