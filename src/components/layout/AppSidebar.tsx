@@ -83,6 +83,7 @@ export function AppSidebar() {
   const events = useCalendarStore((state) => state.events);
   const resources = useStudioStore((state) => state.resources);
   const notes = useStudioStore((state) => state.notes);
+  const noteSpaces = useStudioStore((state) => state.noteSpaces);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [railHovered, setRailHovered] = useState(false);
   const [railPinned, setRailPinned] = useState(false);
@@ -106,7 +107,7 @@ export function AppSidebar() {
     });
     if (!shouldSignOut) return;
 
-    saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes });
+    saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes, noteSpaces });
     await supabase.auth.signOut();
     setOpenMenu(null);
     setRailHovered(false);

@@ -1,5 +1,4 @@
 import {
-  CalendarDays,
   Check,
   CheckSquare,
   ChevronDown,
@@ -28,7 +27,6 @@ import {
   Quote,
   Save,
   Search,
-  SlidersHorizontal,
   Star,
   StickyNote,
   Strikethrough,
@@ -46,12 +44,13 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
 import { Select } from "../components/ui/Select";
 import { EmptyState, StudioTextarea } from "../components/studio/StudioForm";
 import { useProjectStore } from "../store/projectStore";
 import { useStudioStore } from "../store/studioStore";
 import type { Project } from "../types/project";
-import type { HubNote, HubResource, HubResourceType, HubView } from "../types/studio";
+import type { HubNote, HubNoteSpace, HubResource, HubResourceType, HubView } from "../types/studio";
 import {
   downloadTextFile,
   exportHubNotesJson,
@@ -78,7 +77,18 @@ type ResourceFormState = {
 };
 
 type ResourceFilter = HubResourceType | "all" | "favorites";
-type NoteFilter = "all" | "favorites" | "connected" | "recent" | "unfiled";
+type NoteFilter = "inbox" | "favorites";
+type NoteSpaceSelection = { type: "space" | "project"; id: string };
+type NoteSpaceView = {
+  key: string;
+  type: "space" | "project";
+  id: string;
+  name: string;
+  description?: string;
+  projectIds: string[];
+  manualNoteIds: string[];
+  count: number;
+};
 type NoteFormState = {
   title: string;
   body: string;
@@ -171,12 +181,6 @@ function normalizeRelatedNoteIds(noteIds: string[]) {
   return [...new Set(noteIds.filter(Boolean))];
 }
 
-function isRecentlyEdited(value: string) {
-  const updated = new Date(value).getTime();
-  if (!Number.isFinite(updated)) return false;
-  return Date.now() - updated <= 1000 * 60 * 60 * 24 * 7;
-}
-
 function getWordCount(body: string) {
   return body.trim() ? body.trim().split(/\s+/).length : 0;
 }
@@ -209,15 +213,30 @@ function ExportMenuButton({ title, description, onClick }: { title: string; desc
 }
 
 export function ResourcesWorkspace({ initialView = "resources" }: { initialView?: HubView }) {
-  const { resources, notes, addResource, addNote, updateResource, updateNote, deleteResource, deleteNote, replaceNotes } = useStudioStore();
+  const {
+    resources,
+    notes,
+    noteSpaces,
+    addResource,
+    addNote,
+    updateResource,
+    updateNote,
+    deleteResource,
+    deleteNote,
+    replaceNotes,
+    replaceNoteSpaces,
+    addNoteSpace,
+    addNoteToSpace,
+    removeNoteFromSpace,
+  } = useStudioStore();
   const projects = useProjectStore((state) => state.projects);
   const workspaceView = initialView === "notes" ? "notes" : "resources";
   const isNotesWorkspace = workspaceView === "notes";
   const [view, setView] = useState<HubView>(workspaceView);
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ResourceFilter>("all");
-  const [noteFilter, setNoteFilter] = useState<NoteFilter>("all");
-  const [collectionFilter, setCollectionFilter] = useState<string | null>(null);
+  const [noteFilter, setNoteFilter] = useState<NoteFilter>("inbox");
+  const [selectedSpaceKey, setSelectedSpaceKey] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
@@ -228,6 +247,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const [editNoteForm, setEditNoteForm] = useState<NoteFormState>(emptyNoteForm);
   const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
   const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm);
+  const [spaceModalOpen, setSpaceModalOpen] = useState(false);
+  const [spaceForm, setSpaceForm] = useState({ name: "", description: "" });
   const [importMessage, setImportMessage] = useState("");
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [notePreviewOpen, setNotePreviewOpen] = useState(false);
@@ -259,36 +280,39 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     [query, resources, type],
   );
 
-  const noteCollections = useMemo(() => getNoteCollections(notes), [notes]);
-  const collectionNoteIds = useMemo(() => (collectionFilter ? getCollectionNoteIds(notes, collectionFilter) : new Set<string>()), [collectionFilter, notes]);
+  const personalSpaces = useMemo(() => buildPersonalSpaceViews(noteSpaces, notes), [noteSpaces, notes]);
+  const projectSpaces = useMemo(() => buildProjectSpaceViews(projects, notes), [projects, notes]);
+  const selectedSpace = useMemo(
+    () => [...personalSpaces, ...projectSpaces].find((space) => space.key === selectedSpaceKey) ?? null,
+    [personalSpaces, projectSpaces, selectedSpaceKey],
+  );
+  const selectedSpaceNoteIds = useMemo(() => (selectedSpace ? getSpaceNoteIds(selectedSpace, notes) : new Set<string>()), [notes, selectedSpace]);
 
   const filteredNotes = useMemo(
     () =>
       notes
         .filter((note) => {
-          const wikiLinkedIds = getWikiLinkedNoteIds(note.body, notes);
           const matchesQuery = `${note.title} ${note.collection ?? ""} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase());
-          const matchesCollection = !collectionFilter || collectionNoteIds.has(note.id);
-          const matchesFilter =
-            noteFilter === "all" ||
-            (noteFilter === "favorites" && Boolean(note.favorite)) ||
-            (noteFilter === "connected" && Boolean(note.projectIds?.length || note.relatedNoteIds?.length || wikiLinkedIds.length)) ||
-            (noteFilter === "recent" && isRecentlyEdited(note.updatedAt)) ||
-            (noteFilter === "unfiled" && !note.collection?.trim());
-          return matchesQuery && matchesCollection && matchesFilter;
+          const matchesSpace = !selectedSpace || selectedSpaceNoteIds.has(note.id);
+          const matchesFilter = selectedSpace
+            ? noteFilter !== "favorites" || Boolean(note.favorite)
+            : noteFilter === "favorites"
+              ? Boolean(note.favorite)
+              : !isFiledInSavedSpaces(note, noteSpaces, projects);
+          return matchesQuery && matchesSpace && matchesFilter;
         })
         .sort((left, right) => {
           if (Boolean(left.favorite) !== Boolean(right.favorite)) return left.favorite ? -1 : 1;
           return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
         }),
-    [collectionFilter, collectionNoteIds, notes, noteFilter, query],
+    [noteSpaces, notes, noteFilter, projects, query, selectedSpace, selectedSpaceNoteIds],
   );
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
   const selectedResource = selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId) ?? null : null;
-  const collectionNotes = useMemo(
-    () => (collectionFilter ? sortNotes(notes.filter((note) => collectionNoteIds.has(note.id))) : []),
-    [collectionFilter, collectionNoteIds, notes],
+  const selectedSpaceNotes = useMemo(
+    () => (selectedSpace ? sortNotes(notes.filter((note) => selectedSpaceNoteIds.has(note.id))) : []),
+    [notes, selectedSpace, selectedSpaceNoteIds],
   );
 
   useEffect(() => {
@@ -320,6 +344,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const addNoteWithRelationships = (payload: NoteFormState) => {
     const normalizedPayload = normalizeNoteFormForSave(payload);
     const note = addNote(normalizedPayload);
+    if (selectedSpace?.type === "space") {
+      addNoteToSpace(selectedSpace.id, note.id);
+    }
     reconcileRelatedNotes({
       noteId: note.id,
       notes: [note, ...notes],
@@ -328,6 +355,34 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       updateNote,
     });
     return note;
+  };
+
+  const createPersonalSpace = () => {
+    setSpaceForm({ name: "", description: "" });
+    setSpaceModalOpen(true);
+  };
+
+  const savePersonalSpace = (event: FormEvent) => {
+    event.preventDefault();
+    if (!spaceForm.name.trim()) return;
+    const space = addNoteSpace({
+      name: spaceForm.name.trim(),
+      description: spaceForm.description.trim() || undefined,
+      projectIds: [],
+      manualNoteIds: [],
+    });
+    setNoteFilter("inbox");
+    setSelectedSpaceKey(spaceKey("space", space.id));
+    setSpaceModalOpen(false);
+    setSpaceForm({ name: "", description: "" });
+  };
+
+  const noteFormForCurrentSpace = () => {
+    if (!selectedSpace) return emptyNoteForm;
+    return {
+      ...emptyNoteForm,
+      projectIds: selectedSpace.projectIds,
+    };
   };
 
   useEffect(() => {
@@ -444,7 +499,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   };
 
   const selectNote = (noteId: string) => {
-    if (collectionFilter && !collectionNoteIds.has(noteId)) setCollectionFilter(null);
+    if (selectedSpace && !selectedSpaceNoteIds.has(noteId)) setSelectedSpaceKey(null);
     setSelectedNoteId(noteId);
   };
 
@@ -457,12 +512,12 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         : "align-notes";
 
     if (format === "json") {
-      downloadTextFile(`${filenameBase}-${stamp}.json`, exportHubNotesJson(exportNotes), "application/json");
+      downloadTextFile(`${filenameBase}-${stamp}.json`, exportHubNotesJson(exportNotes, scope === "current" ? [] : noteSpaces), "application/json");
       setExportMenuOpen(false);
       return;
     }
 
-    downloadTextFile(`${filenameBase}-${stamp}.md`, exportHubNotesMarkdown(exportNotes), "text/markdown");
+    downloadTextFile(`${filenameBase}-${stamp}.md`, exportHubNotesMarkdown(exportNotes, scope === "current" ? [] : noteSpaces), "text/markdown");
     setExportMenuOpen(false);
   };
 
@@ -474,8 +529,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     try {
       const content = await file.text();
       const imported = parseHubNotesImport(content, file.name);
-      const { notes: mergedNotes, summary } = mergeImportedHubNotes(notes, imported);
+      const { notes: mergedNotes, noteSpaces: mergedSpaces, summary } = mergeImportedHubNotes(notes, imported.notes, noteSpaces, imported.noteSpaces);
       replaceNotes(mergedNotes);
+      replaceNoteSpaces(mergedSpaces);
       setImportMessage(summary.message);
       setView("notes");
     } catch (error) {
@@ -570,7 +626,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
                   variant="secondary"
                   icon={<StickyNote size={16} />}
                   onClick={() => {
-                    setNoteForm({ ...emptyNoteForm, collection: collectionFilter ?? "" });
+                    setNoteForm(noteFormForCurrentSpace());
                     setShowForm("note");
                     setView("notes");
                   }}
@@ -598,6 +654,58 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
           </Button>
         </Card>
       ) : null}
+
+      <Modal
+        title="New space"
+        open={spaceModalOpen}
+        onClose={() => {
+          setSpaceModalOpen(false);
+          setSpaceForm({ name: "", description: "" });
+        }}
+        className="max-w-lg"
+      >
+        <form onSubmit={savePersonalSpace} className="grid gap-4">
+          <div className="grid gap-2">
+            <label className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]" htmlFor="note-space-name">
+              Name
+            </label>
+            <Input
+              id="note-space-name"
+              autoFocus
+              value={spaceForm.name}
+              onChange={(event) => setSpaceForm((form) => ({ ...form, name: event.target.value }))}
+              placeholder="Provider International"
+            />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]" htmlFor="note-space-description">
+              Description
+            </label>
+            <StudioTextarea
+              id="note-space-description"
+              className="min-h-24"
+              value={spaceForm.description}
+              onChange={(event) => setSpaceForm((form) => ({ ...form, description: event.target.value }))}
+              placeholder="Optional context for this documentation space."
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setSpaceModalOpen(false);
+                setSpaceForm({ name: "", description: "" });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" icon={<FolderOpen size={15} />} disabled={!spaceForm.name.trim()}>
+              Create Space
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Card className="p-2">
         <div className="grid gap-3">
@@ -634,24 +742,27 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
             <NoteListPanel
               notes={filteredNotes}
               allNotes={notes}
-              collections={noteCollections}
-              collectionFilter={collectionFilter}
+              personalSpaces={personalSpaces}
+              projectSpaces={projectSpaces}
+              selectedSpaceKey={selectedSpaceKey}
               projects={projects}
               selectedNote={selectedNote}
               filter={noteFilter}
               onFilterChange={(filter) => {
                 setNoteFilter(filter);
-                setCollectionFilter(null);
+                setSelectedSpaceKey(null);
               }}
-              onCollectionFilterChange={(collection) => {
-                setNoteFilter("all");
-                setCollectionFilter(collection);
-                if (collection) {
-                  const firstCollectionNote = sortNotes(notes.filter((note) => note.collection === collection))[0];
-                  setSelectedNoteId(firstCollectionNote?.id ?? null);
-                }
+              onSpaceSelect={(spaceKey) => {
+                setNoteFilter("inbox");
+                setSelectedSpaceKey(spaceKey);
+                const space = [...personalSpaces, ...projectSpaces].find((item) => item.key === spaceKey);
+                const firstSpaceNote = space ? sortNotes(notes.filter((note) => getSpaceNoteIds(space, notes).has(note.id)))[0] : null;
+                setSelectedNoteId(firstSpaceNote?.id ?? null);
               }}
               onSelectNote={(note) => selectNote(note.id)}
+              onCreateSpace={createPersonalSpace}
+              onAddNoteToSpace={addNoteToSpace}
+              onRemoveNoteFromSpace={removeNoteFromSpace}
             />
           </aside>
         ) : null}
@@ -714,8 +825,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
             <NotesWorkspace
               projects={projects}
               allNotes={notes}
-              collectionNotes={collectionNotes}
-              selectedCollection={collectionFilter}
+              spaceNotes={selectedSpaceNotes}
+              selectedSpace={selectedSpace}
               selectedNote={selectedNote}
               editingNoteId={editingNoteId}
               editNoteForm={editNoteForm}
@@ -823,25 +934,79 @@ function sortNotes(notes: HubNote[]) {
   });
 }
 
-function getNoteCollections(notes: HubNote[]) {
-  const counts = new Map<string, number>();
-  notes.forEach((note) => {
-    const collection = note.collection?.trim();
-    if (!collection) return;
-    counts.set(collection, (counts.get(collection) ?? 0) + 1);
-  });
-  return [...counts.entries()]
-    .map(([name, count]) => ({ name, count }))
+function spaceKey(type: NoteSpaceSelection["type"], id: string) {
+  return `${type}:${id}`;
+}
+
+function buildPersonalSpaceViews(spaces: HubNoteSpace[], notes: HubNote[]): NoteSpaceView[] {
+  return spaces
+    .map((space) => {
+      const view: NoteSpaceView = {
+        key: spaceKey("space", space.id),
+        type: "space",
+        id: space.id,
+        name: space.name,
+        description: space.description,
+        projectIds: space.projectIds ?? [],
+        manualNoteIds: space.manualNoteIds ?? [],
+        count: 0,
+      };
+      return { ...view, count: getSpaceNoteIds(view, notes).size };
+    })
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function getCollectionNoteIds(notes: HubNote[], collection: string) {
-  const ids = new Set(notes.filter((note) => note.collection === collection).map((note) => note.id));
+function buildProjectSpaceViews(projects: Project[], notes: HubNote[]): NoteSpaceView[] {
+  return projects
+    .filter((project) => !project.deletedAt && project.status !== "archived")
+    .map((project) => {
+      const view: NoteSpaceView = {
+        key: spaceKey("project", project.id),
+        type: "project",
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        projectIds: [project.id],
+        manualNoteIds: [],
+        count: 0,
+      };
+      return { ...view, count: getSpaceNoteIds(view, notes).size };
+    })
+    .sort((left, right) => Number(right.count > 0) - Number(left.count > 0) || left.name.localeCompare(right.name));
+}
+
+function getSpaceNoteIds(space: NoteSpaceView, notes: HubNote[]) {
+  const ids = new Set<string>();
+  const projectIds = new Set(space.projectIds);
+
+  space.manualNoteIds.forEach((noteId) => ids.add(noteId));
   notes.forEach((note) => {
-    if (!ids.has(note.id)) return;
-    getExplicitRelatedNoteIds(note, notes).forEach((relatedNoteId) => ids.add(relatedNoteId));
+    if ((note.projectIds ?? []).some((projectId) => projectIds.has(projectId))) ids.add(note.id);
   });
+
+  const seedIds = [...ids];
+  seedIds.forEach((noteId) => {
+    const note = notes.find((candidate) => candidate.id === noteId);
+    if (!note) return;
+    getExplicitRelatedNoteIds(note, notes).forEach((relatedNoteId) => ids.add(relatedNoteId));
+    getWikiLinkedNoteIds(note.body, notes).forEach((wikiNoteId) => ids.add(wikiNoteId));
+    notes.forEach((candidate) => {
+      if (candidate.id !== note.id && getWikiLinkedNoteIds(candidate.body, notes).includes(note.id)) ids.add(candidate.id);
+    });
+  });
+
   return ids;
+}
+
+function isFiledInSavedSpaces(note: HubNote, spaces: HubNoteSpace[], projects: Project[]) {
+  if (spaces.some((space) => space.manualNoteIds?.includes(note.id))) return true;
+  const activeProjectIds = new Set(projects.filter((project) => !project.deletedAt && project.status !== "archived").map((project) => project.id));
+  return (note.projectIds ?? []).some((projectId) => activeProjectIds.has(projectId));
+}
+
+function isFiledInSpaceViews(note: HubNote, personalSpaces: NoteSpaceView[], projectSpaces: NoteSpaceView[]) {
+  if (personalSpaces.some((space) => space.manualNoteIds.includes(note.id))) return true;
+  return projectSpaces.some((space) => (note.projectIds ?? []).some((projectId) => space.projectIds.includes(projectId)));
 }
 
 function findNoteByTitle(notes: HubNote[], title: string) {
@@ -1443,99 +1608,96 @@ function wrapMarkdown(value: string, marker: string) {
 function NoteListPanel({
   notes,
   allNotes,
-  collections,
-  collectionFilter,
+  personalSpaces,
+  projectSpaces,
+  selectedSpaceKey,
   projects,
   selectedNote,
   filter,
   onFilterChange,
-  onCollectionFilterChange,
+  onSpaceSelect,
   onSelectNote,
+  onCreateSpace,
+  onAddNoteToSpace,
+  onRemoveNoteFromSpace,
 }: {
   notes: HubNote[];
   allNotes: HubNote[];
-  collections: Array<{ name: string; count: number }>;
-  collectionFilter: string | null;
+  personalSpaces: NoteSpaceView[];
+  projectSpaces: NoteSpaceView[];
+  selectedSpaceKey: string | null;
   projects: Project[];
   selectedNote: HubNote | null;
   filter: NoteFilter;
   onFilterChange: (filter: NoteFilter) => void;
-  onCollectionFilterChange: (collection: string | null) => void;
+  onSpaceSelect: (spaceKey: string) => void;
   onSelectNote: (note: HubNote) => void;
+  onCreateSpace: () => void;
+  onAddNoteToSpace: (spaceId: string, noteId: string) => void;
+  onRemoveNoteFromSpace: (spaceId: string, noteId: string) => void;
 }) {
   const projectLookup = new Map(projects.map((project) => [project.id, project]));
   const favoriteCount = allNotes.filter((note) => note.favorite).length;
-  const connectedCount = allNotes.filter((note) => note.projectIds?.length || note.relatedNoteIds?.length || getWikiLinkedNoteIds(note.body, allNotes).length).length;
-  const recentCount = allNotes.filter((note) => isRecentlyEdited(note.updatedAt)).length;
-  const unfiledCount = allNotes.filter((note) => !note.collection?.trim()).length;
+  const unfiledCount = allNotes.filter((note) => !isFiledInSpaceViews(note, personalSpaces, projectSpaces)).length;
+  const selectedManualSpace = selectedSpaceKey?.startsWith("space:") ? personalSpaces.find((space) => space.key === selectedSpaceKey) : null;
+  const visibleProjectSpaces = projectSpaces.filter((space) => space.count > 0 || space.key === selectedSpaceKey).slice(0, 6);
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-4">
+      <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-bold text-[var(--text)]">Notes Library</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{allNotes.length} notes · {collections.length || 0} collections</p>
+            <h2 className="font-display text-base font-bold text-[var(--text)]">Library</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{allNotes.length} notes · {personalSpaces.length + projectSpaces.length} spaces</p>
           </div>
-          <SlidersHorizontal size={16} className="mt-1 text-[var(--text-soft)]" />
         </div>
-        <div className="mt-4">
+        <div className="mt-3">
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Views</p>
           <div className="grid gap-0.5">
-            <NoteTreeButton active={!collectionFilter && filter === "all"} icon={<FileText size={15} />} label="Everything" count={allNotes.length} onClick={() => onFilterChange("all")} />
-            <NoteTreeButton active={!collectionFilter && filter === "favorites"} icon={<Star size={15} />} label="Favorites" count={favoriteCount} onClick={() => onFilterChange("favorites")} />
-            <NoteTreeButton active={!collectionFilter && filter === "connected"} icon={<Link2 size={15} />} label="Connected" count={connectedCount} onClick={() => onFilterChange("connected")} />
-            <NoteTreeButton active={!collectionFilter && filter === "recent"} icon={<ClockIcon />} label="Recently Edited" count={recentCount} onClick={() => onFilterChange("recent")} />
-            <NoteTreeButton active={!collectionFilter && filter === "unfiled"} icon={<FolderOpen size={15} />} label="Unfiled" count={unfiledCount} onClick={() => onFilterChange("unfiled")} />
+            <NoteTreeButton active={!selectedSpaceKey && filter === "inbox"} icon={<FolderOpen size={15} />} label="Inbox" count={unfiledCount} onClick={() => onFilterChange("inbox")} />
+            <NoteTreeButton active={!selectedSpaceKey && filter === "favorites"} icon={<Star size={15} />} label="Favorites" count={favoriteCount} onClick={() => onFilterChange("favorites")} />
           </div>
         </div>
-        {collections.length ? (
-          <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Collections</p>
-              {collectionFilter ? (
-                <button type="button" className="text-xs font-semibold text-[var(--text-brand)] hover:underline" onClick={() => onCollectionFilterChange(null)}>
-                  All notes
-                </button>
-              ) : null}
-            </div>
-            <div className="grid max-h-48 gap-0.5 overflow-y-auto pr-1">
-              {collections.map((collection) => (
-                <button
-                  key={collection.name}
-                  type="button"
-                  onClick={() => onCollectionFilterChange(collection.name)}
-                  className={`group relative flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm transition ${
-                    collectionFilter === collection.name
-                      ? "bg-[var(--surface-hover)] text-[var(--text)]"
-                      : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
-                  }`}
-                >
-                  {collectionFilter === collection.name ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-primary)]" /> : null}
-                  {collectionFilter === collection.name ? <ChevronDown size={14} className="text-[var(--brand-primary)]" /> : <ChevronRight size={14} className="text-[var(--text-soft)] group-hover:text-[var(--text-muted)]" />}
-                  <Folder size={14} className={collectionFilter === collection.name ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"} />
-                  <span className="min-w-0 flex-1 truncate font-medium">{collection.name}</span>
-                  <span className="text-xs text-[var(--text-soft)]">{collection.count}</span>
-                </button>
-              ))}
-            </div>
+        <div className="mt-4 border-t border-[var(--border)] pt-3">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Spaces</p>
+            <button type="button" className="grid h-7 w-7 place-items-center rounded-[var(--radius-sm)] text-[var(--text-soft)] transition hover:bg-[var(--surface)] hover:text-[var(--text)]" onClick={onCreateSpace} title="New space">
+              <Plus size={15} />
+            </button>
           </div>
-        ) : (
-          <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Collections</p>
-            <p className="rounded-[var(--radius-sm)] px-2 py-1.5 text-xs leading-5 text-[var(--text-soft)]">
-              Collections appear here after you add one to a note.
-            </p>
+          <div className="grid gap-0.5">
+            {personalSpaces.length ? personalSpaces.map((space) => (
+              <SpaceTreeButton key={space.key} space={space} active={selectedSpaceKey === space.key} onClick={() => onSpaceSelect(space.key)} />
+            )) : (
+              <button
+                type="button"
+                onClick={onCreateSpace}
+                className="flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface)] hover:text-[var(--text)]"
+              >
+                <Plus size={14} className="text-[var(--text-soft)]" />
+                New personal space
+              </button>
+            )}
           </div>
-        )}
+        </div>
+        <div className="mt-4 border-t border-[var(--border)] pt-3">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Project Docs</p>
+          <div className="grid gap-0.5">
+            {visibleProjectSpaces.length ? visibleProjectSpaces.map((space) => (
+              <SpaceTreeButton key={space.key} space={space} active={selectedSpaceKey === space.key} onClick={() => onSpaceSelect(space.key)} />
+            )) : (
+              <p className="rounded-[var(--radius-sm)] px-2 py-1.5 text-xs leading-5 text-[var(--text-soft)]">Link a note to a project to create project docs.</p>
+            )}
+          </div>
+        </div>
       </div>
       <div className="border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">{collectionFilter || "Notes"}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">{selectedSpaceKey ? "Space Notes" : filter === "favorites" ? "Favorites" : "Inbox"}</p>
           <span className="text-xs font-semibold text-[var(--text-soft)]">{notes.length}</span>
         </div>
       </div>
-      <div className="max-h-[calc(100vh-16rem)] overflow-y-auto p-2">
+      <div className="max-h-[calc(100vh-28rem)] overflow-y-auto p-2">
         {!notes.length ? <EmptyState>No matching notes yet.</EmptyState> : null}
         {notes.map((note) => (
           <button
@@ -1571,6 +1733,47 @@ function NoteListPanel({
                 ))}
               {note.collection ? <Badge tone="slate">{note.collection}</Badge> : null}
             </div>
+            {selectedManualSpace ? (
+              <div className="mt-3 border-t border-[var(--border)] pt-2">
+                {selectedManualSpace.manualNoteIds.includes(note.id) ? (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveNoteFromSpace(selectedManualSpace.id, note.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRemoveNoteFromSpace(selectedManualSpace.id, note.id);
+                    }}
+                    className="inline-flex rounded-[var(--radius-sm)] px-2 py-1 text-xs font-semibold text-[var(--text-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  >
+                    Remove from space
+                  </span>
+                ) : (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAddNoteToSpace(selectedManualSpace.id, note.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onAddNoteToSpace(selectedManualSpace.id, note.id);
+                    }}
+                    className="inline-flex rounded-[var(--radius-sm)] px-2 py-1 text-xs font-semibold text-[var(--text-brand)] transition hover:bg-[var(--button-secondary-hover)]"
+                  >
+                    Add to space
+                  </span>
+                )}
+              </div>
+            ) : null}
           </button>
         ))}
       </div>
@@ -1578,8 +1781,22 @@ function NoteListPanel({
   );
 }
 
-function ClockIcon() {
-  return <CalendarDays size={15} />;
+function SpaceTreeButton({ space, active, onClick }: { space: NoteSpaceView; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm transition ${
+        active ? "bg-[var(--surface-hover)] text-[var(--text)]" : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+      }`}
+    >
+      {active ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-primary)]" /> : null}
+      {active ? <ChevronDown size={14} className="text-[var(--brand-primary)]" /> : <ChevronRight size={14} className="text-[var(--text-soft)] group-hover:text-[var(--text-muted)]" />}
+      <Folder size={14} className={active ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"} />
+      <span className="min-w-0 flex-1 truncate font-medium" title={space.name}>{space.name}</span>
+      <span className="shrink-0 text-xs text-[var(--text-soft)]">{space.count}</span>
+    </button>
+  );
 }
 
 function NoteTreeButton({ active, icon, label, count, onClick }: { active: boolean; icon: ReactNode; label: string; count: number; onClick: () => void }) {
@@ -1596,7 +1813,7 @@ function NoteTreeButton({ active, icon, label, count, onClick }: { active: boole
       {active ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-primary)]" /> : null}
       <span className={active ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"}>{icon}</span>
       <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-      <span className="text-xs text-[var(--text-soft)]">{count}</span>
+      <span className="shrink-0 text-xs text-[var(--text-soft)]">{count}</span>
     </button>
   );
 }
@@ -1604,8 +1821,8 @@ function NoteTreeButton({ active, icon, label, count, onClick }: { active: boole
 function NotesWorkspace({
   projects,
   allNotes,
-  collectionNotes,
-  selectedCollection,
+  spaceNotes,
+  selectedSpace,
   selectedNote,
   editingNoteId,
   editNoteForm,
@@ -1628,8 +1845,8 @@ function NotesWorkspace({
 }: {
   projects: Project[];
   allNotes: HubNote[];
-  collectionNotes: HubNote[];
-  selectedCollection: string | null;
+  spaceNotes: HubNote[];
+  selectedSpace: NoteSpaceView | null;
   selectedNote: HubNote | null;
   editingNoteId: string | null;
   editNoteForm: NoteFormState;
@@ -1690,12 +1907,9 @@ function NotesWorkspace({
                     <FolderOpen size={14} />
                     Organize
                   </p>
-                  <span className="text-xs font-semibold text-[var(--text-soft)]">Collection, links, visibility</span>
+                  <span className="text-xs font-semibold text-[var(--text-soft)]">Projects, related notes, visibility</span>
                 </div>
-                <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.8fr)_minmax(0,1fr)]">
-                  <FieldBlock label="Collection">
-                    <Input value={noteForm.collection} onChange={(event) => onNoteFormChange({ ...noteForm, collection: event.target.value })} placeholder="Provider International" />
-                  </FieldBlock>
+                <div className="grid gap-3">
                   <ClientVisibilityToggle
                     checked={noteForm.clientVisible}
                     onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
@@ -1715,7 +1929,7 @@ function NotesWorkspace({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-soft)]">
-                    <span className="inline-flex items-center gap-1.5"><FolderOpen size={14} />{selectedNote.collection || "Notes"}</span>
+                    <span className="inline-flex items-center gap-1.5"><FolderOpen size={14} />{selectedSpace?.name || selectedNote.collection || "Notes"}</span>
                     <ChevronRight size={13} />
                     <span className="truncate">{selectedNote.title}</span>
                   </div>
@@ -1782,12 +1996,9 @@ function NotesWorkspace({
                       <FolderOpen size={14} />
                       Organize
                     </p>
-                    <span className="text-xs font-semibold text-[var(--text-soft)]">{autosaveStatus || "Collection, links, visibility"}</span>
+                    <span className="text-xs font-semibold text-[var(--text-soft)]">{autosaveStatus || "Projects, related notes, visibility"}</span>
                   </div>
-                  <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.8fr)_minmax(0,1fr)]">
-                    <FieldBlock label="Collection">
-                      <Input value={editNoteForm.collection} onChange={(event) => onEditFormChange({ ...editNoteForm, collection: event.target.value })} placeholder="Provider International" />
-                    </FieldBlock>
+                  <div className="grid gap-3">
                     <ClientVisibilityToggle
                       checked={editNoteForm.clientVisible}
                       onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
@@ -1803,7 +2014,7 @@ function NotesWorkspace({
             ) : (
               <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,var(--surface),var(--bg))] p-5 lg:p-8">
                 <div className="min-h-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow-sm)] lg:px-12 lg:py-10">
-                  {selectedCollection ? <CollectionOverview collection={selectedCollection} notes={collectionNotes} selectedNoteId={selectedNote.id} onSelectNote={onSelectNote} /> : null}
+                  {selectedSpace ? <SpaceOverview space={selectedSpace} notes={spaceNotes} selectedNoteId={selectedNote.id} onSelectNote={onSelectNote} /> : null}
                   <NoteReader body={selectedNote.body} allNotes={allNotes} onOpenNote={onSelectNote} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
                   <CompactLinkedNotes notes={[...linkedContext.related, ...linkedContext.wikiLinks, ...linkedContext.backlinks]} onSelectNote={onSelectNote} />
                   <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4 text-xs font-semibold text-[var(--text-soft)]">
@@ -2045,13 +2256,13 @@ function ResourceDetailInline({
   );
 }
 
-function CollectionOverview({
-  collection,
+function SpaceOverview({
+  space,
   notes,
   selectedNoteId,
   onSelectNote,
 }: {
-  collection: string;
+  space: NoteSpaceView;
   notes: HubNote[];
   selectedNoteId?: string;
   onSelectNote: (noteId: string) => void;
@@ -2062,9 +2273,10 @@ function CollectionOverview({
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
             <FolderOpen size={15} />
-            Collection
+            {space.type === "project" ? "Project docs" : "Space"}
           </p>
-          <h3 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{collection}</h3>
+          <h3 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{space.name}</h3>
+          {space.description ? <p className="mt-1 text-sm text-[var(--text-muted)]">{space.description}</p> : null}
         </div>
         <Badge tone="slate">{notes.length} notes</Badge>
       </div>

@@ -1,6 +1,6 @@
 import type { CalendarEvent } from "../../types/calendar";
 import type { Project, ProjectNote, ProjectStatus } from "../../types/project";
-import type { HubNote, HubResource } from "../../types/studio";
+import type { HubNote, HubNoteSpace, HubResource } from "../../types/studio";
 import type { Task } from "../../types/task";
 import { normalizeTaskPriority, normalizeTaskRecurrence, normalizeTaskReminder, normalizeTaskStatus } from "../../config/taskOptions";
 import type { Database } from "./types";
@@ -10,6 +10,7 @@ type TaskRow = Database["public"]["Tables"]["tasks"]["Row"];
 type CalendarEventRow = Database["public"]["Tables"]["calendar_events"]["Row"];
 type HubResourceRow = Database["public"]["Tables"]["hub_resources"]["Row"];
 type HubNoteRow = Database["public"]["Tables"]["hub_notes"]["Row"];
+type HubNoteSpaceRow = Database["public"]["Tables"]["hub_note_spaces"]["Row"];
 
 export const projectToRow = (project: Project, userId: string): ProjectRow => ({
   id: project.id,
@@ -176,6 +177,27 @@ export const rowToHubNote = (row: HubNoteRow): HubNote => ({
   clientVisible: Boolean(row.client_visible),
   projectIds: row.project_ids ?? [],
   relatedNoteIds: row.related_note_ids ?? [],
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export const hubNoteSpaceToRow = (space: HubNoteSpace, userId: string): HubNoteSpaceRow => ({
+  id: space.id,
+  user_id: userId,
+  name: space.name,
+  description: space.description ?? null,
+  project_ids: space.projectIds ?? [],
+  manual_note_ids: space.manualNoteIds ?? [],
+  created_at: space.createdAt,
+  updated_at: space.updatedAt,
+});
+
+export const rowToHubNoteSpace = (row: HubNoteSpaceRow): HubNoteSpace => ({
+  id: row.id,
+  name: row.name,
+  description: row.description ?? undefined,
+  projectIds: row.project_ids ?? [],
+  manualNoteIds: row.manual_note_ids ?? [],
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });

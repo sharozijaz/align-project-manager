@@ -104,6 +104,17 @@ create table if not exists public.hub_notes (
   updated_at timestamptz not null
 );
 
+create table if not exists public.hub_note_spaces (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  description text,
+  project_ids text[] not null default '{}',
+  manual_note_ids text[] not null default '{}',
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+);
+
 alter table public.hub_notes
 add column if not exists collection text;
 
@@ -173,6 +184,7 @@ alter table public.client_share_links enable row level security;
 alter table public.user_preferences enable row level security;
 alter table public.hub_resources enable row level security;
 alter table public.hub_notes enable row level security;
+alter table public.hub_note_spaces enable row level security;
 alter table public.google_todo_sync_settings enable row level security;
 alter table public.google_todo_links enable row level security;
 
@@ -230,6 +242,12 @@ for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create policy "Users can manage their own note spaces"
+on public.hub_note_spaces
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
 create policy "Users can manage their own Google Todo settings"
 on public.google_todo_sync_settings
 for all
@@ -274,6 +292,9 @@ create index if not exists hub_notes_user_id_idx on public.hub_notes(user_id);
 create index if not exists hub_notes_collection_idx on public.hub_notes(collection);
 create index if not exists hub_notes_project_ids_idx on public.hub_notes using gin(project_ids);
 create index if not exists hub_notes_related_note_ids_idx on public.hub_notes using gin(related_note_ids);
+create index if not exists hub_note_spaces_user_id_idx on public.hub_note_spaces(user_id);
+create index if not exists hub_note_spaces_project_ids_idx on public.hub_note_spaces using gin(project_ids);
+create index if not exists hub_note_spaces_manual_note_ids_idx on public.hub_note_spaces using gin(manual_note_ids);
 create unique index if not exists google_todo_links_align_task_idx on public.google_todo_links(user_id, align_task_id);
 create index if not exists google_todo_links_user_id_idx on public.google_todo_links(user_id);
 
@@ -287,6 +308,7 @@ grant select, insert, update, delete on public.client_share_links to authenticat
 grant select, insert, update, delete on public.user_preferences to authenticated;
 grant select, insert, update, delete on public.hub_resources to authenticated;
 grant select, insert, update, delete on public.hub_notes to authenticated;
+grant select, insert, update, delete on public.hub_note_spaces to authenticated;
 grant select, insert, update, delete on public.google_todo_sync_settings to authenticated;
 grant select, insert, update, delete on public.google_todo_links to authenticated;
 grant select, insert, update, delete on public.projects to service_role;
@@ -298,5 +320,6 @@ grant select, insert, update, delete on public.client_share_links to service_rol
 grant select, insert, update, delete on public.user_preferences to service_role;
 grant select, insert, update, delete on public.hub_resources to service_role;
 grant select, insert, update, delete on public.hub_notes to service_role;
+grant select, insert, update, delete on public.hub_note_spaces to service_role;
 grant select, insert, update, delete on public.google_todo_sync_settings to service_role;
 grant select, insert, update, delete on public.google_todo_links to service_role;

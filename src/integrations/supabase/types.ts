@@ -335,6 +335,30 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["hub_notes"]["Insert"]>;
         Relationships: [];
       };
+      hub_note_spaces: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          project_ids: string[] | null;
+          manual_note_ids: string[] | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          project_ids?: string[] | null;
+          manual_note_ids?: string[] | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["hub_note_spaces"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {};
     Functions: {};

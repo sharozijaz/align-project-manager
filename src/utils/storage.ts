@@ -1,6 +1,6 @@
 import type { CalendarEvent } from "../types/calendar";
 import type { Project } from "../types/project";
-import type { HubNote, HubResource } from "../types/studio";
+import type { HubNote, HubNoteSpace, HubResource } from "../types/studio";
 import type { Task } from "../types/task";
 
 export interface WorkspaceBackupPreferences {
@@ -26,6 +26,7 @@ export interface WorkspaceBackup {
   events: CalendarEvent[];
   resources: HubResource[];
   notes: HubNote[];
+  noteSpaces: HubNoteSpace[];
   preferences: WorkspaceBackupPreferences;
 }
 
@@ -56,6 +57,7 @@ export function createWorkspaceBackup({
   events,
   resources,
   notes,
+  noteSpaces,
   preferences,
 }: {
   tasks: Task[];
@@ -63,6 +65,7 @@ export function createWorkspaceBackup({
   events: CalendarEvent[];
   resources: HubResource[];
   notes: HubNote[];
+  noteSpaces?: HubNoteSpace[];
   preferences?: WorkspaceBackupPreferences;
 }): WorkspaceBackup {
   return {
@@ -73,13 +76,14 @@ export function createWorkspaceBackup({
     events,
     resources,
     notes,
+    noteSpaces: noteSpaces ?? [],
     preferences: preferences ?? {},
   };
 }
 
 export function saveWorkspaceSafetyBackup(
   reason: string,
-  workspace: Omit<WorkspaceBackup, "version" | "exportedAt" | "preferences"> & { preferences?: WorkspaceBackupPreferences },
+  workspace: Omit<WorkspaceBackup, "version" | "exportedAt" | "preferences" | "noteSpaces"> & { noteSpaces?: HubNoteSpace[]; preferences?: WorkspaceBackupPreferences },
 ) {
   if (typeof window === "undefined") {
     return "";
@@ -112,6 +116,7 @@ export function parseWorkspaceBackup(raw: string): WorkspaceBackup {
       events: parsed.events,
       resources: [],
       notes: [],
+      noteSpaces: [],
       preferences: {},
     };
   }
@@ -128,6 +133,7 @@ export function parseWorkspaceBackup(raw: string): WorkspaceBackup {
     events: parsed.events,
     resources: parsed.resources,
     notes: parsed.notes,
+    noteSpaces: Array.isArray(parsed.noteSpaces) ? parsed.noteSpaces : [],
     preferences: parsed.preferences ?? {},
   };
 }

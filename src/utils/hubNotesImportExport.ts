@@ -1,4 +1,4 @@
-import type { HubNote } from "../types/studio";
+import type { HubNote, HubNoteSpace } from "../types/studio";
 
 type HubNotesImportSummary = {
   added: number;
@@ -9,24 +9,31 @@ type HubNotesImportSummary = {
 };
 
 type HubNotesExportFile = {
-  version: "align-hub-notes-v1";
+  version: "align-hub-notes-v2";
   exportedAt: string;
   notes: HubNote[];
+  noteSpaces: HubNoteSpace[];
 };
 
-const EXPORT_VERSION = "align-hub-notes-v1";
+type HubNotesImportResult = {
+  notes: HubNote[];
+  noteSpaces: HubNoteSpace[];
+};
 
-export function exportHubNotesJson(notes: HubNote[]) {
+const EXPORT_VERSION = "align-hub-notes-v2";
+
+export function exportHubNotesJson(notes: HubNote[], noteSpaces: HubNoteSpace[] = []) {
   const payload: HubNotesExportFile = {
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
     notes: notes.map(normalizeNote),
+    noteSpaces: noteSpaces.map(normalizeNoteSpace),
   };
 
   return JSON.stringify(payload, null, 2);
 }
 
-export function exportHubNotesMarkdown(notes: HubNote[]) {
+export function exportHubNotesMarkdown(notes: HubNote[], noteSpaces: HubNoteSpace[] = []) {
   const header = [
     "# Align Notes",
     "",
@@ -34,6 +41,8 @@ export function exportHubNotesMarkdown(notes: HubNote[]) {
     "",
     "This Markdown file is meant to be readable. Align note IDs are stored in comments so the file can still be imported safely.",
     "",
+    ...noteSpaces.map((space) => `<!-- align-note-space: ${escapeMetadata(JSON.stringify(normalizeNoteSpace(space)))} -->`),
+    noteSpaces.length ? "" : "",
   ].join("\n");
 
   const body = notes
@@ -87,7 +96,7 @@ export function downloadTextFile(filename: string, content: string, type: string
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function parseHubNotesImport(content: string, filename: string): HubNote[] {
+export function parseHubNotesImport(content: string, filename: string): HubNotesImportResult {
   const extension = filename.toLowerCase().split(".").pop();
   if (extension === "json") return parseJsonNotes(content);
   if (extension === "md" || extension === "markdown") return parseMarkdownNotes(content);
@@ -97,7 +106,7 @@ export function parseHubNotesImport(content: string, filename: string): HubNote[
   return parseMarkdownNotes(content);
 }
 
-export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[]) {
+export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[], existingSpaces: HubNoteSpace[] = [], incomingSpaces: HubNoteSpace[] = []) {
   let added = 0;
   let updated = 0;
   let skipped = 0;
@@ -138,6 +147,7 @@ export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[]) 
 
   return {
     notes: next,
+    noteSpaces: mergeImportedNoteSpaces(existingSpaces, incomingSpaces, next),
     summary: {
       added,
       updated,
@@ -148,14 +158,17 @@ export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[]) 
   };
 }
 
-function parseJsonNotes(content: string): HubNote[] {
-  const parsed = JSON.parse(content) as Partial<HubNotesExportFile> | HubNote[];
+function parseJsonNotes(content: string): HubNotesImportResult {
+  const parsed = JSON.parse(content) as Partial<HubNotesExportFile & { version: string }> | HubNote[];
   const notes = Array.isArray(parsed) ? parsed : parsed.notes;
   if (!Array.isArray(notes)) throw new Error("JSON file does not contain Align notes.");
-  return notes.map((note) => normalizeImportedNote(note));
+  return {
+    notes: notes.map((note) => normalizeImportedNote(note)),
+    noteSpaces: Array.isArray(parsed) ? [] : Array.isArray(parsed.noteSpaces) ? parsed.noteSpaces.map((space) => normalizeImportedNoteSpace(space)) : [],
+  };
 }
 
-function parseMarkdownNotes(content: string): HubNote[] {
+function parseMarkdownNotes(content: string): HubNotesImportResult {
   if (content.includes("<!-- align-note-start -->")) return parseReadableMarkdownNotes(content);
 
   const sections = content
@@ -165,7 +178,8 @@ function parseMarkdownNotes(content: string): HubNote[] {
 
   if (!sections.length) throw new Error("Markdown file does not contain any notes.");
 
-  return sections.map((section) => {
+  return {
+    notes: sections.map((section) => {
     if (!section.startsWith("---\n")) {
       const title = section.split("\n").find(Boolean)?.replace(/^#+\s*/, "") || "Imported note";
       return normalizeImportedNote({ title, body: section });
@@ -192,10 +206,13 @@ function parseMarkdownNotes(content: string): HubNote[] {
       createdAt: metadata["created-at"],
       updatedAt: metadata["updated-at"],
     });
-  });
+    }),
+    noteSpaces: [],
+  };
 }
 
-function parseReadableMarkdownNotes(content: string): HubNote[] {
+function parseReadableMarkdownNotes(content: string): HubNotesImportResult {
+  const noteSpaces = parseMarkdownNoteSpaces(content);
   const sections = content
     .split("<!-- align-note-start -->")
     .map((section) => section.trim())
@@ -203,7 +220,8 @@ function parseReadableMarkdownNotes(content: string): HubNote[] {
 
   if (!sections.length) throw new Error("Markdown file does not contain any notes.");
 
-  return sections.map((section) => {
+  return {
+    notes: sections.map((section) => {
     const comments = parseHtmlComments(section);
     const titleMatch = section.match(/^##\s+(.+)$/m);
     const title = titleMatch?.[1]?.trim() || "Imported note";
@@ -228,7 +246,9 @@ function parseReadableMarkdownNotes(content: string): HubNote[] {
       createdAt: comments["align-note-created-at"],
       updatedAt: comments["align-note-updated-at"],
     });
-  });
+    }),
+    noteSpaces,
+  };
 }
 
 function normalizeImportedNote(note: Partial<HubNote>): HubNote {
@@ -256,6 +276,56 @@ function normalizeNote(note: HubNote): HubNote {
     projectIds: note.projectIds ?? [],
     relatedNoteIds: note.relatedNoteIds ?? [],
   };
+}
+
+function normalizeImportedNoteSpace(space: Partial<HubNoteSpace>): HubNoteSpace {
+  const now = new Date().toISOString();
+  return {
+    id: space.id || createNoteId().replace(/^note-/, "space-"),
+    name: String(space.name ?? "Imported space").trim() || "Imported space",
+    description: space.description?.trim() || undefined,
+    projectIds: Array.isArray(space.projectIds) ? [...new Set(space.projectIds.filter(Boolean))] : [],
+    manualNoteIds: Array.isArray(space.manualNoteIds) ? [...new Set(space.manualNoteIds.filter(Boolean))] : [],
+    createdAt: validDate(space.createdAt) || now,
+    updatedAt: validDate(space.updatedAt) || now,
+  };
+}
+
+function normalizeNoteSpace(space: HubNoteSpace): HubNoteSpace {
+  return normalizeImportedNoteSpace(space);
+}
+
+function mergeImportedNoteSpaces(existingSpaces: HubNoteSpace[], incomingSpaces: HubNoteSpace[], notes: HubNote[]) {
+  const validNoteIds = new Set(notes.map((note) => note.id));
+  const spacesById = new Map(existingSpaces.map((space) => [space.id, normalizeNoteSpace(space)]));
+
+  incomingSpaces.map(normalizeImportedNoteSpace).forEach((space) => {
+    const existing = spacesById.get(space.id);
+    spacesById.set(space.id, {
+      ...(existing ?? space),
+      ...space,
+      manualNoteIds: [...new Set([...(existing?.manualNoteIds ?? []), ...space.manualNoteIds].filter((noteId) => validNoteIds.has(noteId)))],
+      projectIds: [...new Set([...(existing?.projectIds ?? []), ...space.projectIds])],
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  return [...spacesById.values()];
+}
+
+function parseMarkdownNoteSpaces(content: string) {
+  const spaces: HubNoteSpace[] = [];
+  const pattern = /<!--\s*align-note-space:\s*([\s\S]*?)\s*-->/g;
+  let match = pattern.exec(content);
+  while (match) {
+    try {
+      spaces.push(normalizeImportedNoteSpace(JSON.parse(match[1].replace(/\\n/g, "\n")) as Partial<HubNoteSpace>));
+    } catch {
+      // Ignore malformed optional space metadata; note content remains importable.
+    }
+    match = pattern.exec(content);
+  }
+  return spaces;
 }
 
 function parseMetadata(value: string) {

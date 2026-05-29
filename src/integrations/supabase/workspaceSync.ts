@@ -1,15 +1,17 @@
 import type { CalendarEvent } from "../../types/calendar";
 import type { Project } from "../../types/project";
-import type { HubNote, HubResource } from "../../types/studio";
+import type { HubNote, HubNoteSpace, HubResource } from "../../types/studio";
 import type { Task } from "../../types/task";
 import { supabase } from "./client";
 import {
   calendarEventToRow,
   hubNoteToRow,
+  hubNoteSpaceToRow,
   hubResourceToRow,
   projectToRow,
   rowToCalendarEvent,
   rowToHubNote,
+  rowToHubNoteSpace,
   rowToHubResource,
   rowToProject,
   rowToTask,
@@ -23,6 +25,7 @@ export interface SyncedWorkspace {
   events: CalendarEvent[];
   resources: HubResource[];
   notes: HubNote[];
+  noteSpaces: HubNoteSpace[];
 }
 
 const requireClient = () => {
@@ -54,6 +57,7 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     { data: events, error: eventsError },
     { data: resources, error: resourcesError },
     { data: notes, error: notesError },
+    { data: noteSpaces, error: noteSpacesError },
   ] =
     await Promise.all([
       client.from("projects").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
@@ -61,6 +65,7 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
       client.from("calendar_events").select("*").eq("user_id", userId).order("start_date", { ascending: true }),
       client.from("hub_resources").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       client.from("hub_notes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      client.from("hub_note_spaces").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
     ]);
 
   const error =
@@ -68,7 +73,8 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     tasksError ??
     eventsError ??
     (isMissingRelation(resourcesError) ? null : resourcesError) ??
-    (isMissingRelation(notesError) ? null : notesError);
+    (isMissingRelation(notesError) ? null : notesError) ??
+    (isMissingRelation(noteSpacesError) ? null : noteSpacesError);
   if (error) throw new Error(errorMessage(error, "Could not download workspace from Supabase."));
 
   return {
@@ -77,6 +83,7 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     events: (events ?? []).map(rowToCalendarEvent),
     resources: isMissingRelation(resourcesError) ? [] : (resources ?? []).map(rowToHubResource),
     notes: isMissingRelation(notesError) ? [] : (notes ?? []).map(rowToHubNote),
+    noteSpaces: isMissingRelation(noteSpacesError) ? [] : (noteSpaces ?? []).map(rowToHubNoteSpace),
   };
 }
 
@@ -101,6 +108,7 @@ export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace) {
   await replaceCalendarEvents(workspace.events.map((event) => calendarEventToRow(event, userId)), userId);
   await replaceHubResources(workspace.resources.map((resource) => hubResourceToRow(resource, userId)), userId);
   await replaceHubNotes(workspace.notes.map((note) => hubNoteToRow(note, userId)), userId);
+  await replaceHubNoteSpaces(workspace.noteSpaces.map((space) => hubNoteSpaceToRow(space, userId)), userId);
 }
 
 export async function clearWorkspaceInSupabase() {
@@ -112,11 +120,12 @@ export async function clearWorkspaceInSupabase() {
     deleteOwnedRows("calendar_events", userId),
     deleteOwnedRows("hub_resources", userId),
     deleteOwnedRows("hub_notes", userId),
+    deleteOwnedRows("hub_note_spaces", userId),
     deleteOwnedRows("projects", userId),
   ]);
 }
 
-async function deleteOwnedRows(table: "projects" | "tasks" | "calendar_events" | "hub_resources" | "hub_notes", userId: string) {
+async function deleteOwnedRows(table: "projects" | "tasks" | "calendar_events" | "hub_resources" | "hub_notes" | "hub_note_spaces", userId: string) {
   const client = requireClient();
   const { error } = await client.from(table).delete().eq("user_id", userId);
 
@@ -316,5 +325,27 @@ async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[], userId: 
       throw new Error(errorMessage(retryError, "Could not upload hub notes."));
     }
     if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload hub notes."));
+  }
+}
+
+async function replaceHubNoteSpaces(rows: ReturnType<typeof hubNoteSpaceToRow>[], userId: string) {
+  const client = requireClient();
+  const { data: existing, error: existingError } = await client.from("hub_note_spaces").select("id").eq("user_id", userId);
+
+  if (isMissingRelation(existingError)) return;
+  if (existingError) throw new Error(errorMessage(existingError, "Could not read note spaces."));
+
+  const nextIds = new Set(rows.map((row) => row.id));
+  const staleIds = (existing ?? []).map((row) => row.id).filter((itemId) => !nextIds.has(itemId));
+
+  if (staleIds.length) {
+    const { error: deleteError } = await client.from("hub_note_spaces").delete().eq("user_id", userId).in("id", staleIds);
+    if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale note spaces."));
+  }
+
+  if (rows.length) {
+    const { error: upsertError } = await client.from("hub_note_spaces").upsert(rows);
+    if (isMissingRelation(upsertError)) return;
+    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload note spaces."));
   }
 }

@@ -10,8 +10,8 @@ import { errorMessage } from "../../utils/errors";
 import { saveWorkspaceSafetyBackup } from "../../utils/storage";
 import { clearWorkspaceOwnerId, getWorkspaceOwnerId, setWorkspaceOwnerId } from "../../utils/workspaceIdentity";
 
-const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[] }) =>
-  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
+const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[] }) =>
+  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0 || Boolean(workspace.noteSpaces?.length);
 
 export function WorkspaceAutoSync() {
   const { session, loading, isConfigured } = useSupabaseSession();
@@ -20,11 +20,13 @@ export function WorkspaceAutoSync() {
   const events = useCalendarStore((state) => state.events);
   const resources = useStudioStore((state) => state.resources);
   const notes = useStudioStore((state) => state.notes);
+  const noteSpaces = useStudioStore((state) => state.noteSpaces);
   const replaceTasks = useTaskStore((state) => state.replaceTasks);
   const replaceProjects = useProjectStore((state) => state.replaceProjects);
   const replaceEvents = useCalendarStore((state) => state.replaceEvents);
   const replaceResources = useStudioStore((state) => state.replaceResources);
   const replaceNotes = useStudioStore((state) => state.replaceNotes);
+  const replaceNoteSpaces = useStudioStore((state) => state.replaceNoteSpaces);
   const setSyncState = useSyncStore((state) => state.setSyncState);
   const setSynced = useSyncStore((state) => state.setSynced);
   const syncMode = useSyncStore((state) => state.mode);
@@ -35,19 +37,19 @@ export function WorkspaceAutoSync() {
   const clearedSignedOutRef = useRef(false);
   const isolatedAccountRef = useRef<string | undefined>(undefined);
   const workspaceSnapshot = useMemo(
-    () => JSON.stringify({ tasks, projects, events, resources, notes }),
-    [events, notes, projects, resources, tasks],
+    () => JSON.stringify({ tasks, projects, events, resources, notes, noteSpaces }),
+    [events, noteSpaces, notes, projects, resources, tasks],
   );
 
   const saveSafetyBackup = (reason: string) =>
-    saveWorkspaceSafetyBackup(reason, { tasks, projects, events, resources, notes });
+    saveWorkspaceSafetyBackup(reason, { tasks, projects, events, resources, notes, noteSpaces });
 
   useEffect(() => {
     if (isConfigured && loading) {
       return;
     }
 
-    const currentWorkspace = { tasks, projects, events, resources, notes };
+    const currentWorkspace = { tasks, projects, events, resources, notes, noteSpaces };
     const hasLocalData = hasWorkspaceData(currentWorkspace);
 
     if (isConfigured && !sessionId) {
@@ -61,6 +63,7 @@ export function WorkspaceAutoSync() {
         replaceEvents([]);
         replaceResources([]);
         replaceNotes([]);
+        replaceNoteSpaces([]);
         clearWorkspaceOwnerId();
         isolatedAccountRef.current = undefined;
         setSyncState("idle", "Signed out. Local workspace cleared after a safety backup was saved on this device.");
@@ -88,6 +91,7 @@ export function WorkspaceAutoSync() {
         replaceEvents([]);
         replaceResources([]);
         replaceNotes([]);
+        replaceNoteSpaces([]);
         setWorkspaceOwnerId(sessionId);
         isolatedAccountRef.current = sessionId;
         setSyncState("idle", "Account switched. Local workspace isolated after a safety backup was saved on this device.");
@@ -134,7 +138,7 @@ export function WorkspaceAutoSync() {
     readyToPushRef.current = false;
     clearedSignedOutRef.current = false;
 
-    const hadLocalDataAtPullStart = hasWorkspaceData({ tasks, projects, events, resources, notes });
+    const hadLocalDataAtPullStart = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces });
     const wasIsolatedForThisSession = isolatedAccountRef.current === sessionId;
 
     setSyncState("pulling", "Downloading cloud workspace...");
@@ -150,6 +154,7 @@ export function WorkspaceAutoSync() {
           replaceEvents(cloudWorkspace.events);
           replaceResources(cloudWorkspace.resources);
           replaceNotes(cloudWorkspace.notes);
+          replaceNoteSpaces(cloudWorkspace.noteSpaces);
           window.setTimeout(() => {
             applyingCloudRef.current = false;
             readyToPushRef.current = true;
@@ -188,6 +193,7 @@ export function WorkspaceAutoSync() {
     projects,
     replaceEvents,
     replaceNotes,
+    replaceNoteSpaces,
     replaceProjects,
     replaceResources,
     replaceTasks,
@@ -197,6 +203,7 @@ export function WorkspaceAutoSync() {
     setSynced,
     syncMode,
     tasks,
+    noteSpaces,
     notes,
   ]);
 
@@ -212,13 +219,13 @@ export function WorkspaceAutoSync() {
 
     setSyncState("pushing", "Saving workspace to cloud...");
     const timeout = window.setTimeout(() => {
-      void pushWorkspaceToSupabase({ tasks, projects, events, resources, notes })
+      void pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces })
         .then(() => setSynced("Workspace saved to cloud."))
         .catch((error) => setSyncState("error", errorMessage(error, "Could not save workspace to cloud.")));
     }, 1200);
 
     return () => window.clearTimeout(timeout);
-  }, [events, isConfigured, notes, projects, resources, sessionId, setSyncState, setSynced, syncMode, tasks, workspaceSnapshot]);
+  }, [events, isConfigured, noteSpaces, notes, projects, resources, sessionId, setSyncState, setSynced, syncMode, tasks, workspaceSnapshot]);
 
   return null;
 }

@@ -27,3 +27,13 @@ export interface HubNote {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface HubNoteSpace {
+  id: string;
+  name: string;
+  description?: string;
+  projectIds: string[];
+  manualNoteIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}

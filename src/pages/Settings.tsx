@@ -79,8 +79,8 @@ type SettingsSection = "account" | "appearance" | "google" | "notifications" | "
 const LAST_WORKSPACE_EXPORT_KEY = "align-last-workspace-export-v2";
 const IMPORT_SAFETY_BACKUP_KEY = "align-import-safety-backup-v2";
 
-const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[] }) =>
-  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0;
+const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[] }) =>
+  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0 || Boolean(workspace.noteSpaces?.length);
 
 function getSessionDisplayName(session: ReturnType<typeof useSupabaseSession>["session"]) {
   const metadata = session?.user.user_metadata as Record<string, unknown> | undefined;
@@ -129,7 +129,7 @@ export function Settings() {
   const { projects, replaceProjects } = useProjectStore();
   const { tasks, replaceTasks, upsertTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
-  const { resources, notes, replaceResources, replaceNotes } = useStudioStore();
+  const { resources, notes, noteSpaces, replaceResources, replaceNotes, replaceNoteSpaces } = useStudioStore();
   const syncState = useSyncStore();
   const syncMode = syncState.mode;
   const googleSyncState = useGoogleCalendarSyncStore();
@@ -290,6 +290,7 @@ export function Settings() {
       events,
       resources,
       notes,
+      noteSpaces,
       preferences: {
         theme,
         heroImage,
@@ -305,6 +306,7 @@ export function Settings() {
       events,
       resources,
       notes,
+      noteSpaces,
       preferences: {
         theme,
         heroImage,
@@ -342,6 +344,7 @@ export function Settings() {
       replaceEvents(backup.events);
       replaceResources(backup.resources);
       replaceNotes(backup.notes);
+      replaceNoteSpaces(backup.noteSpaces);
 
       const restoredTheme = themeOptions.find((option) => option.value === backup.preferences.theme);
       if (restoredTheme) {
@@ -424,7 +427,7 @@ export function Settings() {
     }
 
     const ownerId = getWorkspaceOwnerId();
-    const currentWorkspaceHasData = hasWorkspaceData({ tasks, projects, events, resources, notes });
+    const currentWorkspaceHasData = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces });
     if (session?.user.id && ownerId && ownerId !== session.user.id) {
       saveSafetyBackup("blocked-cross-account-upload");
       const message = "Upload blocked because this local workspace belongs to another account. A safety backup was saved.";
@@ -455,7 +458,7 @@ export function Settings() {
 
     try {
       saveSafetyBackup("manual-cloud-upload");
-      await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes });
+      await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces });
       syncState.setSynced("Local workspace uploaded to cloud.");
       setSyncMessage("Local workspace uploaded to Supabase.");
     } catch (error) {
@@ -490,7 +493,7 @@ export function Settings() {
       const workspace = await pullWorkspaceFromSupabase();
       const ownerId = getWorkspaceOwnerId();
       const isSameAccountWorkspace = Boolean(session?.user.id && ownerId === session.user.id);
-      if (!hasWorkspaceData(workspace) && isSameAccountWorkspace && hasWorkspaceData({ tasks, projects, events, resources, notes })) {
+      if (!hasWorkspaceData(workspace) && isSameAccountWorkspace && hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces })) {
         const message = "Cloud sync unavailable. Local data is safe on this device.";
         syncState.setSyncState("error", message);
         setSyncMessage(`${message} Supabase returned an empty workspace, so Align did not replace your local data.`);
@@ -502,6 +505,7 @@ export function Settings() {
       replaceEvents(workspace.events);
       replaceResources(workspace.resources);
       replaceNotes(workspace.notes);
+      replaceNoteSpaces(workspace.noteSpaces);
       if (session?.user.id) setWorkspaceOwnerId(session.user.id);
       syncState.setSynced("Workspace downloaded from cloud.");
       setSyncMessage("Workspace downloaded from Supabase.");
@@ -550,6 +554,7 @@ export function Settings() {
         replaceEvents([]);
         replaceResources([]);
         replaceNotes([]);
+        replaceNoteSpaces([]);
         setWorkspaceOwnerId(session.user.id);
       }
 
