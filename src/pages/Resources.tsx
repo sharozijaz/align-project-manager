@@ -43,6 +43,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { useConfirm } from "../components/ui/ConfirmProvider";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { Select } from "../components/ui/Select";
@@ -228,10 +229,13 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     replaceNotes,
     replaceNoteSpaces,
     addNoteSpace,
+    deleteNoteSpace,
     addNoteToSpace,
     removeNoteFromSpace,
   } = useStudioStore();
   const projects = useProjectStore((state) => state.projects);
+  const deleteProject = useProjectStore((state) => state.deleteProject);
+  const confirm = useConfirm();
   const workspaceView = initialView === "notes" ? "notes" : "resources";
   const isNotesWorkspace = workspaceView === "notes";
   const [view, setView] = useState<HubView>(workspaceView);
@@ -381,6 +385,40 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     setSelectedSpaceKey(spaceKey("space", space.id));
     setSpaceModalOpen(false);
     setSpaceForm({ name: "", description: "" });
+  };
+
+  const handleDeleteSpace = async (space: NoteSpaceView) => {
+    if (space.type !== "space") return;
+    const confirmed = await confirm({
+      title: "Delete space?",
+      description: `Delete "${space.name}"? Notes stay in your library; only this space grouping is removed.`,
+      confirmLabel: "Delete Space",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    deleteNoteSpace(space.id);
+    if (selectedSpaceKey === space.key) {
+      setSelectedSpaceKey(null);
+      setNoteFilter("inbox");
+    }
+  };
+
+  const handleDeleteProjectDocs = async (space: NoteSpaceView) => {
+    if (space.type !== "project") return;
+    const confirmed = await confirm({
+      title: "Delete project?",
+      description: `Move "${space.name}" to Trash? Linked notes stay in your library, but this Project Docs group will disappear.`,
+      confirmLabel: "Delete Project",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    deleteProject(space.id);
+    if (selectedSpaceKey === space.key) {
+      setSelectedSpaceKey(null);
+      setNoteFilter("inbox");
+    }
   };
 
   const noteFormForCurrentSpace = () => {
@@ -767,6 +805,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               }}
               onSelectNote={(note) => selectNote(note.id)}
               onCreateSpace={createPersonalSpace}
+              onDeleteSpace={handleDeleteSpace}
+              onDeleteProjectDocs={handleDeleteProjectDocs}
               onAddNoteToSpace={addNoteToSpace}
               onRemoveNoteFromSpace={removeNoteFromSpace}
             />
@@ -1672,6 +1712,8 @@ function NoteListPanel({
   onSpaceSelect,
   onSelectNote,
   onCreateSpace,
+  onDeleteSpace,
+  onDeleteProjectDocs,
   onAddNoteToSpace,
   onRemoveNoteFromSpace,
 }: {
@@ -1687,6 +1729,8 @@ function NoteListPanel({
   onSpaceSelect: (spaceKey: string) => void;
   onSelectNote: (note: HubNote) => void;
   onCreateSpace: () => void;
+  onDeleteSpace: (space: NoteSpaceView) => void;
+  onDeleteProjectDocs: (space: NoteSpaceView) => void;
   onAddNoteToSpace: (spaceId: string, noteId: string) => void;
   onRemoveNoteFromSpace: (spaceId: string, noteId: string) => void;
 }) {
@@ -1721,7 +1765,14 @@ function NoteListPanel({
           </div>
           <div className="grid gap-0.5">
             {personalSpaces.length ? personalSpaces.map((space) => (
-              <SpaceTreeButton key={space.key} space={space} active={selectedSpaceKey === space.key} onClick={() => onSpaceSelect(space.key)} />
+              <SpaceTreeButton
+                key={space.key}
+                space={space}
+                active={selectedSpaceKey === space.key}
+                onClick={() => onSpaceSelect(space.key)}
+                onDelete={() => onDeleteSpace(space)}
+                deleteLabel={`Delete ${space.name}`}
+              />
             )) : (
               <button
                 type="button"
@@ -1738,7 +1789,14 @@ function NoteListPanel({
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Project Docs</p>
           <div className="grid gap-0.5">
             {visibleProjectSpaces.length ? visibleProjectSpaces.map((space) => (
-              <SpaceTreeButton key={space.key} space={space} active={selectedSpaceKey === space.key} onClick={() => onSpaceSelect(space.key)} />
+              <SpaceTreeButton
+                key={space.key}
+                space={space}
+                active={selectedSpaceKey === space.key}
+                onClick={() => onSpaceSelect(space.key)}
+                onDelete={() => onDeleteProjectDocs(space)}
+                deleteLabel={`Delete project ${space.name}`}
+              />
             )) : (
               <p className="rounded-[var(--radius-sm)] px-2 py-1.5 text-xs leading-5 text-[var(--text-soft)]">Link a note to a project to create project docs.</p>
             )}
@@ -1835,21 +1893,46 @@ function NoteListPanel({
   );
 }
 
-function SpaceTreeButton({ space, active, onClick }: { space: NoteSpaceView; active: boolean; onClick: () => void }) {
+function SpaceTreeButton({
+  space,
+  active,
+  onClick,
+  onDelete,
+  deleteLabel,
+}: {
+  space: NoteSpaceView;
+  active: boolean;
+  onClick: () => void;
+  onDelete?: () => void;
+  deleteLabel?: string;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={`group relative flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm transition ${
         active ? "bg-[var(--surface-hover)] text-[var(--text)]" : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
       }`}
     >
       {active ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-primary)]" /> : null}
-      {active ? <ChevronDown size={14} className="text-[var(--brand-primary)]" /> : <ChevronRight size={14} className="text-[var(--text-soft)] group-hover:text-[var(--text-muted)]" />}
-      <Folder size={14} className={active ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"} />
-      <span className="min-w-0 flex-1 truncate font-medium" title={space.name}>{space.name}</span>
+      <button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        {active ? <ChevronDown size={14} className="text-[var(--brand-primary)]" /> : <ChevronRight size={14} className="text-[var(--text-soft)] group-hover:text-[var(--text-muted)]" />}
+        <Folder size={14} className={active ? "text-[var(--brand-primary)]" : "text-[var(--text-soft)] group-hover:text-[var(--text-muted)]"} />
+        <span className="min-w-0 flex-1 truncate font-medium" title={space.name}>{space.name}</span>
+      </button>
       <span className="shrink-0 text-xs text-[var(--text-soft)]">{space.count}</span>
-    </button>
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          className={`grid h-6 w-6 shrink-0 place-items-center rounded-[var(--radius-sm)] text-[var(--text-soft)] transition hover:bg-[var(--priority-high-bg)] hover:text-[var(--priority-high-text)] focus:bg-[var(--priority-high-bg)] focus:text-[var(--priority-high-text)] ${
+            active ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+          }`}
+          aria-label={deleteLabel ?? `Delete ${space.name}`}
+          title={deleteLabel ?? `Delete ${space.name}`}
+        >
+          <Trash2 size={13} />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
