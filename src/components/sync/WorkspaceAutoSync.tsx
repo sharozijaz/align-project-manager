@@ -154,7 +154,7 @@ export function WorkspaceAutoSync() {
           replaceEvents(cloudWorkspace.events);
           replaceResources(cloudWorkspace.resources);
           replaceNotes(cloudWorkspace.notes);
-          replaceNoteSpaces(cloudWorkspace.noteSpaces);
+          if (!cloudWorkspace.noteSpacesUnavailable) replaceNoteSpaces(cloudWorkspace.noteSpaces);
           window.setTimeout(() => {
             applyingCloudRef.current = false;
             readyToPushRef.current = true;

@@ -505,7 +505,7 @@ export function Settings() {
       replaceEvents(workspace.events);
       replaceResources(workspace.resources);
       replaceNotes(workspace.notes);
-      replaceNoteSpaces(workspace.noteSpaces);
+      if (!workspace.noteSpacesUnavailable) replaceNoteSpaces(workspace.noteSpaces);
       if (session?.user.id) setWorkspaceOwnerId(session.user.id);
       syncState.setSynced("Workspace downloaded from cloud.");
       setSyncMessage("Workspace downloaded from Supabase.");

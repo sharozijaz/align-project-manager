@@ -26,6 +26,7 @@ export interface SyncedWorkspace {
   resources: HubResource[];
   notes: HubNote[];
   noteSpaces: HubNoteSpace[];
+  noteSpacesUnavailable?: boolean;
 }
 
 const requireClient = () => {
@@ -84,6 +85,7 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     resources: isMissingRelation(resourcesError) ? [] : (resources ?? []).map(rowToHubResource),
     notes: isMissingRelation(notesError) ? [] : (notes ?? []).map(rowToHubNote),
     noteSpaces: isMissingRelation(noteSpacesError) ? [] : (noteSpaces ?? []).map(rowToHubNoteSpace),
+    noteSpacesUnavailable: isMissingRelation(noteSpacesError),
   };
 }
 
