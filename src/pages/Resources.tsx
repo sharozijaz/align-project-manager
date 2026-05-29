@@ -97,6 +97,7 @@ type NoteFormState = {
   clientVisible: boolean;
   projectIds: string[];
   relatedNoteIds: string[];
+  manualSpaceIds: string[];
 };
 
 const emptyResourceForm: ResourceFormState = {
@@ -116,6 +117,7 @@ const emptyNoteForm: NoteFormState = {
   clientVisible: false,
   projectIds: [],
   relatedNoteIds: [],
+  manualSpaceIds: [],
 };
 
 function normalizeResourceUrl(url?: string) {
@@ -165,7 +167,7 @@ function slugifyFilename(value: string) {
   );
 }
 
-function normalizeNoteFormForSave(form: NoteFormState): NoteFormState {
+function normalizeNoteFormForSave(form: NoteFormState) {
   return {
     title: form.title.trim() || "Untitled note",
     body: form.body,
@@ -310,11 +312,6 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
   const selectedResource = selectedResourceId ? resources.find((resource) => resource.id === selectedResourceId) ?? null : null;
-  const selectedSpaceNotes = useMemo(
-    () => (selectedSpace ? sortNotes(notes.filter((note) => selectedSpaceNoteIds.has(note.id))) : []),
-    [notes, selectedSpace, selectedSpaceNoteIds],
-  );
-
   useEffect(() => {
     if (view !== "notes") return;
     if (!selectedNoteId && filteredNotes[0]) {
@@ -332,6 +329,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const updateNoteWithRelationships = (noteId: string, payload: NoteFormState) => {
     const normalizedPayload = normalizeNoteFormForSave(payload);
     updateNote(noteId, normalizedPayload);
+    syncManualSpaceMembership(noteId, payload.manualSpaceIds);
     reconcileRelatedNotes({
       noteId,
       notes,
@@ -344,9 +342,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const addNoteWithRelationships = (payload: NoteFormState) => {
     const normalizedPayload = normalizeNoteFormForSave(payload);
     const note = addNote(normalizedPayload);
-    if (selectedSpace?.type === "space") {
-      addNoteToSpace(selectedSpace.id, note.id);
-    }
+    syncManualSpaceMembership(note.id, payload.manualSpaceIds);
     reconcileRelatedNotes({
       noteId: note.id,
       notes: [note, ...notes],
@@ -355,6 +351,16 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       updateNote,
     });
     return note;
+  };
+
+  const syncManualSpaceMembership = (noteId: string, manualSpaceIds: string[]) => {
+    const nextSpaceIds = new Set(manualSpaceIds);
+    noteSpaces.forEach((space) => {
+      const hasNote = space.manualNoteIds.includes(noteId);
+      const shouldHaveNote = nextSpaceIds.has(space.id);
+      if (shouldHaveNote && !hasNote) addNoteToSpace(space.id, noteId);
+      if (!shouldHaveNote && hasNote) removeNoteFromSpace(space.id, noteId);
+    });
   };
 
   const createPersonalSpace = () => {
@@ -381,6 +387,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     if (!selectedSpace) return emptyNoteForm;
     return {
       ...emptyNoteForm,
+      manualSpaceIds: selectedSpace.type === "space" ? [selectedSpace.id] : [],
       projectIds: selectedSpace.projectIds,
     };
   };
@@ -388,7 +395,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   useEffect(() => {
     if (showForm !== "note") return;
 
-    const hasDraftContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.collection.trim() || noteForm.tags.trim() || noteForm.projectIds.length || noteForm.relatedNoteIds.length);
+    const hasDraftContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.collection.trim() || noteForm.tags.trim() || noteForm.projectIds.length || noteForm.relatedNoteIds.length || noteForm.manualSpaceIds.length);
     if (!hasDraftContent) {
       setNoteAutosaveStatus("");
       return;
@@ -396,13 +403,11 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
 
     setNoteAutosaveStatus("Saving draft...");
     const timeout = window.setTimeout(() => {
-      const payload = normalizeNoteFormForSave(noteForm);
-
       if (draftNoteId) {
-        updateNoteWithRelationships(draftNoteId, payload);
+        updateNoteWithRelationships(draftNoteId, noteForm);
         setSelectedNoteId(draftNoteId);
       } else {
-        const draft = addNoteWithRelationships(payload);
+        const draft = addNoteWithRelationships(noteForm);
         setDraftNoteId(draft.id);
         setSelectedNoteId(draft.id);
       }
@@ -443,7 +448,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   };
 
   const saveNewNote = () => {
-    const hasContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.collection.trim() || noteForm.tags.trim() || noteForm.projectIds.length || noteForm.relatedNoteIds.length);
+    const hasContent = Boolean(noteForm.title.trim() || noteForm.body.trim() || noteForm.collection.trim() || noteForm.tags.trim() || noteForm.projectIds.length || noteForm.relatedNoteIds.length || noteForm.manualSpaceIds.length);
     if (!hasContent) return;
 
     if (draftNoteId) {
@@ -484,6 +489,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       clientVisible: Boolean(note.clientVisible),
       projectIds: note.projectIds ?? [],
       relatedNoteIds: getExplicitRelatedNoteIds(note, notes),
+      manualSpaceIds: noteSpaces.filter((space) => space.manualNoteIds.includes(note.id)).map((space) => space.id),
     });
   };
 
@@ -825,7 +831,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
             <NotesWorkspace
               projects={projects}
               allNotes={notes}
-              spaceNotes={selectedSpaceNotes}
+              personalSpaces={personalSpaces}
               selectedSpace={selectedSpace}
               selectedNote={selectedNote}
               editingNoteId={editingNoteId}
@@ -836,6 +842,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               onEditFormChange={setEditNoteForm}
               onDelete={handleDeleteNote}
               onToggleFavorite={(note) => updateNote(note.id, { favorite: !note.favorite })}
+              onAddNoteToSpace={addNoteToSpace}
+              onRemoveNoteFromSpace={removeNoteFromSpace}
+              onUpdateNoteProjects={(noteId, projectIds) => updateNote(noteId, { projectIds })}
               onToggleChecklistLine={toggleSelectedNoteChecklistLine}
               onSelectNote={selectNote}
               creatingNote={showForm === "note"}
@@ -1120,6 +1129,51 @@ function ProjectPicker({ projects, selectedIds, onChange }: { projects: Project[
               }`}
             >
               {project.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SpacePicker({ spaces, selectedIds, onChange }: { spaces: NoteSpaceView[]; selectedIds: string[]; onChange: (spaceIds: string[]) => void }) {
+  if (!spaces.length) {
+    return (
+      <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Spaces</p>
+        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">Create a personal space from the left Library panel, then add notes here.</p>
+      </div>
+    );
+  }
+
+  const selectedSet = new Set(selectedIds);
+  const toggleSpace = (spaceId: string) => {
+    onChange(selectedSet.has(spaceId) ? selectedIds.filter((id) => id !== spaceId) : [...selectedIds, spaceId]);
+  };
+
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Spaces</p>
+        <span className="text-xs font-semibold text-[var(--text-soft)]">{selectedIds.length} selected</span>
+      </div>
+      <div className="mt-3 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1">
+        {spaces.map((space) => {
+          const selected = selectedSet.has(space.id);
+          return (
+            <button
+              key={space.id}
+              type="button"
+              onClick={() => toggleSpace(space.id)}
+              className={`inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-xs font-semibold transition ${
+                selected
+                  ? "border-[var(--brand-primary)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+              }`}
+            >
+              <FolderOpen size={13} />
+              <span className="truncate">{space.name}</span>
             </button>
           );
         })}
@@ -1821,7 +1875,7 @@ function NoteTreeButton({ active, icon, label, count, onClick }: { active: boole
 function NotesWorkspace({
   projects,
   allNotes,
-  spaceNotes,
+  personalSpaces,
   selectedSpace,
   selectedNote,
   editingNoteId,
@@ -1840,12 +1894,15 @@ function NotesWorkspace({
   onSaveNewNote,
   onDelete,
   onToggleFavorite,
+  onAddNoteToSpace,
+  onRemoveNoteFromSpace,
+  onUpdateNoteProjects,
   onToggleChecklistLine,
   onSelectNote,
 }: {
   projects: Project[];
   allNotes: HubNote[];
-  spaceNotes: HubNote[];
+  personalSpaces: NoteSpaceView[];
   selectedSpace: NoteSpaceView | null;
   selectedNote: HubNote | null;
   editingNoteId: string | null;
@@ -1864,6 +1921,9 @@ function NotesWorkspace({
   onSaveNewNote: () => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (note: HubNote) => void;
+  onAddNoteToSpace: (spaceId: string, noteId: string) => void;
+  onRemoveNoteFromSpace: (spaceId: string, noteId: string) => void;
+  onUpdateNoteProjects: (noteId: string, projectIds: string[]) => void;
   onToggleChecklistLine: (note: HubNote, lineIndex: number) => void;
   onSelectNote: (noteId: string) => void;
 }) {
@@ -1871,6 +1931,28 @@ function NotesWorkspace({
   const projectLookup = new Map(projects.map((project) => [project.id, project]));
   const selectedProjects = selectedNote?.projectIds?.map((projectId) => projectLookup.get(projectId)).filter(isProject);
   const linkedContext = selectedNote ? getLinkedNoteContext(selectedNote, allNotes) : { related: [], backlinks: [], wikiLinks: [] };
+  const [quickOrganizeOpen, setQuickOrganizeOpen] = useState(false);
+  const selectedNoteSpaceIds = selectedNote ? personalSpaces.filter((space) => space.manualNoteIds.includes(selectedNote.id)).map((space) => space.id) : [];
+
+  useEffect(() => {
+    setQuickOrganizeOpen(false);
+  }, [selectedNote?.id, isEditing]);
+
+  const updateQuickSpaces = (manualSpaceIds: string[]) => {
+    if (!selectedNote) return;
+    const nextSpaceIds = new Set(manualSpaceIds);
+    personalSpaces.forEach((space) => {
+      const hasNote = space.manualNoteIds.includes(selectedNote.id);
+      const shouldHaveNote = nextSpaceIds.has(space.id);
+      if (shouldHaveNote && !hasNote) onAddNoteToSpace(space.id, selectedNote.id);
+      if (!shouldHaveNote && hasNote) onRemoveNoteFromSpace(space.id, selectedNote.id);
+    });
+  };
+
+  const updateQuickProjects = (projectIds: string[]) => {
+    if (!selectedNote) return;
+    onUpdateNoteProjects(selectedNote.id, projectIds);
+  };
 
   return (
     <div className="min-h-[760px]">
@@ -1909,7 +1991,8 @@ function NotesWorkspace({
                   </p>
                   <span className="text-xs font-semibold text-[var(--text-soft)]">Projects, related notes, visibility</span>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <SpacePicker spaces={personalSpaces} selectedIds={noteForm.manualSpaceIds} onChange={(manualSpaceIds) => onNoteFormChange({ ...noteForm, manualSpaceIds })} />
                   <ClientVisibilityToggle
                     checked={noteForm.clientVisible}
                     onChange={(clientVisible) => onNoteFormChange({ ...noteForm, clientVisible })}
@@ -1967,6 +2050,9 @@ function NotesWorkspace({
                         <Button type="button" variant="secondary" className="px-3" icon={<Pin size={15} />} onClick={() => onToggleFavorite(selectedNote)}>
                           {selectedNote.favorite ? "Pinned" : "Pin"}
                         </Button>
+                        <Button type="button" variant="secondary" className="px-3" icon={<FolderOpen size={15} />} onClick={() => setQuickOrganizeOpen((open) => !open)}>
+                          Organize
+                        </Button>
                         <Button type="button" className="px-3" icon={<Edit3 size={15} />} onClick={() => onStartEdit(selectedNote)}>
                           Edit
                         </Button>
@@ -1979,6 +2065,15 @@ function NotesWorkspace({
                 </div>
               </div>
             </div>
+
+            {selectedNote && quickOrganizeOpen && !isEditing ? (
+              <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] px-5 py-4 lg:px-8">
+                <div className="grid gap-3 xl:grid-cols-2">
+                  <SpacePicker spaces={personalSpaces} selectedIds={selectedNoteSpaceIds} onChange={updateQuickSpaces} />
+                  <ProjectPicker projects={projects} selectedIds={selectedNote.projectIds ?? []} onChange={updateQuickProjects} />
+                </div>
+              </div>
+            ) : null}
 
             {isEditing ? (
               <div className="grid flex-1 gap-5 p-5 lg:p-6">
@@ -1998,7 +2093,8 @@ function NotesWorkspace({
                     </p>
                     <span className="text-xs font-semibold text-[var(--text-soft)]">{autosaveStatus || "Projects, related notes, visibility"}</span>
                   </div>
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <SpacePicker spaces={personalSpaces} selectedIds={editNoteForm.manualSpaceIds} onChange={(manualSpaceIds) => onEditFormChange({ ...editNoteForm, manualSpaceIds })} />
                     <ClientVisibilityToggle
                       checked={editNoteForm.clientVisible}
                       onChange={(clientVisible) => onEditFormChange({ ...editNoteForm, clientVisible })}
@@ -2014,7 +2110,6 @@ function NotesWorkspace({
             ) : (
               <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,var(--surface),var(--bg))] p-5 lg:p-8">
                 <div className="min-h-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow-sm)] lg:px-12 lg:py-10">
-                  {selectedSpace ? <SpaceOverview space={selectedSpace} notes={spaceNotes} selectedNoteId={selectedNote.id} onSelectNote={onSelectNote} /> : null}
                   <NoteReader body={selectedNote.body} allNotes={allNotes} onOpenNote={onSelectNote} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
                   <CompactLinkedNotes notes={[...linkedContext.related, ...linkedContext.wikiLinks, ...linkedContext.backlinks]} onSelectNote={onSelectNote} />
                   <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4 text-xs font-semibold text-[var(--text-soft)]">
@@ -2253,51 +2348,6 @@ function ResourceDetailInline({
         </div>
       </div>
     </Card>
-  );
-}
-
-function SpaceOverview({
-  space,
-  notes,
-  selectedNoteId,
-  onSelectNote,
-}: {
-  space: NoteSpaceView;
-  notes: HubNote[];
-  selectedNoteId?: string;
-  onSelectNote: (noteId: string) => void;
-}) {
-  return (
-    <section className="mb-8 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
-            <FolderOpen size={15} />
-            {space.type === "project" ? "Project docs" : "Space"}
-          </p>
-          <h3 className="mt-1 truncate font-display text-xl font-bold text-[var(--text)]">{space.name}</h3>
-          {space.description ? <p className="mt-1 text-sm text-[var(--text-muted)]">{space.description}</p> : null}
-        </div>
-        <Badge tone="slate">{notes.length} notes</Badge>
-      </div>
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
-        {notes.map((note) => (
-          <button
-            key={note.id}
-            type="button"
-            onClick={() => onSelectNote(note.id)}
-            className={`rounded-[var(--radius-sm)] border p-3 text-left transition ${
-              selectedNoteId === note.id
-                ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)]"
-                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-            }`}
-          >
-            <span className="block truncate text-sm font-bold text-[var(--text)]">{note.title}</span>
-            <span className="mt-1 block truncate text-xs text-[var(--text-soft)]">{note.tags || `${note.body.trim() ? note.body.trim().split(/\s+/).length : 0} words`}</span>
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
 
