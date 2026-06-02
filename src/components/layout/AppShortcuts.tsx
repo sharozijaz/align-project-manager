@@ -1,17 +1,12 @@
-import { CheckCircle2, FolderPlus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { appNavigationItems } from "./AppSidebar";
 import { ProjectForm } from "../projects/ProjectForm";
 import { TaskForm } from "../tasks/TaskForm";
 import { Modal } from "../ui/Modal";
-import { SearchBox } from "../ui/SearchBox";
-import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
-import type { FeatureKey } from "../../features/access/featureRegistry";
 import { useProjectStore } from "../../store/projectStore";
 import { useTaskStore } from "../../store/taskStore";
 
-type Dialog = "command" | "help" | "task" | "project" | null;
+type Dialog = "help" | "task" | "project" | null;
 
 const shortcutRows = [
   ["Ctrl K", "Open command palette"],
@@ -29,23 +24,10 @@ const shortcutRows = [
 
 export function AppShortcuts() {
   const navigate = useNavigate();
-  const { access, hasFeature } = useFeatureAccess();
   const { projects, addProject } = useProjectStore();
   const addTask = useTaskStore((state) => state.addTask);
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [commandQuery, setCommandQuery] = useState("");
   const [goChordActive, setGoChordActive] = useState(false);
-
-  const commandItems = useMemo(
-    () =>
-      appNavigationItems
-        .filter((item) => {
-          if (item.ownerOnly && access?.profile.role !== "owner") return false;
-          return item.feature ? hasFeature(item.feature as FeatureKey) : true;
-        })
-        .filter((item) => `${item.label} ${item.hint}`.toLowerCase().includes(commandQuery.trim().toLowerCase())),
-    [access?.profile.role, commandQuery, hasFeature],
-  );
 
   useEffect(() => {
     const openShortcuts = () => setDialog("help");
@@ -66,13 +48,6 @@ export function AppShortcuts() {
       if (event.key === "Escape") {
         setDialog(null);
         setGoChordActive(false);
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setDialog("command");
-        setCommandQuery("");
         return;
       }
 
@@ -122,51 +97,6 @@ export function AppShortcuts() {
           Go to: H home, P projects, T tasks, D todos, N notes, C calendar, R reports
         </div>
       ) : null}
-
-      <Modal title="Command palette" description="Jump to workspace actions without leaving the keyboard." open={dialog === "command"} onClose={close}>
-        <div className="space-y-4">
-          <SearchBox value={commandQuery} onChange={setCommandQuery} placeholder="Search pages and actions..." autoFocus />
-          <div className="grid gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-              onClick={() => {
-                setDialog("task");
-              }}
-            >
-              <CheckCircle2 size={17} />
-              <span className="font-semibold text-[var(--text)]">New task</span>
-              <span className="ml-auto rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-soft)]">N</span>
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-              onClick={() => {
-                setDialog("project");
-              }}
-            >
-              <FolderPlus size={17} />
-              <span className="font-semibold text-[var(--text)]">New project</span>
-              <span className="ml-auto rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-soft)]">P</span>
-            </button>
-            {commandItems.map(({ to, label, hint, icon: Icon }) => (
-              <button
-                key={to}
-                type="button"
-                className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-                onClick={() => {
-                  navigate(to);
-                  close();
-                }}
-              >
-                <Icon size={17} />
-                <span className="font-semibold text-[var(--text)]">{label}</span>
-                {hint ? <span className="ml-auto rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-soft)]">{hint}</span> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Modal>
 
       <Modal title="Keyboard shortcuts" description="Quick commands available across the workspace." open={dialog === "help"} onClose={close}>
         <div className="grid gap-2">

@@ -68,8 +68,6 @@ const profileLinks: NavItem[] = [
   { to: "/admin", label: "Admin", hint: "", icon: Shield, feature: "admin", ownerOnly: true },
 ];
 
-export const appNavigationItems = [...primaryLinks, ...workspaceLinks, ...profileLinks];
-
 const sidebarSpring = { type: "spring", stiffness: 340, damping: 36, mass: 0.82 } as const;
 const sidebarTextMotion = {
   initial: { opacity: 0, x: -8 },
