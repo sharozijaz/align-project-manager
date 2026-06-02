@@ -93,10 +93,6 @@ export function TaskForm({
   }, [form.dueDate, form.plannedMonth, form.plannedWeekStart, form.recurrence, form.reminder, form.startDate]);
 
   const update = (key: keyof TaskInput, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const compactGridClass = showProjectField
-    ? "xl:grid-cols-[minmax(260px,1fr)_minmax(190px,240px)_minmax(140px,170px)_minmax(160px,190px)_auto]"
-    : "xl:grid-cols-[minmax(320px,1fr)_minmax(140px,170px)_minmax(160px,190px)_auto]";
-
   const titleField = (
     <Input
       value={form.title}
@@ -146,6 +142,7 @@ export function TaskForm({
       label="Start"
       date={form.startDate}
       time={form.startTime}
+      compact={compact}
       onDateChange={(value) => update("startDate", value)}
       onTimeChange={(value) => update("startTime", value)}
     />
@@ -156,6 +153,7 @@ export function TaskForm({
       label="Due"
       date={form.dueDate}
       time={form.dueTime}
+      compact={compact}
       onDateChange={(value) => update("dueDate", value)}
       onTimeChange={(value) => update("dueTime", value)}
     />
@@ -232,7 +230,7 @@ export function TaskForm({
 
   return (
     <form
-      className="grid gap-3"
+      className="grid min-w-0 gap-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!form.title.trim()) return;
@@ -252,45 +250,48 @@ export function TaskForm({
       }}
     >
       {compact ? (
-        <div className="space-y-3">
-          <div className={`grid gap-3 ${compactGridClass}`}>
+        <div className="min-w-0 space-y-4">
+          <div className="grid min-w-0 gap-3">
             {titleField}
-            {showProjectField ? projectField : null}
-            {priorityField}
-            {statusField}
-            <div className="hidden xl:block">{actionButtons}</div>
+            <div className={`grid gap-3 ${showProjectField ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]" : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"}`}>
+              {showProjectField ? projectField : null}
+              {priorityField}
+              {statusField}
+            </div>
           </div>
-          <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4 lg:flex-row lg:items-center lg:justify-between">
             <button
               type="button"
               onClick={() => setDetailsOpen((open) => !open)}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 text-sm font-semibold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] lg:justify-start"
               aria-expanded={detailsOpen}
             >
               <SlidersHorizontal size={16} />
               {detailsOpen ? "Hide details" : "Add details"}
               {detailsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
-            <span className="text-sm text-[var(--text-soft)]">{helperText}</span>
-            <div className="xl:hidden">{actionButtons}</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <span className="text-sm font-medium text-[var(--text-soft)]">{helperText}</span>
+              <div>{actionButtons}</div>
+            </div>
           </div>
           <AnimatePresence initial={false}>
             {detailsOpen ? (
-            <motion.div
-              className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 shadow-[var(--shadow-sm)]"
-              initial={{ opacity: 0, height: 0, y: -4 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -4 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(280px,1fr)_minmax(280px,1fr)_minmax(190px,220px)_minmax(190px,220px)]">
-                {startField}
-                {dueField}
-                <FieldLabel label="Reminder">{reminderField}</FieldLabel>
-                <FieldLabel label="Repeat">{recurrenceField}</FieldLabel>
-              </div>
-              <div className="mt-3">{planningField}</div>
-            </motion.div>
+              <motion.div
+                className="min-w-0 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 shadow-[var(--shadow-sm)]"
+                initial={{ opacity: 0, height: 0, y: -4 }}
+                animate={{ opacity: 1, height: "auto", y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -4 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  {startField}
+                  {dueField}
+                  <FieldLabel label="Reminder">{reminderField}</FieldLabel>
+                  <FieldLabel label="Repeat">{recurrenceField}</FieldLabel>
+                </div>
+                <div className="mt-3">{planningField}</div>
+              </motion.div>
             ) : null}
           </AnimatePresence>
         </div>
@@ -321,7 +322,7 @@ export function TaskForm({
 
 function FieldLabel({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+    <label className="grid min-w-0 gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
       <span>{label}</span>
       {children}
     </label>

@@ -1,17 +1,20 @@
-import { Copy, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useConfirm } from "../ui/ConfirmProvider";
 import { ThemedPortal } from "../ui/ThemedPortal";
 import type { Task } from "../../types/task";
+import { isTerminalTaskStatus } from "../../config/taskOptions";
 
 export function TaskOverflowMenu({
   task,
   onOpen,
   onDelete,
+  onComplete,
 }: {
   task: Task;
   onOpen?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
+  onComplete?: (taskId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -85,6 +88,16 @@ export function TaskOverflowMenu({
           onOpen?.(task);
         }}
       />
+      {onComplete && !isTerminalTaskStatus(task.status) ? (
+        <MenuButton
+          icon={<CheckCircle2 size={15} />}
+          label="Mark complete"
+          onClick={() => {
+            setOpen(false);
+            onComplete(task.id);
+          }}
+        />
+      ) : null}
       <MenuButton icon={<Copy size={15} />} label="Copy title / ID" onClick={() => void copyTask()} />
       {onDelete ? <div className="my-1 h-px bg-[var(--border)]" /> : null}
       {onDelete ? <MenuButton danger icon={<Trash2 size={15} />} label="Delete" onClick={() => void deleteTask()} /> : null}

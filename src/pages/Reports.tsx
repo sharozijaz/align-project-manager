@@ -126,7 +126,7 @@ export function Reports() {
                   <Badge tone={row.overdue ? "red" : row.progress === 100 ? "emerald" : "blue"}>{row.progress}%</Badge>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                  <div className="h-full align-gradient" style={{ width: `${row.progress}%` }} />
+                  <div className="h-full bg-[var(--brand-primary)]" style={{ width: `${row.progress}%` }} />
                 </div>
               </div>
             ))}
@@ -221,7 +221,7 @@ function BreakdownCard({ title, items }: { title: string; items: { label: string
                 <span className="text-sm font-semibold text-[var(--text-muted)]">{item.count}</span>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                <div className="h-full align-gradient" style={{ width: `${width}%` }} />
+                <div className="h-full bg-[var(--brand-primary)]" style={{ width: `${width}%` }} />
               </div>
             </div>
           );

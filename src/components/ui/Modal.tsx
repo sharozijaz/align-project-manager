@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -11,10 +11,14 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  description?: string;
 }
 
-export function Modal({ title, open, onClose, children, className = "" }: ModalProps) {
+export function Modal({ title, open, onClose, children, className = "", description }: ModalProps) {
   const theme = useThemeStore((state) => state.theme);
+  const accentColor = useThemeStore((state) => state.accentColor);
+  const titleId = useId();
+  const descriptionId = useId();
 
   const modal = (
     <AnimatePresence>
@@ -30,20 +34,27 @@ export function Modal({ title, open, onClose, children, className = "" }: ModalP
           transition={{ duration: 0.16, ease: "easeOut" }}
         >
           <motion.section
-            className={`w-full max-w-xl rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shadow-md)] ${className}`}
+            className={`max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--text)] shadow-[var(--shadow-lg)] ${className}`}
             onPointerDown={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={description ? descriptionId : undefined}
             initial={{ opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
           >
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--text)]">{title}</h2>
-              <Button aria-label="Close" type="button" variant="ghost" className="px-2" onClick={onClose}>
+            <div className="flex items-start justify-between gap-4 rounded-t-[var(--radius-lg)] border-b border-[var(--border)] bg-[var(--panel-inset)] px-5 py-4">
+              <div className="min-w-0">
+                <h2 id={titleId} className="text-lg font-black text-[var(--text)]">{title}</h2>
+                {description ? <p id={descriptionId} className="mt-1 text-sm font-medium leading-5 text-[var(--text-muted)]">{description}</p> : null}
+              </div>
+              <Button aria-label="Close" type="button" variant="ghost" className="min-h-9 px-2" onClick={onClose}>
                 <X size={18} />
               </Button>
             </div>
-            {children}
+            <div className="min-w-0 max-h-[calc(100vh-7.5rem)] overflow-y-auto p-5">{children}</div>
           </motion.section>
         </motion.div>
       ) : null}
@@ -52,5 +63,5 @@ export function Modal({ title, open, onClose, children, className = "" }: ModalP
 
   if (typeof document === "undefined") return modal;
 
-  return createPortal(<div data-theme={theme}>{modal}</div>, document.body);
+  return createPortal(<div data-theme={theme} data-accent={accentColor}>{modal}</div>, document.body);
 }

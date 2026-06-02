@@ -3,9 +3,10 @@ import { useThemeStore } from "../../store/themeStore";
 
 export function AppLoadingScreen({ message = "Preparing your workspace" }: { message?: string }) {
   const theme = useThemeStore((state) => state.theme);
+  const accentColor = useThemeStore((state) => state.accentColor);
 
   return (
-    <div data-theme={theme} className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div data-theme={theme} data-accent={accentColor} className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <div className="grid min-h-screen place-items-center p-6">
         <motion.div
           className="flex w-full max-w-sm flex-col items-center rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] px-8 py-10 text-center shadow-[var(--shadow-md)]"
@@ -25,7 +26,7 @@ export function AppLoadingScreen({ message = "Preparing your workspace" }: { mes
           <p className="mt-2 text-sm text-[var(--text-muted)]">{message}</p>
           <div className="mt-6 h-1.5 w-40 overflow-hidden rounded-full bg-[var(--bg-muted)]">
             <motion.div
-              className="h-full w-16 rounded-full align-gradient"
+              className="h-full w-16 rounded-full bg-[var(--brand-primary)]"
               animate={{ x: [-70, 170] }}
               transition={{ duration: 1.15, repeat: Infinity, ease: "easeInOut" }}
             />

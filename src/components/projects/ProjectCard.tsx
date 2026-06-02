@@ -49,7 +49,7 @@ export function ProjectCard({
         dragging
           ? "rotate-[-1.3deg] scale-[0.985] border-[var(--brand-primary)] opacity-55 shadow-[var(--shadow-md)]"
           : dropTarget
-            ? "border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)] shadow-[var(--shadow-md)]"
+            ? "border-dashed border-[var(--brand-primary)] bg-[var(--accent-soft)] shadow-[var(--shadow-md)]"
             : "hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-md)]"
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""
       }`}
@@ -144,7 +144,7 @@ export function ProjectCard({
           <ExternalLink size={15} />
         </Link>
       </div>
-      <Modal title="Edit project" open={editing} onClose={() => setEditing(false)}>
+      <Modal title="Edit project" description="Update this project without changing its task history." open={editing} onClose={() => setEditing(false)}>
         <ProjectForm
           initialProject={project}
           onSubmit={(input) => {

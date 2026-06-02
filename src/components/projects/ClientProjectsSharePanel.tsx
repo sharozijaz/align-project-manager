@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy, ExternalLink, KeyRound, Link2, Loader2, LockKeyhole, Search, ShieldCheck, Trash2, UsersRound } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, KeyRound, Link2, Loader2, LockKeyhole, ShieldCheck, Trash2, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -18,8 +18,9 @@ import { Card } from "../ui/Card";
 import { useConfirm } from "../ui/ConfirmProvider";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
+import { useSearchStore } from "../../store/searchStore";
 
-export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) {
+export function ClientProjectsSharePanel({ projects, embedded = false }: { projects: Project[]; embedded?: boolean }) {
   const confirm = useConfirm();
   const [clientName, setClientName] = useState("");
   const [modalPassword, setModalPassword] = useState("");
@@ -31,7 +32,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
   const [passwordAction, setPasswordAction] = useState<"create" | "update" | "">("");
   const [passwordDraft, setPasswordDraft] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [linkSearch, setLinkSearch] = useState("");
+  const linkSearch = useSearchStore((state) => state.query);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [working, setWorking] = useState(false);
   const [copiedId, setCopiedId] = useState("");
@@ -264,53 +265,8 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <Card className="overflow-hidden p-0">
-        <button
-          type="button"
-          onClick={() => setSharingOpen((open) => !open)}
-          className="flex w-full flex-col gap-4 p-4 text-left transition hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center sm:justify-between sm:p-5"
-          aria-expanded={sharingOpen}
-        >
-          <div className="flex min-w-0 gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)]">
-              <UsersRound size={20} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-bold text-[var(--text)]">Client sharing</h2>
-                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-1 text-xs font-bold text-[var(--text-muted)]">
-                  <LockKeyhole size={13} />
-                  Read-only
-                </span>
-                {links.length ? (
-                  <span className="rounded-full bg-[var(--bg-muted)] px-2 py-1 text-xs font-bold text-[var(--text-muted)]">
-                    {links.length} saved
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">
-                Create, copy, password-protect, or delete client overview links when you need them.
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-bold text-[var(--button-secondary-text)]">
-            {sharingOpen ? "Hide sharing" : "Open sharing"}
-            <ChevronDown size={16} className={`transition-transform ${sharingOpen ? "rotate-180" : ""}`} />
-          </span>
-        </button>
-      </Card>
-
-      <AnimatePresence initial={false}>
-        {sharingOpen ? (
-          <motion.div
-            className="space-y-4"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-          >
+  const sharingWorkspace = (
+    <>
       <Card className="overflow-hidden p-0">
         <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:p-5">
           <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
@@ -439,10 +395,6 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
             <h3 className="text-lg font-bold text-[var(--text)]">Saved Links</h3>
             <span className="rounded-full bg-[var(--bg-muted)] px-2 py-1 text-xs font-bold text-[var(--text-muted)]">{links.length}</span>
           </div>
-          <label className="relative block w-full lg:max-w-sm">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
-            <Input className="pl-9" value={linkSearch} onChange={(event) => setLinkSearch(event.target.value)} placeholder="Search clients or links..." />
-          </label>
         </div>
         <div className="p-4 sm:p-5">
           {loading ? (
@@ -482,11 +434,49 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
           <p className="mt-4 text-center text-sm text-[var(--text-soft)]">Share links provide read-only access and do not require an Align account.</p>
         </div>
       </Card>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+    </>
+  );
+
+  return (
+    <div className={embedded ? "contents" : "space-y-4"}>
+      {embedded ? (
+        <div className="inline-flex max-w-full">
+          <ClientShareSummaryButton embedded sharingOpen={sharingOpen} linksCount={links.length} onToggle={() => setSharingOpen((open) => !open)} />
+        </div>
+      ) : (
+        <Card className="overflow-hidden p-0">
+          <ClientShareSummaryButton sharingOpen={sharingOpen} linksCount={links.length} onToggle={() => setSharingOpen((open) => !open)} />
+        </Card>
+      )}
+
+      {embedded ? (
+        <Modal
+          title="Client sharing"
+          description="Create and manage read-only client overview links for selected projects."
+          open={sharingOpen}
+          onClose={() => setSharingOpen(false)}
+          className="max-w-6xl"
+        >
+          <div className="space-y-4">{sharingWorkspace}</div>
+        </Modal>
+      ) : (
+        <AnimatePresence initial={false}>
+          {sharingOpen ? (
+            <motion.div
+              className="space-y-4"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+            >
+              {sharingWorkspace}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      )}
       <Modal
         title={passwordAction === "update" ? "Confirm client password" : "Create overview link"}
+        description={passwordAction === "update" ? "Confirm protection before updating this client overview." : "Create a read-only overview link across selected projects."}
         open={Boolean(passwordAction)}
         onClose={closePasswordAction}
       >
@@ -531,7 +521,7 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
         </div>
       </Modal>
       {shareModalLink ? (
-        <Modal title="Share client overview" open={Boolean(shareModalLink)} onClose={() => setShareModalLinkId("")}>
+        <Modal title="Share client overview" description="Manage this saved read-only client overview link." open={Boolean(shareModalLink)} onClose={() => setShareModalLinkId("")}>
           <div className="space-y-4">
             <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-3">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Overview link</p>
@@ -601,6 +591,78 @@ export function ClientProjectsSharePanel({ projects }: { projects: Project[] }) 
         </Modal>
       ) : null}
     </div>
+  );
+}
+
+function ClientShareSummaryButton({
+  embedded = false,
+  sharingOpen,
+  linksCount,
+  onToggle,
+}: {
+  embedded?: boolean;
+  sharingOpen: boolean;
+  linksCount: number;
+  onToggle: () => void;
+}) {
+  if (embedded) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+        aria-expanded={sharingOpen}
+      >
+        <UsersRound size={15} className="shrink-0" />
+        <span className="truncate text-[var(--text)]">Client sharing</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
+          <LockKeyhole size={11} />
+          Read-only
+        </span>
+        {linksCount ? <span className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">{linksCount} saved</span> : null}
+        <ChevronDown size={15} className={`shrink-0 transition-transform ${sharingOpen ? "rotate-180" : ""}`} />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`flex w-full flex-col gap-4 text-left transition sm:flex-row sm:items-center sm:justify-between ${
+        embedded
+          ? "rounded-[var(--radius-md)] p-0 hover:bg-transparent"
+          : "p-4 hover:bg-[var(--surface-hover)] sm:p-5"
+      }`}
+      aria-expanded={sharingOpen}
+    >
+      <div className="flex min-w-0 gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)]">
+          <UsersRound size={18} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className={embedded ? "text-base font-black text-[var(--text)]" : "text-lg font-bold text-[var(--text)]"}>Client sharing</h2>
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
+              <LockKeyhole size={13} />
+              Read-only
+            </span>
+            {linksCount ? (
+              <span className="rounded-full bg-[var(--bg-muted)] px-2 py-1 text-xs font-bold text-[var(--text-muted)]">
+                {linksCount} saved
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
+            Create, copy, password-protect, or delete client overview links when you need them.
+          </p>
+        </div>
+      </div>
+      <span className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-sm font-bold text-[var(--button-secondary-text)]">
+        {sharingOpen ? "Hide sharing" : "Open sharing"}
+        <ChevronDown size={16} className={`transition-transform ${sharingOpen ? "rotate-180" : ""}`} />
+      </span>
+    </button>
   );
 }
 

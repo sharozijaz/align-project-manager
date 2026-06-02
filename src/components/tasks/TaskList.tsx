@@ -126,7 +126,7 @@ export function TaskList({
           }}
           className={`relative min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
             onReorder ? "cursor-grab active:cursor-grabbing" : ""
-          } ${taskDrag?.active && draggedTaskId === task.id ? "scale-[0.99] opacity-40" : ""}`}
+          } ${taskDrag?.active && draggedTaskId === task.id ? "align-drag-source" : ""}`}
         >
           {taskDrag?.active && dragOverId === task.id && draggedTaskId !== task.id ? <TaskDropCue /> : null}
           <TaskCard
@@ -135,6 +135,7 @@ export function TaskList({
             project={project}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onComplete={onComplete}
             onOpen={onOpenTask}
             visibleFields={visibleFields}
             showProjectBadge={!options?.hideProjectBadge}
@@ -193,9 +194,9 @@ function ProjectTaskGroupHeader({ project, fallbackLabel, count }: { project?: P
   const area = project?.area ?? "business";
 
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--brand-primary)_22%,var(--surface-raised)),var(--surface))] px-4 py-3">
+    <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--brand-gradient)] text-sm font-black text-white shadow-[var(--shadow-sm)]">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--brand-primary)] text-sm font-black text-white shadow-[var(--shadow-sm)]">
           {project ? initials : <FolderKanban size={20} />}
         </div>
         <div className="min-w-0">
@@ -268,11 +269,11 @@ function getTaskDropTarget(clientX: number, clientY: number, draggedTaskId: stri
 function TaskDropCue() {
   return (
     <motion.div
-      className="pointer-events-none absolute inset-0 z-20 rounded-[var(--radius-md)] border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/45 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
-      initial={{ opacity: 0, scaleX: 0.98 }}
-      animate={{ opacity: 1, scaleX: 1 }}
-      exit={{ opacity: 0, scaleX: 0.98 }}
-      transition={{ duration: 0.12, ease: "easeOut" }}
+      className="align-drag-slot"
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 520, damping: 38, mass: 0.7 }}
     />
   );
 }
@@ -282,14 +283,28 @@ function TaskDragPreview({ task, project, x, y }: { task: Task; project?: Projec
 
   return (
     <motion.div
-      className="pointer-events-none fixed z-50 w-[min(520px,calc(100vw-2rem))] rounded-[var(--radius-md)] border border-[var(--brand-primary)] bg-[var(--surface)] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.36)]"
+      className="align-drag-preview w-[min(520px,calc(100vw-2rem))] p-4"
       style={position}
-      initial={{ opacity: 0, scale: 0.96, rotate: -1 }}
-      animate={{ opacity: 0.94, scale: 1, rotate: -1.1 }}
-      transition={{ duration: 0.12, ease: "easeOut" }}
+      initial={{ opacity: 0, scale: 0.94, rotate: -2.5, y: 8 }}
+      animate={{ opacity: 0.96, scale: 1.02, rotate: -2.1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96, rotate: -1 }}
+      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.72 }}
     >
-      <div className="text-sm font-black text-[var(--text)]">{task.title}</div>
-      <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project?.name ?? task.category}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--text-muted)]">
+              {task.status.replace(/_/g, " ")}
+            </span>
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--brand-primary)]">
+              {task.priority}
+            </span>
+          </div>
+          <div className="mt-3 truncate text-base font-black text-[var(--text)]">{task.title}</div>
+          <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project?.name ?? task.category}</div>
+        </div>
+        <span className="align-drag-handle shrink-0">⋯</span>
+      </div>
     </motion.div>
   );
 }

@@ -37,6 +37,6 @@ export function openShareUrl(url: string) {
     return openExternalUrl(url);
   }
 
-  window.open(url, "_blank", "noreferrer");
+  window.open(url, "_blank", "noopener,noreferrer");
   return Promise.resolve();
 }

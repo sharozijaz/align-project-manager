@@ -7,7 +7,6 @@ import {
   DatabaseBackup,
   Download,
   HardDrive,
-  ImageIcon,
   ListTodo,
   LogOut,
   Mail,
@@ -26,15 +25,14 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { useConfirm } from "../components/ui/ConfirmProvider";
-import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { AccentColorPicker, ThemeToggle } from "../components/ui/ThemeToggle";
 import { useCalendarStore } from "../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
 import { useProjectStore } from "../store/projectStore";
 import { syncModeOptions, useSyncStore } from "../store/syncStore";
 import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
-import { themeOptions, useThemeStore } from "../store/themeStore";
-import { getHeroOption, heroOptions, useHeroStore } from "../store/heroStore";
+import { accentOptions, themeOptions, useThemeStore } from "../store/themeStore";
 import { canUseMagicLinkAuth, getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
 import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
 import {
@@ -134,11 +132,10 @@ export function Settings() {
   const syncMode = syncState.mode;
   const googleSyncState = useGoogleCalendarSyncStore();
   const theme = useThemeStore((state) => state.theme);
+  const accentColor = useThemeStore((state) => state.accentColor);
   const setTheme = useThemeStore((state) => state.setTheme);
+  const setAccentColor = useThemeStore((state) => state.setAccentColor);
   const activeTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
-  const heroImage = useHeroStore((state) => state.heroImage);
-  const setHeroImage = useHeroStore((state) => state.setHeroImage);
-  const activeHero = getHeroOption(heroImage);
   const googleReadiness = getGoogleCalendarReadiness();
   const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
@@ -186,7 +183,7 @@ export function Settings() {
           };
   const allSettingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
     { id: "account", label: "Account", description: "Profile and sign-in" },
-    { id: "appearance", label: "Appearance", description: "Theme and dashboard image" },
+    { id: "appearance", label: "Appearance", description: "Theme and accent color" },
     { id: "google", label: "Google Sync", description: "Calendar and Todo sync" },
     { id: "notifications", label: "Notifications", description: "Email and desktop reminders" },
     { id: "data", label: "Data", description: "Backup, cloud sync, and cleanup" },
@@ -293,7 +290,7 @@ export function Settings() {
       noteSpaces,
       preferences: {
         theme,
-        heroImage,
+        accentColor,
         autoCleanTasks,
         autoCleanProjects,
       },
@@ -309,7 +306,7 @@ export function Settings() {
       noteSpaces,
       preferences: {
         theme,
-        heroImage,
+        accentColor,
         autoCleanTasks,
         autoCleanProjects,
       },
@@ -351,9 +348,9 @@ export function Settings() {
         setTheme(restoredTheme.value);
       }
 
-      const restoredHero = heroOptions.find((option) => option.value === backup.preferences.heroImage);
-      if (restoredHero) {
-        setHeroImage(restoredHero.value);
+      const restoredAccent = accentOptions.find((option) => option.value === backup.preferences.accentColor);
+      if (restoredAccent) {
+        setAccentColor(restoredAccent.value);
       }
 
       if (typeof backup.preferences.autoCleanTasks === "boolean") {
@@ -846,7 +843,7 @@ export function Settings() {
                 onClick={() => setSettingsSection(section.id)}
                 className={`rounded-[var(--radius-md)] border px-3 py-3 text-left transition ${
                   isActive
-                    ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                    ? "border-[var(--brand-primary)] bg-[var(--accent-soft)] text-[var(--text)] shadow-[var(--shadow-focus)]"
                     : "border-transparent bg-transparent text-[var(--text-muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 }`}
               >
@@ -943,12 +940,12 @@ export function Settings() {
         ) : null}
         {settingsSection === "appearance" ? (
         <>
-        <Card className="p-4 sm:p-5">
-          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Theme</h2>
+        <Card className="p-4 sm:p-5 lg:col-span-2">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Palette size={18} /> Appearance</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            {activeTheme.label} is active.
+            {activeTheme.label} is active. Accent colors affect buttons, selected navigation, focus states, and progress.
           </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {themeOptions.map((option) => {
               const isActive = option.value === theme;
 
@@ -959,7 +956,7 @@ export function Settings() {
                   onClick={() => setTheme(option.value)}
                   className={`rounded-[var(--radius-md)] border px-3 py-3 text-left transition ${
                     isActive
-                      ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                      ? "border-[var(--brand-primary)] bg-[var(--accent-soft)] text-[var(--text)] shadow-[var(--shadow-focus)]"
                       : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                   }`}
                 >
@@ -969,57 +966,23 @@ export function Settings() {
               );
             })}
           </div>
-          <div className="mt-4 flex items-center gap-3">
-            <ThemeToggle showLabel />
-            <span className="text-sm text-[var(--text-soft)]">Saved on this device.</span>
-          </div>
-        </Card>
-        <Card className="p-4 sm:p-5 lg:col-span-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 font-bold text-[var(--text)]">
-                <ImageIcon size={18} /> Dashboard Image
-              </h2>
-              <p className="mt-3 text-sm text-[var(--text-muted)]">
-                {activeHero.label} is active on the home dashboard.
-              </p>
+          <div className="mt-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-[var(--text)]">Quick theme switch</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Saved on this device.</p>
+              </div>
+              <ThemeToggle showLabel />
             </div>
-            <Badge tone="slate">Saved on this device</Badge>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {heroOptions.map((option) => {
-              const isActive = option.value === heroImage;
-
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setHeroImage(option.value)}
-                  className={`group rounded-[var(--radius-md)] border p-2 text-left transition active:scale-[0.99] ${
-                    isActive
-                      ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
-                      : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                  }`}
-                >
-                  <span className="relative block aspect-[3/1] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
-                    <img
-                      src={option.src}
-                      alt=""
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                    />
-                    <span className="absolute inset-0 bg-gradient-to-r from-[#050817]/35 via-transparent to-[#050817]/35" />
-                    {isActive ? (
-                      <span className="absolute right-2 top-2 rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] font-bold text-[var(--text)] shadow-[var(--shadow-soft)]">
-                        Selected
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="mt-2 block text-sm font-bold">{option.label}</span>
-                  <span className="mt-1 block text-xs text-[var(--text-soft)]">{option.description}</span>
-                </button>
-              );
-            })}
+          <div className="mt-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p className="font-semibold text-[var(--text)]">Accent color</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Current accent: {accentOptions.find((option) => option.value === accentColor)?.label ?? "Blue"}.</p>
+            </div>
+              <AccentColorPicker />
+          </div>
           </div>
         </Card>
         </>
@@ -1452,7 +1415,7 @@ export function Settings() {
                     onClick={() => syncState.setMode(option.value)}
                     className={`rounded-[var(--radius-md)] border p-3 text-left transition ${
                       isActive
-                        ? "border-[var(--brand-primary)] bg-[var(--brand-50)] text-[var(--text)] shadow-[var(--shadow-focus)]"
+                        ? "border-[var(--brand-primary)] bg-[var(--accent-soft)] text-[var(--text)] shadow-[var(--shadow-focus)]"
                         : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                     }`}
                   >

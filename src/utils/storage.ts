@@ -5,6 +5,7 @@ import type { Task } from "../types/task";
 
 export interface WorkspaceBackupPreferences {
   theme?: string;
+  accentColor?: string;
   heroImage?: string;
   autoCleanTasks?: boolean;
   autoCleanProjects?: boolean;

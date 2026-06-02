@@ -8,8 +8,9 @@ interface ThemedPortalProps {
 
 export function ThemedPortal({ children }: ThemedPortalProps) {
   const theme = useThemeStore((state) => state.theme);
+  const accentColor = useThemeStore((state) => state.accentColor);
 
   if (typeof document === "undefined") return <>{children}</>;
 
-  return createPortal(<div data-theme={theme}>{children}</div>, document.body);
+  return createPortal(<div data-theme={theme} data-accent={accentColor}>{children}</div>, document.body);
 }

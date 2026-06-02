@@ -3,16 +3,19 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { TaskFilters, type TaskFilter, type TaskSort } from "../components/tasks/TaskFilters";
 import { TaskList } from "../components/tasks/TaskList";
 import { TaskViewToggle } from "../components/tasks/TaskViewToggle";
+import { ScopedSearchNotice } from "../components/ui/ScopedSearchNotice";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { useTaskViewPreference } from "../hooks/useTaskViewPreference";
 import { useProjectStore } from "../store/projectStore";
+import { useSearchStore } from "../store/searchStore";
 import { useTaskStore } from "../store/taskStore";
 import { isOverdue, isToday, isUpcoming } from "../utils/date";
 export function Tasks() {
   const { projects } = useProjectStore();
   const { tasks, updateTask, deleteTask, completeTask, reorderTasks } = useTaskStore();
   const [filter, setFilter] = useState<TaskFilter>("all");
-  const [search, setSearch] = useState("");
+  const search = useSearchStore((state) => state.query);
+  const clearSearch = useSearchStore((state) => state.clearQuery);
   const [sort, setSort] = useState<TaskSort>("manual");
   const [view, setView] = useTaskViewPreference();
 
@@ -40,9 +43,10 @@ export function Tasks() {
     <div className="space-y-4">
       <PageHeader title="Tasks" description="Search, filter, and sort project work across your workspace." />
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-stretch">
-        <TaskFilters filter={filter} search={search} sort={sort} onFilterChange={setFilter} onSearchChange={setSearch} onSortChange={setSort} />
+        <TaskFilters filter={filter} sort={sort} onFilterChange={setFilter} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />
       </div>
+      <ScopedSearchNotice query={search} scope="tasks" resultCount={visibleTasks.length} onClear={clearSearch} />
       <TaskList
         tasks={visibleTasks}
         projects={projects}

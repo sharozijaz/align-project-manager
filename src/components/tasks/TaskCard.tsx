@@ -1,4 +1,4 @@
-import { Bell } from "lucide-react";
+import { Bell, Check } from "lucide-react";
 import { getTaskPriorityOption, getTaskRecurrenceOption, getTaskReminderOption, getTaskStatusOption, isTerminalTaskStatus } from "../../config/taskOptions";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
@@ -14,6 +14,7 @@ export function TaskCard({
   task,
   project,
   onDelete,
+  onComplete,
   onOpen,
   showProjectBadge = true,
   visibleFields,
@@ -23,6 +24,7 @@ export function TaskCard({
   projects: Project[];
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
+  onComplete: (id: string) => void;
   onOpen?: (task: Task) => void;
   showProjectBadge?: boolean;
   visibleFields?: Partial<ProjectTaskFieldVisibility>;
@@ -30,14 +32,28 @@ export function TaskCard({
   return (
     <Card className={`group p-4 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-md)] ${taskAccentClass(task)}`} style={taskAccentStyle(task)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+        <div className="flex min-w-0 gap-3">
           <button
             type="button"
-            className={`max-w-full text-left font-bold text-[var(--text)] transition hover:text-[var(--text-brand)] ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}
-            onClick={() => onOpen?.(task)}
+            onClick={() => onComplete(task.id)}
+            disabled={isTerminalTaskStatus(task.status)}
+            className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-[var(--radius-sm)] border transition ${
+              isTerminalTaskStatus(task.status)
+                ? "border-[var(--success)] bg-[var(--success)] text-white"
+                : "border-[var(--border-strong)] bg-[var(--surface)] text-transparent hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
+            }`}
+            aria-label={`Mark ${task.title} complete`}
           >
-            {task.title}
+            <Check size={15} />
           </button>
+          <div className="min-w-0">
+            <button
+              type="button"
+              className={`max-w-full text-left font-bold text-[var(--text)] transition hover:text-[var(--text-brand)] ${isTerminalTaskStatus(task.status) ? "line-through opacity-60" : ""}`}
+              onClick={() => onOpen?.(task)}
+            >
+              {task.title}
+            </button>
           {visibleFields?.notes !== false && task.description ? <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-muted)]">{task.description}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {visibleFields?.priority !== false ? <OptionBadge option={getTaskPriorityOption(task.priority)} /> : null}
@@ -54,10 +70,11 @@ export function TaskCard({
             ) : null}
             {task.recurrence && task.recurrence !== "none" ? <Badge>{getTaskRecurrenceOption(task.recurrence).label}</Badge> : null}
           </div>
+          </div>
         </div>
         {visibleFields?.actions === false ? null : (
           <div className="flex shrink-0 gap-1.5 opacity-80 transition group-hover:opacity-100">
-            <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} />
+            <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} onComplete={onComplete} />
           </div>
         )}
       </div>

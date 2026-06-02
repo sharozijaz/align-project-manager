@@ -2,6 +2,7 @@ import type { TaskPriority } from "./task";
 
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";
 export type ProjectArea = "business" | "personal";
+export type ProjectMood = "focused" | "creative" | "technical" | "client" | "personal";
 
 export interface ProjectNote {
   id: string;
@@ -24,6 +25,10 @@ export interface Project {
   startTime?: string;
   dueDate?: string;
   dueTime?: string;
+  coverImage?: string;
+  accentColor?: string;
+  icon?: string;
+  mood?: ProjectMood;
   sortOrder?: number;
   pinnedAt?: string;
   notes?: ProjectNote[];

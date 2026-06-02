@@ -5,6 +5,7 @@ import { AuthGate } from "../components/auth/AuthGate";
 import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
 import { AppShortcuts } from "../components/layout/AppShortcuts";
 import { AppSidebar } from "../components/layout/AppSidebar";
+import { AppTopBar } from "../components/layout/AppTopBar";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { GoogleTodoAutoSync } from "../components/sync/GoogleTodoAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
@@ -20,6 +21,7 @@ import { cleanupTrash } from "../utils/trashCleanup";
 
 export function App() {
   const theme = useThemeStore((state) => state.theme);
+  const accentColor = useThemeStore((state) => state.accentColor);
   const projects = useProjectStore((state) => state.projects);
   const noteCount = useStudioStore((state) => state.notes.length);
   const migrateLegacyProjectNotes = useStudioStore((state) => state.migrateLegacyProjectNotes);
@@ -42,13 +44,14 @@ export function App() {
   return (
     <AuthGate>
       <MotionConfig reducedMotion="user">
-        <div data-theme={theme} className={isDesktop ? "align-desktop-shell" : undefined}>
+        <div data-theme={theme} data-accent={accentColor} className={isDesktop ? "align-desktop-shell" : undefined}>
           <ConfirmProvider>
             <DesktopTitleBar />
             <div className="align-app-scroll h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
               <div className="flex h-full w-full flex-col overflow-hidden lg:flex-row">
                 <AppSidebar />
                 <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                  <AppTopBar />
                   <div className="min-h-full w-full p-3 sm:p-4 lg:p-5">
                     <motion.main
                       key={location.pathname}

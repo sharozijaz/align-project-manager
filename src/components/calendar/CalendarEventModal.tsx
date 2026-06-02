@@ -24,7 +24,12 @@ export function CalendarEventModal({
   }, [initialEvent, open]);
 
   return (
-    <Modal title="Add calendar item" open={open} onClose={onClose}>
+    <Modal
+      title={initialEvent ? "Edit calendar item" : "Add calendar item"}
+      description="Place a dated commitment on the calendar without changing project or task structure."
+      open={open}
+      onClose={onClose}
+    >
       <form
         className="grid gap-3"
         onSubmit={(event) => {

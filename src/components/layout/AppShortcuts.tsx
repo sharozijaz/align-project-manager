@@ -1,11 +1,11 @@
-import { CheckCircle2, FolderPlus, Search } from "lucide-react";
+import { CheckCircle2, FolderPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { appNavigationItems } from "./AppSidebar";
 import { ProjectForm } from "../projects/ProjectForm";
 import { TaskForm } from "../tasks/TaskForm";
-import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
+import { SearchBox } from "../ui/SearchBox";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 import type { FeatureKey } from "../../features/access/featureRegistry";
 import { useProjectStore } from "../../store/projectStore";
@@ -123,18 +123,9 @@ export function AppShortcuts() {
         </div>
       ) : null}
 
-      <Modal title="Command palette" open={dialog === "command"} onClose={close}>
+      <Modal title="Command palette" description="Jump to workspace actions without leaving the keyboard." open={dialog === "command"} onClose={close}>
         <div className="space-y-4">
-          <label className="relative block">
-            <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
-            <Input
-              value={commandQuery}
-              onChange={(event) => setCommandQuery(event.target.value)}
-              placeholder="Search pages and actions..."
-              className="pl-10"
-              autoFocus
-            />
-          </label>
+          <SearchBox value={commandQuery} onChange={setCommandQuery} placeholder="Search pages and actions..." autoFocus />
           <div className="grid gap-2">
             <button
               type="button"
@@ -177,7 +168,7 @@ export function AppShortcuts() {
         </div>
       </Modal>
 
-      <Modal title="Keyboard shortcuts" open={dialog === "help"} onClose={close}>
+      <Modal title="Keyboard shortcuts" description="Quick commands available across the workspace." open={dialog === "help"} onClose={close}>
         <div className="grid gap-2">
           {shortcutRows.map(([keys, description]) => (
             <div key={keys} className="flex items-center justify-between gap-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
@@ -188,7 +179,7 @@ export function AppShortcuts() {
         </div>
       </Modal>
 
-      <Modal title="Create task" open={dialog === "task"} onClose={close}>
+      <Modal title="Create task" description="Add a task from anywhere in the app." open={dialog === "task"} onClose={close}>
         <TaskForm
           projects={projects.filter((project) => !project.deletedAt)}
           onSubmit={(input) => {
@@ -199,7 +190,7 @@ export function AppShortcuts() {
         />
       </Modal>
 
-      <Modal title="Create project" open={dialog === "project"} onClose={close}>
+      <Modal title="Create project" description="Start a project with the same project form used across Align." open={dialog === "project"} onClose={close}>
         <ProjectForm
           onSubmit={(input) => {
             addProject(input);

@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   getTaskPriorityOption,
@@ -28,6 +29,7 @@ export function TaskTable({
   projects,
   onUpdate,
   onDelete,
+  onComplete,
   onOpen,
   lockedProjectId,
   visibleFields,
@@ -56,7 +58,7 @@ export function TaskTable({
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
       <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-left text-sm" style={{ minWidth }}>
-          <thead className="bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)]">
+          <thead className="sticky top-0 z-10 bg-[var(--surface-raised)] text-xs font-bold text-[var(--text-soft)] shadow-[0_1px_0_var(--border)]">
             <tr>
               <th className="w-[320px] px-3 py-2.5">Task</th>
               {fields.project ? <th className="w-[210px] px-3 py-2.5">Project / Category</th> : null}
@@ -77,6 +79,7 @@ export function TaskTable({
                 projects={projects}
                 onUpdate={onUpdate}
                 onDelete={onDelete}
+                onComplete={onComplete}
                 onOpen={onOpen}
                 lockedProjectId={lockedProjectId}
                 fields={fields}
@@ -95,6 +98,7 @@ function TaskTableRow({
   projects,
   onUpdate,
   onDelete,
+  onComplete,
   onOpen,
   lockedProjectId,
   fields,
@@ -104,6 +108,7 @@ function TaskTableRow({
   projects: Project[];
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
+  onComplete: (id: string) => void;
   onOpen?: (task: Task) => void;
   lockedProjectId?: string;
   fields: ProjectTaskFieldVisibility;
@@ -144,13 +149,28 @@ function TaskTableRow({
   return (
     <tr className="group border-t border-[var(--border)] align-top transition hover:bg-[var(--surface-hover)]" onDoubleClick={() => onOpen?.(task)}>
       <td className="px-3 py-2">
-        <Input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          onBlur={commitTitle}
-          onKeyDown={handleTitleKeyDown}
-          className={`align-field-quiet min-h-10 ${isTerminalTaskStatus(task.status) ? "line-through opacity-70" : ""}`}
-        />
+        <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onComplete(task.id)}
+            disabled={isTerminalTaskStatus(task.status)}
+            className={`grid h-7 w-7 place-items-center rounded-[var(--radius-sm)] border transition ${
+              isTerminalTaskStatus(task.status)
+                ? "border-[var(--success)] bg-[var(--success)] text-white"
+                : "border-[var(--border-strong)] bg-[var(--surface)] text-transparent hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
+            }`}
+            aria-label={`Mark ${task.title} complete`}
+          >
+            <Check size={15} />
+          </button>
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={handleTitleKeyDown}
+            className={`align-field-quiet min-h-10 ${isTerminalTaskStatus(task.status) ? "line-through opacity-70" : ""}`}
+          />
+        </div>
         {fields.notes && task.description ? <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{task.description}</p> : null}
       </td>
       {fields.project ? <td className="px-3 py-2">
@@ -267,7 +287,7 @@ function TaskTableRow({
       </td> : null}
       {fields.actions ? <td className="px-3 py-2">
         <div className="flex justify-end opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
-          <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} />
+          <TaskOverflowMenu task={task} onOpen={onOpen} onDelete={onDelete} onComplete={onComplete} />
         </div>
       </td> : null}
     </tr>

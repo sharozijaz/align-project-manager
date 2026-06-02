@@ -26,7 +26,6 @@ import {
   Plus,
   Quote,
   Save,
-  Search,
   Star,
   StickyNote,
   Strikethrough,
@@ -46,9 +45,11 @@ import { Card } from "../components/ui/Card";
 import { useConfirm } from "../components/ui/ConfirmProvider";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { ScopedSearchNotice } from "../components/ui/ScopedSearchNotice";
 import { Select } from "../components/ui/Select";
 import { EmptyState, StudioTextarea } from "../components/studio/StudioForm";
 import { useProjectStore } from "../store/projectStore";
+import { useSearchStore } from "../store/searchStore";
 import { useStudioStore } from "../store/studioStore";
 import type { Project } from "../types/project";
 import type { HubNote, HubNoteSpace, HubResource, HubResourceType, HubView } from "../types/studio";
@@ -239,7 +240,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const workspaceView = initialView === "notes" ? "notes" : "resources";
   const isNotesWorkspace = workspaceView === "notes";
   const [view, setView] = useState<HubView>(workspaceView);
-  const [query, setQuery] = useState("");
+  const query = useSearchStore((state) => state.query);
+  const clearQuery = useSearchStore((state) => state.clearQuery);
   const [type, setType] = useState<ResourceFilter>("all");
   const [noteFilter, setNoteFilter] = useState<NoteFilter>("inbox");
   const [selectedSpaceKey, setSelectedSpaceKey] = useState<string | null>(null);
@@ -698,6 +700,12 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
           </Button>
         </Card>
       ) : null}
+      <ScopedSearchNotice
+        query={query}
+        scope={isNotesWorkspace ? "notes" : "resources"}
+        resultCount={isNotesWorkspace ? filteredNotes.length : filteredResources.length}
+        onClear={clearQuery}
+      />
 
       <Modal
         title="New space"
@@ -751,20 +759,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         </form>
       </Modal>
 
-      <Card className="p-2">
-        <div className="grid gap-3">
-          <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={17} />
-            <Input
-              className="align-field-quiet pl-10 sm:min-h-10"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={isNotesWorkspace ? "Search notes, tags, linked projects..." : "Search resources, tags, collections..."}
-            />
-          </label>
-        </div>
-        {view === "resources" ? (
-          <div className="mt-3 flex flex-wrap gap-2">
+      {view === "resources" ? (
+        <Card className="p-2">
+          <div className="flex flex-wrap gap-2">
             <FilterChip active={type === "all"} onClick={() => setType("all")}>
               All
             </FilterChip>
@@ -777,8 +774,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               Favorites
             </FilterChip>
           </div>
-        ) : null}
-      </Card>
+        </Card>
+      ) : null}
 
       <div className={`grid gap-5 ${view === "notes" ? "xl:grid-cols-[360px_minmax(0,1fr)]" : "2xl:grid-cols-[minmax(0,1fr)_400px]"}`}>
         {view === "notes" ? (
@@ -2091,7 +2088,7 @@ function NotesWorkspace({
           </div>
         ) : selectedNote ? (
           <div className="flex h-full min-h-[760px] flex-col">
-            <div className="border-b border-[var(--border)] bg-[linear-gradient(180deg,var(--surface-raised),var(--surface))] px-5 py-4 lg:px-8">
+            <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] px-5 py-4 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-soft)]">
@@ -2191,7 +2188,7 @@ function NotesWorkspace({
                 <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,var(--surface),var(--bg))] p-5 lg:p-8">
+              <div className="flex-1 overflow-y-auto bg-[var(--surface)] p-5 lg:p-8">
                 <div className="min-h-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow-sm)] lg:px-12 lg:py-10">
                   <NoteReader body={selectedNote.body} allNotes={allNotes} onOpenNote={onSelectNote} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
                   <CompactLinkedNotes notes={[...linkedContext.related, ...linkedContext.wikiLinks, ...linkedContext.backlinks]} onSelectNote={onSelectNote} />
@@ -2240,7 +2237,7 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
       type="button"
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-        active ? "border-transparent align-gradient text-white" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        active ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--button-primary-text)] shadow-[var(--shadow-sm)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       }`}
     >
       {children}
@@ -2269,7 +2266,7 @@ function ResourceCard({
   return (
     <Card className={`group overflow-hidden p-0 ${selected ? "border-[var(--brand-primary)]" : ""}`}>
       <button type="button" onClick={onSelect} className="block w-full p-4 text-left">
-        <div className="mb-4 flex h-32 flex-col justify-between overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.32),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface-raised))] p-4">
+        <div className="mb-4 flex h-32 flex-col justify-between overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
           <div className="flex items-start justify-between gap-3">
             <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
               {favicon ? <img src={favicon} alt="" className="h-7 w-7" loading="lazy" /> : <span className="font-display text-sm font-bold text-[var(--brand-primary)]">{getResourceInitials(item.title)}</span>}
@@ -2332,8 +2329,8 @@ function ResourceDetailInline({
   const editMetaGridClass = compact ? "grid gap-3" : "grid gap-3 lg:grid-cols-2";
   const detailLayoutClass = compact ? "grid gap-4 p-4" : "grid gap-5 p-5 lg:grid-cols-[280px_minmax(0,1fr)]";
   const previewCardClass = compact
-    ? "flex min-h-44 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.38),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface))] p-5"
-    : "flex min-h-48 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(132,103,255,0.38),transparent_42%),linear-gradient(135deg,var(--bg-soft),var(--surface))] p-5";
+    ? "flex min-h-44 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-5"
+    : "flex min-h-48 flex-col justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-5";
 
   if (isEditing) {
     return (
@@ -2460,39 +2457,6 @@ function CompactLinkedNotes({ notes, onSelectNote }: { notes: HubNote[]; onSelec
           </button>
         ))}
       </div>
-    </section>
-  );
-}
-
-function LinkedNotesPanel({ title, notes, emptyText, onSelectNote }: { title: string; notes: HubNote[]; emptyText: string; onSelectNote: (noteId: string) => void }) {
-  if (!notes.length && !emptyText) return null;
-
-  return (
-    <section className="mt-8 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-soft)]">
-          <Link2 size={15} />
-          {title}
-        </p>
-        {notes.length ? <Badge tone="blue">{notes.length}</Badge> : null}
-      </div>
-      {notes.length ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {notes.map((note) => (
-            <button
-              key={note.id}
-              type="button"
-              onClick={() => onSelectNote(note.id)}
-              className="inline-flex max-w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-            >
-              <FileText size={14} />
-              <span className="truncate">{note.title}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-3 text-sm text-[var(--text-muted)]">{emptyText}</p>
-      )}
     </section>
   );
 }
@@ -2754,7 +2718,7 @@ function renderInlineMarkdown(value: string, options: InlineMarkdownOptions = {}
     if (linkMatch) {
       const href = sanitizeMarkdownUrl(linkMatch[2]);
       return href ? (
-        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noreferrer">
+        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noopener noreferrer">
           {linkMatch[1]}
         </a>
       ) : (

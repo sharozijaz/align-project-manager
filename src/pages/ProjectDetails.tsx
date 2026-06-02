@@ -1,6 +1,5 @@
 import { Link, useParams } from "react-router-dom";
 import { ProjectDetail } from "../components/projects/ProjectDetail";
-import { ProjectSharePanel } from "../components/projects/ProjectSharePanel";
 import { Button } from "../components/ui/Button";
 import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
@@ -23,19 +22,16 @@ export function ProjectDetails() {
   }
 
   return (
-    <div className="space-y-4">
-      <ProjectDetail
-        project={project}
-        projects={projects}
-        tasks={tasks.filter((task) => !task.deletedAt && task.projectId === project.id)}
-        onAddTask={addTask}
-        onUpdateTask={updateTask}
-        onUpdateProject={updateProject}
-        onDeleteTask={deleteTask}
-        onCompleteTask={completeTask}
-        onReorderTasks={reorderTasks}
-      />
-      <ProjectSharePanel project={project} />
-    </div>
+    <ProjectDetail
+      project={project}
+      projects={projects}
+      tasks={tasks.filter((task) => !task.deletedAt && task.projectId === project.id)}
+      onAddTask={addTask}
+      onUpdateTask={updateTask}
+      onUpdateProject={updateProject}
+      onDeleteTask={deleteTask}
+      onCompleteTask={completeTask}
+      onReorderTasks={reorderTasks}
+    />
   );
 }

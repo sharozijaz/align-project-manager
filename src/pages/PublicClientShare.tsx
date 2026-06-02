@@ -210,7 +210,7 @@ export function PublicClientShare() {
                     )}
                   </div>
                   <div className="mt-6 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                    <div className="h-full align-gradient" style={{ width: `${stats.progress}%` }} />
+                    <div className="h-full bg-[var(--brand-primary)]" style={{ width: `${stats.progress}%` }} />
                   </div>
                 </div>
                 <div className="grid gap-px bg-[var(--border)] sm:grid-cols-4">
@@ -243,7 +243,7 @@ export function PublicClientShare() {
                           </div>
                         </div>
                         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                          <div className="h-full align-gradient" style={{ width: `${progress}%` }} />
+                          <div className="h-full bg-[var(--brand-primary)]" style={{ width: `${progress}%` }} />
                         </div>
                         <div className="mt-4 grid gap-2 text-sm text-[var(--text-muted)] sm:grid-cols-3">
                           <span>{open} open</span>

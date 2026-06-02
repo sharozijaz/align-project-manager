@@ -197,7 +197,7 @@ export function PublicProjectShare() {
                   </div>
 
                   <div className="mt-6 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                    <div className="h-full align-gradient" style={{ width: `${stats.progress}%` }} />
+                    <div className="h-full bg-[var(--brand-primary)]" style={{ width: `${stats.progress}%` }} />
                   </div>
                 </div>
                 <div className="grid gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-5">

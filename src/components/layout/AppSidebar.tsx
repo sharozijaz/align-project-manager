@@ -5,7 +5,6 @@ import {
   CircleHelp,
   Folder,
   Home,
-  Keyboard,
   LibraryBig,
   ListTodo,
   LogOut,
@@ -23,10 +22,10 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { NavLink } from "react-router-dom";
 import { InstallAppButton } from "../pwa/InstallAppButton";
-import { NotificationBell } from "../notifications/NotificationBell";
+import { NotificationCenter } from "../notifications/NotificationCenter";
 import { SyncIndicator } from "../sync/SyncIndicator";
 import { useConfirm } from "../ui/ConfirmProvider";
-import { ThemeToggle } from "../ui/ThemeToggle";
+import { AccentColorPicker, ThemeToggle } from "../ui/ThemeToggle";
 import { useFeatureAccess } from "../../features/access/FeatureAccessProvider";
 import type { FeatureKey } from "../../features/access/featureRegistry";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
@@ -71,7 +70,13 @@ const profileLinks: NavItem[] = [
 
 export const appNavigationItems = [...primaryLinks, ...workspaceLinks, ...profileLinks];
 
-const sidebarSpring = { type: "spring", stiffness: 520, damping: 44, mass: 0.72 } as const;
+const sidebarSpring = { type: "spring", stiffness: 340, damping: 36, mass: 0.82 } as const;
+const sidebarTextMotion = {
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -6 },
+  transition: { duration: 0.16, ease: "easeOut" },
+} as const;
 
 export function AppSidebar() {
   const confirm = useConfirm();
@@ -85,14 +90,13 @@ export function AppSidebar() {
   const notes = useStudioStore((state) => state.notes);
   const noteSpaces = useStudioStore((state) => state.noteSpaces);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [railHovered, setRailHovered] = useState(false);
-  const [railPinned, setRailPinned] = useState(false);
-  const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<"profile" | null>(null);
   const desktopSidebarRef = useRef<HTMLElement | null>(null);
   const profileName = access?.profile.displayName || access?.profile.email?.split("@")[0] || "Profile";
   const profileEmail = access?.profile.email;
   const profileAvatarUrl = getProfileAvatarUrl(session?.user.user_metadata);
-  const desktopExpanded = railHovered || railPinned || openMenu !== null;
+  const desktopExpanded = desktopOpen || openMenu !== null;
   const logoSrc = isLightThemeMode(theme) ? "/align-logo-light.png" : "/align-logo.png";
   const pinnedProjects = projects
     .filter((project) => project.pinnedAt && !project.deletedAt && (project.status === "active" || project.status === "paused"))
@@ -110,8 +114,7 @@ export function AppSidebar() {
     saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes, noteSpaces });
     await supabase.auth.signOut();
     setOpenMenu(null);
-    setRailHovered(false);
-    setRailPinned(false);
+    setDesktopOpen(false);
   };
 
   const links = {
@@ -137,9 +140,8 @@ export function AppSidebar() {
 
     const handlePointerDown = (event: PointerEvent) => {
       if (desktopSidebarRef.current?.contains(event.target as Node)) return;
-      setRailPinned(false);
-      setRailHovered(false);
       setOpenMenu(null);
+      setDesktopOpen(false);
     };
 
     document.addEventListener("pointerdown", handlePointerDown, true);
@@ -160,23 +162,17 @@ export function AppSidebar() {
         <NavLink to="/" className="brand-logo-shell flex h-11 w-36 items-center rounded-[var(--radius-sm)] px-2" aria-label="Align home">
           <img src={logoSrc} alt="Align" className="h-8 w-auto object-contain" />
         </NavLink>
-        <NotificationBell open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
+        <NotificationCenter />
       </header>
 
-      <aside
+      <motion.aside
         ref={desktopSidebarRef}
-        className="relative z-30 hidden h-full min-h-0 w-[88px] shrink-0 bg-transparent lg:block"
-        onMouseEnter={() => setRailHovered(true)}
-        onMouseLeave={() => {
-          if (!railPinned && !openMenu) setRailHovered(false);
-        }}
-        onPointerDown={() => setRailPinned(true)}
+        className="relative z-30 hidden h-full min-h-0 shrink-0 overflow-visible bg-[#171717] lg:block"
+        animate={{ width: desktopExpanded ? 248 : 88 }}
+        transition={sidebarSpring}
+        onPointerDown={() => setDesktopOpen(true)}
       >
-        <motion.div
-          className="absolute left-3 top-3 h-[calc(100%-1.5rem)] overflow-visible will-change-[width]"
-          animate={{ width: desktopExpanded ? 248 : 64 }}
-          transition={sidebarSpring}
-        >
+        <div className="h-full w-full overflow-visible">
           <SidebarContent
             links={links}
             profileName={profileName}
@@ -189,8 +185,8 @@ export function AppSidebar() {
             canSignOut={Boolean(session && supabase)}
             onSignOut={() => void handleSignOut()}
           />
-        </motion.div>
-      </aside>
+        </div>
+      </motion.aside>
 
       <AnimatePresence>
         {mobileOpen ? (
@@ -256,8 +252,8 @@ function SidebarContent({
   profileName: string;
   profileEmail?: string;
   profileAvatarUrl?: string;
-  openMenu: "notifications" | "profile" | null;
-  setOpenMenu: (value: "notifications" | "profile" | null) => void;
+  openMenu: "profile" | null;
+  setOpenMenu: (value: "profile" | null) => void;
   collapsed: boolean;
   pinnedProjects: Project[];
   onNavigate?: () => void;
@@ -265,6 +261,7 @@ function SidebarContent({
   onSignOut?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
+  const accentColor = useThemeStore((state) => state.accentColor);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -280,105 +277,82 @@ function SidebarContent({
   }, [isProfileMenuOpen, setOpenMenu]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
-      <div className="border-b border-[var(--border)] p-2">
-        <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : "justify-start"}`}>
+    <div className="relative flex h-full min-h-0 flex-col bg-[#171717] text-white shadow-[var(--shadow-sm)]">
+      <div className="pb-4">
+        <div className="relative">
           <NavLink
             to="/"
             onClick={onNavigate}
-            className={`brand-logo-shell grid h-11 grid-cols-[28px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 ${collapsed ? "w-11" : "w-full"}`}
+            className="brand-logo-shell grid h-16 grid-cols-[88px_minmax(0,1fr)] items-center"
             aria-label="Align home"
           >
-            <img src="/align-icon.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
-            <span
-              className={`min-w-0 truncate text-xl font-black tracking-[-0.02em] text-[var(--text)] transition duration-150 ${
-                collapsed ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              Align
+            <span className="grid h-16 w-[88px] place-items-center">
+              <img src="/align-icon.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
             </span>
+            <AnimatePresence initial={false}>
+              {!collapsed ? (
+                <motion.span {...sidebarTextMotion} className="min-w-0 truncate text-xl font-black tracking-normal text-white">
+                  Align
+                </motion.span>
+              ) : null}
+            </AnimatePresence>
           </NavLink>
         </div>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto p-3">
+      <nav className="min-h-0 flex-1 overflow-y-auto py-1">
         <NavSection items={links.primary} collapsed={collapsed} pinnedProjects={pinnedProjects} onNavigate={onNavigate} />
         {links.workspace.length ? <NavSection items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} separated /> : null}
       </nav>
 
-      <div className="space-y-3 border-t border-[var(--border)] p-2.5">
-        <div className="grid gap-1">
-          <div className={`grid min-h-10 grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] ${collapsed ? "w-10" : "px-0"}`}>
-            <NotificationBell align="left" placement="up" open={openMenu === "notifications"} onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "notifications" : null)} />
-            <span
-              className={`truncate text-sm font-bold text-[var(--text)] transition duration-150 ${
-                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
-              }`}
-            >
-              Notifications
-            </span>
-          </div>
-          <button
-            type="button"
-            className={`grid min-h-10 grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] text-sm font-bold text-[var(--text)] transition hover:bg-[var(--surface-hover)] ${collapsed ? "w-10" : ""}`}
-            onClick={() => window.dispatchEvent(new CustomEvent("align:open-shortcuts"))}
-            aria-label="Show keyboard shortcuts"
-            title="Shortcuts"
-          >
-            <span className="grid h-10 w-10 place-items-center rounded-full border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)]">
-              <Keyboard size={16} />
-            </span>
-            <span
-              className={`truncate text-left transition duration-150 ${
-                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
-              }`}
-            >
-              Shortcuts
-            </span>
-          </button>
-        </div>
-
+      <div className="space-y-4 border-t border-white/20 pb-4 pt-4">
         <div ref={profileMenuRef} className="relative">
           <button
             type="button"
             onClick={() => setOpenMenu(isProfileMenuOpen ? null : "profile")}
-            className={`grid h-11 cursor-pointer grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] text-left transition hover:bg-[var(--surface-hover)] ${collapsed ? "w-10" : "w-full"}`}
+            className="grid h-12 w-full cursor-pointer grid-cols-[88px_minmax(0,1fr)] items-center rounded-[var(--radius-sm)] text-left transition hover:bg-white/10"
             aria-expanded={isProfileMenuOpen}
             aria-haspopup="menu"
             title={profileName}
           >
-            <span className="grid h-11 w-10 shrink-0 place-items-center">
-              <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-[var(--button-secondary-bg)] text-[var(--button-secondary-text)] ring-1 ring-[var(--border)]">
-              {profileAvatarUrl ? (
-                <img src={profileAvatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-              ) : (
-                <UserRound size={16} />
-              )}
+            <span className="grid h-12 w-[88px] shrink-0 place-items-center">
+              <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-white/90 text-[#171717] ring-1 ring-white/20">
+                {profileAvatarUrl ? (
+                  <img src={profileAvatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                ) : (
+                  <UserRound size={16} />
+                )}
               </span>
             </span>
-            <span
-              className={`min-w-0 transition duration-150 ${
-                collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
-              }`}
-            >
-              <span className="block truncate text-sm font-bold text-[var(--text)]">{profileName}</span>
-              <span className="block truncate text-xs text-[var(--text-soft)]">{profileEmail ?? "Workspace profile"}</span>
-            </span>
+            <AnimatePresence initial={false}>
+              {!collapsed ? (
+                <motion.span {...sidebarTextMotion} className="min-w-0 overflow-hidden">
+                  <span className="block truncate text-sm font-bold text-white">{profileName}</span>
+                  <span className="block truncate text-xs text-white/60">{profileEmail ?? "Workspace profile"}</span>
+                </motion.span>
+              ) : null}
+            </AnimatePresence>
           </button>
           <AnimatePresence>
             {isProfileMenuOpen ? (
               <motion.div
-                className={`absolute bottom-full z-30 pb-2 ${collapsed ? "left-full ml-2 w-56" : "left-0 w-full"}`}
+                className={`absolute bottom-full z-[70] pb-3 ${collapsed ? "left-full ml-3 w-[280px]" : "left-4 w-[280px]"}`}
+                data-theme="dark"
+                data-accent={accentColor}
                 initial={{ opacity: 0, y: 6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.98 }}
                 transition={{ duration: 0.16, ease: "easeOut" }}
               >
-                <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
-                  <div className="grid gap-2">
+                <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-[var(--text)] shadow-[var(--shadow-lg)]">
+                  <div className="grid gap-2.5">
                     <SyncIndicator className="w-full justify-center rounded-md" />
                     <ThemeToggle showLabel className="w-full rounded-md" />
-                    <div className="my-1 h-px bg-[var(--border)]" />
+                    <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3">
+                      <p className="mb-2 text-xs font-bold text-[var(--text-muted)]">Accent</p>
+                      <AccentColorPicker compact />
+                    </div>
+                    <div className="my-1.5 h-px bg-[var(--border)]" />
                     {links.profile.map(({ to, label, icon: Icon }) => (
                       <NavLink
                         key={to}
@@ -388,7 +362,7 @@ function SidebarContent({
                           onNavigate?.();
                         }}
                         className={({ isActive }) =>
-                          `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                          `flex min-h-10 items-center gap-2.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
                             isActive
                               ? "bg-[var(--button-secondary-hover)] text-[var(--text)]"
                               : "text-[var(--text-muted)] hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)]"
@@ -435,8 +409,9 @@ function NavSection({
   separated?: boolean;
 }) {
   return (
-    <section className={`${separated ? "mt-3 border-t border-[var(--border)] pt-3" : ""}`}>
-      <div className="grid gap-1">
+    <section className={`${separated ? "mt-3 pt-3" : ""}`}>
+      {separated ? <div className={`${collapsed ? "mx-auto w-16" : "mx-4"} mb-3 h-px bg-white/20`} /> : null}
+      <div className="grid gap-1.5">
         {items.map(({ to, label, icon: Icon }) => (
           <div key={to} className="grid gap-1">
             <NavLink
@@ -445,26 +420,55 @@ function NavSection({
               onClick={onNavigate}
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `align-sidebar-link group grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2.5 text-sm font-bold transition ${collapsed ? "w-10" : ""} ${
+                `align-sidebar-link group relative isolate grid h-10 min-w-0 grid-cols-[88px_minmax(0,1fr)] items-center text-sm font-bold transition ${
                   isActive
-                    ? "align-sidebar-link-active align-gradient text-white shadow-[var(--shadow-sm)]"
-                    : "text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                    ? collapsed
+                      ? "align-sidebar-link-active text-white"
+                      : "align-sidebar-link-active text-white"
+                    : "text-[#c7c7c7] hover:text-white"
                 }`
               }
             >
-              <span className="grid h-5 w-5 shrink-0 place-items-center">
-                <Icon size={17} className="shrink-0" />
-              </span>
-              <span
-                className={`min-w-0 flex-1 truncate transition duration-150 ${
-                  collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"
-                }`}
-              >
-                {label}
-              </span>
+              {({ isActive }) => (
+                <>
+                  <AnimatePresence initial={false}>
+                    {!collapsed ? (
+                      <motion.span
+                        initial={{ opacity: 0, scaleX: 0.94 }}
+                        animate={{ opacity: 1, scaleX: 1 }}
+                        exit={{ opacity: 0, scaleX: 0.94 }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                      className={`pointer-events-none absolute inset-y-0 left-4 right-4 z-0 rounded-[var(--radius-sm)] transition ${
+                        isActive ? "bg-[var(--brand-primary)] shadow-[var(--shadow-sm)]" : "group-hover:bg-white/10"
+                      }`}
+                      />
+                    ) : null}
+                  </AnimatePresence>
+                  <span className="relative z-10 grid h-10 w-[88px] shrink-0 place-items-center">
+                    <span
+                      className={`grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] ${
+                        collapsed && isActive
+                          ? "bg-[var(--brand-primary)] text-white shadow-[var(--shadow-sm)]"
+                          : collapsed && !isActive
+                            ? "group-hover:bg-white/10"
+                            : ""
+                      }`}
+                    >
+                      <Icon size={17} className="shrink-0" />
+                    </span>
+                  </span>
+                  <AnimatePresence initial={false}>
+                    {!collapsed ? (
+                      <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 truncate text-left">
+                        {label}
+                      </motion.span>
+                    ) : null}
+                  </AnimatePresence>
+                </>
+              )}
             </NavLink>
             {to === "/projects" && pinnedProjects.length ? (
-              <div className={`grid gap-1 ${collapsed ? "pl-0" : "pl-4"}`}>
+              <div className="grid gap-1 pt-1">
                 {pinnedProjects.map((project) => (
                   <PinnedProjectLink key={project.id} project={project} collapsed={collapsed} onNavigate={onNavigate} />
                 ))}
@@ -484,20 +488,49 @@ function PinnedProjectLink({ project, collapsed, onNavigate }: { project: Projec
       onClick={onNavigate}
       title={project.name}
       className={({ isActive }) =>
-        `group relative grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2 text-xs font-bold transition ${collapsed ? "w-10" : ""} ${
+        `group relative isolate grid h-9 min-w-0 grid-cols-[88px_minmax(0,1fr)] items-center text-xs font-bold transition ${
           isActive
-            ? "bg-[var(--brand-50)] text-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]"
-            : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            ? collapsed
+              ? "text-white"
+              : "text-white"
+            : "text-[#c7c7c7] hover:text-white"
         }`
       }
     >
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-[var(--radius-xs)] bg-[var(--button-secondary-bg)] text-[10px] font-black text-[var(--button-secondary-text)] ring-1 ring-[var(--border)]">
-        {projectInitials(project.name)}
-      </span>
-      <span className={`min-w-0 truncate transition duration-150 ${collapsed ? "translate-x-[-4px] opacity-0" : "translate-x-0 opacity-100"}`}>
-        {project.name}
-      </span>
-      <Pin size={12} className={`absolute right-2 ${collapsed ? "hidden" : "opacity-0 transition group-hover:opacity-60"}`} />
+      {({ isActive }) => (
+        <>
+          <AnimatePresence initial={false}>
+            {!collapsed ? (
+              <motion.span
+                initial={{ opacity: 0, scaleX: 0.94 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                exit={{ opacity: 0, scaleX: 0.94 }}
+                transition={{ duration: 0.16, ease: "easeOut" }}
+              className={`pointer-events-none absolute inset-y-0 left-4 right-4 z-0 rounded-[var(--radius-sm)] transition ${
+                isActive ? "bg-white/10 ring-1 ring-white/20" : "group-hover:bg-white/10"
+              }`}
+              />
+            ) : null}
+          </AnimatePresence>
+          <span className="relative z-10 grid h-9 w-[88px] shrink-0 place-items-center">
+            <span
+              className={`grid h-6 min-w-6 place-items-center rounded-[var(--radius-xs)] px-1.5 text-[10px] font-black text-white ring-1 ring-white/10 ${
+                collapsed && isActive ? "bg-[var(--brand-primary)]" : collapsed ? "bg-[#2a2a2a] group-hover:bg-white/15" : "bg-[#2a2a2a]"
+              }`}
+            >
+              {projectInitials(project.name)}
+            </span>
+          </span>
+          <AnimatePresence initial={false}>
+            {!collapsed ? (
+              <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 truncate">
+                {project.name}
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
+          {!collapsed ? <Pin size={12} className="absolute right-6 opacity-0 transition group-hover:opacity-60" /> : null}
+        </>
+      )}
     </NavLink>
   );
 }

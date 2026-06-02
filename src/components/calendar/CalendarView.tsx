@@ -685,7 +685,7 @@ function PlanningSidebar({
           <Badge tone="blue">{plannerTasks.length}</Badge>
         </div>
         {unscheduleDropActive ? (
-          <div className="mt-4 rounded-[var(--radius-sm)] border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/55 p-3 text-center text-xs font-bold text-[var(--brand-primary)]">
+          <div className="mt-4 rounded-[var(--radius-sm)] border-2 border-dashed border-[var(--brand-primary)] bg-[var(--accent-soft)] p-3 text-center text-xs font-bold text-[var(--brand-primary)]">
             Remove date and return to planning
           </div>
         ) : null}
@@ -787,7 +787,7 @@ function CalendarDayButton({
           />
         ))}
         {items.length > 3 ? <p className="truncate text-xs font-bold text-[var(--text-soft)]">+{items.length - 3} more</p> : null}
-        {dropTarget ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/60 p-2 text-center text-xs font-bold text-[var(--brand-primary)]">Schedule here</p> : null}
+        {dropTarget ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--brand-primary)] bg-[var(--accent-soft)] p-2 text-center text-xs font-bold text-[var(--brand-primary)]">Schedule here</p> : null}
       </div>
     </button>
   );
@@ -946,7 +946,7 @@ function PlannerTaskCard({
       </div>
       {showMonthAction ? (
         plannedForVisibleMonth ? (
-          <p className="mt-3 rounded-[var(--radius-sm)] bg-[var(--brand-50)] px-2 py-1 text-xs font-bold text-[var(--brand-primary)]">
+          <p className="mt-3 rounded-[var(--radius-sm)] bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold text-[var(--brand-primary)]">
             Monthly intent for {format(parseISO(`${visibleMonth}-01`), "MMM yyyy")}
           </p>
         ) : (
@@ -971,7 +971,7 @@ function PlannerTaskCard({
           Plan this week
         </Button>
       ) : (
-        <p className="mt-3 rounded-[var(--radius-sm)] bg-[var(--brand-50)] px-2 py-1 text-xs font-bold text-[var(--brand-primary)]">
+        <p className="mt-3 rounded-[var(--radius-sm)] bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold text-[var(--brand-primary)]">
           Planned week of {format(parseISO(selectedWeekStart), "MMM d")}
         </p>
       )}

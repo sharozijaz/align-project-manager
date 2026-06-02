@@ -1,16 +1,16 @@
-import { Archive, CheckCircle2, Plus, Search } from "lucide-react";
+import { Archive, CheckCircle2, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { PageHeader } from "../components/layout/PageHeader";
 import { ClientProjectsSharePanel } from "../components/projects/ClientProjectsSharePanel";
 import { ProjectCard } from "../components/projects/ProjectCard";
 import { ProjectForm } from "../components/projects/ProjectForm";
 import { Button } from "../components/ui/Button";
 import { useConfirm } from "../components/ui/ConfirmProvider";
-import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { ScopedSearchNotice } from "../components/ui/ScopedSearchNotice";
 import { Select } from "../components/ui/Select";
 import { useProjectStore } from "../store/projectStore";
+import { useSearchStore } from "../store/searchStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project, ProjectArea, ProjectStatus } from "../types/project";
 import { getClampedDragPreviewPosition } from "../utils/dragPreview";
@@ -25,7 +25,8 @@ export function Projects() {
   const [creating, setCreating] = useState(false);
   const [areaFilter, setAreaFilter] = useState<ProjectAreaFilter>("all");
   const [lifecycleFilter, setLifecycleFilter] = useState<ProjectLifecycleFilter>("active");
-  const [searchQuery, setSearchQuery] = useState("");
+  const searchQuery = useSearchStore((state) => state.query);
+  const clearSearchQuery = useSearchStore((state) => state.clearQuery);
   const [sortMode, setSortMode] = useState<ProjectSort>("manual");
   const [completingProject, setCompletingProject] = useState<Project | null>(null);
   const [projectDrag, setProjectDrag] = useState<ProjectDragState | null>(null);
@@ -117,49 +118,50 @@ export function Projects() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Projects"
-        description="Manage active, paused, completed, archived, and shared client projects."
-        actions={
-          <Button icon={<Plus size={16} />} onClick={() => setCreating(true)}>
+      <section className="rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+          <div className="min-w-0 border-l-4 border-[var(--brand-primary)] pl-4">
+            <h1 className="text-2xl font-black tracking-normal text-[var(--text)] sm:text-3xl">Projects</h1>
+            <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--text-muted)]">
+              Manage active, paused, completed, archived, and shared client projects.
+            </p>
+          </div>
+
+          <Button className="w-full sm:w-auto" icon={<Plus size={16} />} onClick={() => setCreating(true)}>
             New Project
           </Button>
-        }
-      />
-      <div className="align-toolbar">
-        <div className="grid w-full gap-2 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,240px)_minmax(220px,240px)_minmax(210px,230px)]">
-          <label className="relative block">
-            <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search projects..."
-              className="align-field-quiet pl-10 sm:min-h-10"
-            />
-          </label>
-          <Select className="align-field-quiet sm:min-h-10" value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as ProjectLifecycleFilter)} aria-label="Project status">
-            <option value="active">Status: Active ({activeCount})</option>
-            <option value="paused">Status: Paused ({pausedCount})</option>
-            <option value="completed">Status: Completed ({completedCount})</option>
-            <option value="archived">Status: Archived ({archivedCount})</option>
-          </Select>
-          <Select className="align-field-quiet sm:min-h-10" value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as ProjectAreaFilter)} aria-label="Project category">
-            <option value="all">Category: All ({lifecycleProjects.length})</option>
-            <option value="business">Category: Business ({businessCount})</option>
-            <option value="personal">Category: Personal ({personalCount})</option>
-          </Select>
-          <Select className="align-field-quiet sm:min-h-10" value={sortMode} onChange={(event) => setSortMode(event.target.value as ProjectSort)} aria-label="Project sort">
-            <option value="manual">Sort: Manual order</option>
-            <option value="updated">Sort: Recently updated</option>
-            <option value="name">Sort: Name</option>
-            <option value="due">Sort: Due date</option>
-          </Select>
         </div>
-      </div>
-      {lifecycleFilter !== "archived" ? <ClientProjectsSharePanel projects={shareableProjects} /> : null}
-      <p className="text-sm font-medium text-[var(--text-muted)]">
-        Showing <span className="font-bold text-[var(--brand-primary)]">{visibleProjects.length}</span> {lifecycleLabel} projects
-      </p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4 xl:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm font-semibold text-[var(--text-muted)]">
+              Showing <span className="font-black text-[var(--brand-primary)]">{visibleProjects.length}</span> {lifecycleLabel}
+            </span>
+            {lifecycleFilter !== "archived" ? <ClientProjectsSharePanel embedded projects={shareableProjects} /> : null}
+          </div>
+
+          <div className="grid w-full gap-2 md:grid-cols-3 xl:ml-auto xl:w-auto xl:grid-cols-[minmax(200px,220px)_minmax(200px,220px)_minmax(190px,210px)]">
+            <Select className="align-field-quiet sm:min-h-10" value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as ProjectLifecycleFilter)} aria-label="Project status">
+              <option value="active">Status: Active ({activeCount})</option>
+              <option value="paused">Status: Paused ({pausedCount})</option>
+              <option value="completed">Status: Completed ({completedCount})</option>
+              <option value="archived">Status: Archived ({archivedCount})</option>
+            </Select>
+            <Select className="align-field-quiet sm:min-h-10" value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as ProjectAreaFilter)} aria-label="Project category">
+              <option value="all">Category: All ({lifecycleProjects.length})</option>
+              <option value="business">Category: Business ({businessCount})</option>
+              <option value="personal">Category: Personal ({personalCount})</option>
+            </Select>
+            <Select className="align-field-quiet sm:min-h-10" value={sortMode} onChange={(event) => setSortMode(event.target.value as ProjectSort)} aria-label="Project sort">
+              <option value="manual">Sort: Manual order</option>
+              <option value="updated">Sort: Recently updated</option>
+              <option value="name">Sort: Name</option>
+              <option value="due">Sort: Due date</option>
+            </Select>
+          </div>
+        </div>
+      </section>
+      <ScopedSearchNotice query={searchQuery} scope="projects" resultCount={visibleProjects.length} onClear={clearSearchQuery} />
       <div className="grid min-w-0 gap-5 xl:grid-cols-2 2xl:gap-7">
         {visibleProjects.map((project) => (
           <div
@@ -172,7 +174,7 @@ export function Projects() {
             }}
             className={`relative min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
               sortMode === "manual" ? "cursor-grab active:cursor-grabbing" : ""
-            } ${projectDrag?.active && draggedProjectId === project.id ? "scale-[0.99] opacity-40" : ""}`}
+            } ${projectDrag?.active && draggedProjectId === project.id ? "align-drag-source" : ""}`}
           >
             {projectDrag?.active && dragOverProjectId === project.id && draggedProjectId !== project.id ? <DropCue /> : null}
             <ProjectCard
@@ -212,10 +214,14 @@ export function Projects() {
       {projectDrag?.active && draggedProject ? <ProjectDragPreview project={draggedProject} x={projectDrag.x} y={projectDrag.y} /> : null}
       {!visibleProjects.length ? (
         <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
-          {liveProjects.length ? "No projects match these filters." : "Create your first project to start grouping tasks."}
+          {searchQuery.trim()
+            ? "No projects match this search and filter combination."
+            : liveProjects.length
+              ? "No projects match these filters."
+              : "Create your first project to start grouping tasks."}
         </div>
       ) : null}
-      <Modal title="Create project" open={creating} onClose={() => setCreating(false)}>
+      <Modal title="Create project" description="Define the project context, status, priority, and timeline." open={creating} onClose={() => setCreating(false)}>
         <ProjectForm
           onSubmit={(input) => {
             addProject(input);
@@ -224,7 +230,7 @@ export function Projects() {
           onCancel={() => setCreating(false)}
         />
       </Modal>
-      <Modal title="Mark project as completed?" open={Boolean(completingProject)} onClose={() => setCompletingProject(null)}>
+      <Modal title="Mark project as completed?" description="Completed projects stay visible in history while open work is preserved." open={Boolean(completingProject)} onClose={() => setCompletingProject(null)}>
         <div className="space-y-4">
           <p className="text-sm text-[var(--text-muted)]">
             Keep the project visible in Completed, or complete it and move it straight into Archive.
@@ -291,11 +297,11 @@ function isInteractiveDragTarget(target: EventTarget | null) {
 function DropCue() {
   return (
     <motion.div
-      className="pointer-events-none absolute inset-0 z-20 rounded-[var(--radius-md)] border-2 border-dashed border-[var(--brand-primary)] bg-[var(--brand-50)]/55 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
-      initial={{ opacity: 0, scaleX: 0.96 }}
-      animate={{ opacity: 1, scaleX: 1 }}
-      exit={{ opacity: 0, scaleX: 0.96 }}
-      transition={{ duration: 0.12, ease: "easeOut" }}
+      className="align-drag-slot"
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 520, damping: 38, mass: 0.7 }}
     />
   );
 }
@@ -305,14 +311,28 @@ function ProjectDragPreview({ project, x, y }: { project: Project; x: number; y:
 
   return (
     <motion.div
-      className="pointer-events-none fixed z-50 w-[min(520px,calc(100vw-2rem))] rounded-[var(--radius-md)] border border-[var(--brand-primary)] bg-[var(--surface)] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.36)]"
+      className="align-drag-preview w-[min(520px,calc(100vw-2rem))] p-4"
       style={position}
-      initial={{ opacity: 0, scale: 0.96, rotate: -1 }}
-      animate={{ opacity: 0.94, scale: 1, rotate: -1.2 }}
-      transition={{ duration: 0.12, ease: "easeOut" }}
+      initial={{ opacity: 0, scale: 0.94, rotate: -2.5, y: 8 }}
+      animate={{ opacity: 0.96, scale: 1.02, rotate: -2.2, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96, rotate: -1 }}
+      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.72 }}
     >
-      <div className="text-sm font-black text-[var(--text)]">{project.name}</div>
-      <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project.description || "No description yet."}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--text-muted)]">
+              {project.status}
+            </span>
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--brand-primary)]">
+              {project.priority}
+            </span>
+          </div>
+          <div className="mt-3 truncate text-base font-black text-[var(--text)]">{project.name}</div>
+          <div className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-[var(--text-muted)]">{project.description || "No description yet."}</div>
+        </div>
+        <span className="align-drag-handle shrink-0">⋯</span>
+      </div>
     </motion.div>
   );
 }

@@ -1,6 +1,3 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-
 export const heroOptions = [
   {
     value: "midnight-mountain",
@@ -126,21 +123,6 @@ export const heroOptions = [
 
 export type HeroImageKey = (typeof heroOptions)[number]["value"];
 
-interface HeroState {
-  heroImage: HeroImageKey;
-  setHeroImage: (heroImage: HeroImageKey) => void;
-}
-
 export function getHeroOption(heroImage: HeroImageKey) {
   return heroOptions.find((option) => option.value === heroImage) ?? heroOptions[0];
 }
-
-export const useHeroStore = create<HeroState>()(
-  persist(
-    (set) => ({
-      heroImage: "midnight-mountain",
-      setHeroImage: (heroImage) => set({ heroImage }),
-    }),
-    { name: "align-dashboard-hero-v1" },
-  ),
-);

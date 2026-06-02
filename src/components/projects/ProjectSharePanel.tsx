@@ -157,6 +157,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
       </div>
       <Modal
         title="Create client link"
+        description="Create a read-only project link for external review."
         open={createPasswordOpen}
         onClose={() => {
           if (working) return;
@@ -213,7 +214,7 @@ export function ProjectSharePanel({ project }: { project: Project }) {
         </div>
       </Modal>
       {share ? (
-        <Modal title="Share project" open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
+        <Modal title="Share project" description="Copy, open, or protect this project's client-facing link." open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
           <div className="space-y-4">
             <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--input-bg)] p-3">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Client link</p>

@@ -197,7 +197,7 @@ function renderInlineMarkdown(value: string) {
     if (linkMatch) {
       const href = sanitizeMarkdownUrl(linkMatch[2]);
       return href ? (
-        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noreferrer">
+        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noopener noreferrer">
           {linkMatch[1]}
         </a>
       ) : (

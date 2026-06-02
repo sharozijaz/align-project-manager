@@ -170,16 +170,22 @@ export function TaskDetailModal({
 
   return (
     <>
-      <Modal title="Task details" open={open} onClose={onClose} className="max-h-[92vh] w-[min(96vw,1280px)] !max-w-none overflow-y-auto">
-        <div className="space-y-5">
+      <Modal
+        title="Task details"
+        description={projectContext ? `Edit work, subtasks, timing, and notes for ${projectContext.name}.` : "Edit personal task details, timing, and subtasks."}
+        open={open}
+        onClose={onClose}
+        className="w-[min(94vw,1040px)] !max-w-[1040px]"
+      >
+        <div className="space-y-4">
           {error ? (
             <div className="rounded-[var(--radius-sm)] border border-amber-500/70 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-200">
               {error}
             </div>
           ) : null}
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="space-y-5">
-              <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="space-y-4">
+              <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <Badge tone="slate">{projectContext?.name ?? task.category}</Badge>
                   <OptionBadge option={statusOption} />
@@ -192,19 +198,19 @@ export function TaskDetailModal({
                   value={draft.title}
                   readOnly={readOnly}
                   onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-                  className="min-h-14 border-transparent bg-transparent px-0 text-2xl font-black hover:border-transparent focus:border-transparent"
+                  className="min-h-11 border-transparent bg-transparent px-0 text-xl font-black hover:border-transparent focus:border-transparent"
                 />
                 <textarea
                   value={draft.description}
                   readOnly={readOnly}
                   onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
                   placeholder="Add description, handoff notes, acceptance criteria..."
-                  className="mt-3 min-h-40 w-full rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-sm font-medium leading-7 text-[var(--text)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)]"
+                  className="mt-2 min-h-24 w-full rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2.5 text-sm font-medium leading-6 text-[var(--text)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)]"
                 />
               </section>
 
               <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]">
-              <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+              <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2.5">
                 <h3 className="flex items-center gap-2 font-bold text-[var(--text)]">
                   <ListChecks size={16} />
                   Subtasks
@@ -239,7 +245,7 @@ export function TaskDetailModal({
                     ) : null}
                   </div>
                 ))}
-                {!subtasks.length ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-4 text-center text-sm text-[var(--text-muted)]">No subtasks yet.</p> : null}
+                {!subtasks.length ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-3 text-center text-sm text-[var(--text-muted)]">No subtasks yet.</p> : null}
                 {!readOnly && onAddTask ? (
                   <div className="flex gap-2 pt-1">
                     <Input value={subtaskTitle} placeholder="Add subtask" onChange={(event) => setSubtaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void addSubtask(); }} />
@@ -252,7 +258,7 @@ export function TaskDetailModal({
             </section>
             </div>
 
-            <aside className="space-y-3 xl:sticky xl:top-0 xl:self-start">
+            <aside className="space-y-3 lg:sticky lg:top-0 lg:self-start">
               <InfoCard icon={<FolderKanban size={16} />} title="Project">
                 <p className="text-sm font-bold text-[var(--text)]">{projectContext?.name ?? task.category}</p>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">{task.parentTaskId ? "Subtask" : "Parent task"}</p>
@@ -335,7 +341,7 @@ export function TaskDetailModal({
           </aside>
           </div>
 
-          <div className="flex flex-wrap justify-between gap-2 border-t border-[var(--border)] pt-4">
+          <div className="flex flex-wrap justify-between gap-2 border-t border-[var(--border)] pt-3">
             {canDelete && onDeleteTask && !readOnly ? (
               <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => void deleteTask()}>
                 Delete
@@ -390,19 +396,19 @@ function TimelineCard({
   onTimeChange: (value: string) => void;
 }) {
   return (
-    <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-[var(--text)]">
+    <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-black text-[var(--text)]">
         <CalendarDays size={15} />
         {label}
       </h3>
-      <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
         <label className="block space-y-1.5">
           <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Date</span>
-          <Input type="date" value={date} disabled={disabled} onChange={(event) => onDateChange(event.target.value)} />
+          <Input type="date" value={date} disabled={disabled} className="min-h-9 sm:min-h-9" onChange={(event) => onDateChange(event.target.value)} />
         </label>
         <label className="block space-y-1.5">
           <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Time</span>
-          <Input type="time" value={time} disabled={disabled} placeholder="No time" onChange={(event) => onTimeChange(event.target.value)} />
+          <Input type="time" value={time} disabled={disabled} placeholder="No time" className="min-h-9 sm:min-h-9" onChange={(event) => onTimeChange(event.target.value)} />
         </label>
       </div>
     </section>
@@ -420,7 +426,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function InfoCard({ icon, title, children }: { icon?: ReactNode; title: string; children: ReactNode }) {
   return (
-    <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+    <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
       <h3 className="mb-2 flex items-center gap-2 text-sm font-black text-[var(--text)]">
         {icon}
         {title}
