@@ -1,8 +1,8 @@
 import { ArrowUpRight, FolderKanban } from "lucide-react";
 import { Link } from "react-router-dom";
-import { isTerminalTaskStatus } from "../../config/taskOptions";
 import type { Project } from "../../types/project";
 import type { Task } from "../../types/task";
+import { getProjectTaskProgress } from "../../utils/projectProgress";
 import { priorityTone } from "../../utils/taskVisuals";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
@@ -16,10 +16,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
       <div className="grid min-w-0 gap-3 p-4 sm:p-5 lg:grid-cols-2">
         {active.length ? (
           active.map((project) => {
-            const projectTasks = tasks.filter((task) => task.projectId === project.id && !task.deletedAt);
-            const open = projectTasks.filter((task) => !isTerminalTaskStatus(task.status)).length;
-            const complete = projectTasks.length - open;
-            const progress = projectTasks.length ? Math.round((complete / projectTasks.length) * 100) : 0;
+            const { total, open, completed, progress } = getProjectTaskProgress(tasks, project.id);
 
             return (
               <Link
@@ -43,9 +40,9 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
                 <div className="mt-5 flex items-end justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[var(--text-muted)]">
-                      <span>{projectTasks.length} tasks</span>
+                      <span>{total} tasks</span>
                       <span>{open} open</span>
-                      <span>{complete} done</span>
+                      <span>{completed} done</span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--progress-track)]">
                       <div className="h-full rounded-full bg-[var(--brand-primary)] transition-all duration-300" style={{ width: `${progress}%` }} />

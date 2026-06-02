@@ -1,43 +1,16 @@
 import { Command, Keyboard } from "lucide-react";
-import { useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { NotificationCenter } from "../notifications/NotificationCenter";
 import { SyncIndicator } from "../sync/SyncIndicator";
 import { SearchBox } from "../ui/SearchBox";
-import { useProjectStore } from "../../store/projectStore";
 import { useSearchStore } from "../../store/searchStore";
-import { useStudioStore } from "../../store/studioStore";
-import { useTaskStore } from "../../store/taskStore";
 
 export function AppTopBar() {
   const location = useLocation();
-  const projects = useProjectStore((state) => state.projects);
-  const tasks = useTaskStore((state) => state.tasks);
-  const notes = useStudioStore((state) => state.notes);
   const query = useSearchStore((state) => state.query);
   const setQuery = useSearchStore((state) => state.setQuery);
-  const clearQuery = useSearchStore((state) => state.clearQuery);
+  const openPalette = useSearchStore((state) => state.openPalette);
   const placeholder = searchPlaceholder(location.pathname);
-
-  const results = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return [];
-
-    const projectResults = projects
-      .filter((project) => !project.deletedAt && `${project.name} ${project.description ?? ""}`.toLowerCase().includes(normalized))
-      .slice(0, 4)
-      .map((project) => ({ id: `project-${project.id}`, title: project.name, meta: "Project", to: `/projects/${project.id}` }));
-    const taskResults = tasks
-      .filter((task) => !task.deletedAt && `${task.title} ${task.description ?? ""}`.toLowerCase().includes(normalized))
-      .slice(0, 5)
-      .map((task) => ({ id: `task-${task.id}`, title: task.title, meta: task.projectId ? "Project task" : "Task", to: "/tasks" }));
-    const noteResults = notes
-      .filter((note) => `${note.title} ${note.body}`.toLowerCase().includes(normalized))
-      .slice(0, 4)
-      .map((note) => ({ id: `note-${note.id}`, title: note.title, meta: "Note", to: "/notes" }));
-
-    return [...projectResults, ...taskResults, ...noteResults].slice(0, 8);
-  }, [notes, projects, query, tasks]);
 
   return (
     <div className="sticky top-0 z-40 hidden border-b border-[var(--border)] bg-[var(--bg)]/95 px-5 py-3 backdrop-blur lg:block">
@@ -46,25 +19,17 @@ export function AppTopBar() {
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--brand-primary)] shadow-[var(--shadow-sm)]">
             <Command size={17} />
           </div>
-          <div className="relative w-full max-w-xl">
-            <SearchBox value={query} onChange={setQuery} placeholder={placeholder} trailingLabel="Search" />
-            {query ? (
-              <div className="absolute left-0 right-0 top-full z-[70] mt-2 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[var(--shadow-lg)]">
-                {results.length ? (
-                  <div className="max-h-96 overflow-y-auto p-2">
-                    {results.map((result) => (
-                      <Link key={result.id} to={result.to} onClick={clearQuery} className="block rounded-[var(--radius-md)] px-3 py-2 transition hover:bg-[var(--surface-hover)]">
-                        <span className="block truncate text-sm font-black text-[var(--text)]">{result.title}</span>
-                        <span className="mt-0.5 block text-xs font-semibold text-[var(--text-muted)]">{result.meta}</span>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-4 py-6 text-center text-sm font-semibold text-[var(--text-muted)]">No results found.</div>
-                )}
-              </div>
-            ) : null}
-          </div>
+          <SearchBox
+            value={query}
+            onChange={(value) => {
+              setQuery(value);
+              openPalette(value);
+            }}
+            onFocus={() => openPalette(query)}
+            placeholder={placeholder}
+            trailingLabel="Ctrl K"
+            className="w-full max-w-xl"
+          />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <SyncIndicator className="hidden rounded-[var(--radius-sm)] xl:inline-flex" />

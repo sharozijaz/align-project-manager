@@ -6,6 +6,7 @@ import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
 import { AppShortcuts } from "../components/layout/AppShortcuts";
 import { AppSidebar } from "../components/layout/AppSidebar";
 import { AppTopBar } from "../components/layout/AppTopBar";
+import { CommandPalette } from "../components/layout/CommandPalette";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
 import { GoogleTodoAutoSync } from "../components/sync/GoogleTodoAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
@@ -71,6 +72,7 @@ export function App() {
                 <ReminderEmailBridge />
                 <DeletedTaskToast />
                 <AppShortcuts />
+                <CommandPalette />
               </div>
             </div>
           </ConfirmProvider>

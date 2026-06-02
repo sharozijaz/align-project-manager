@@ -14,6 +14,7 @@ import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSessi
 import { useProjectStore } from "../../store/projectStore";
 import { useTaskStore } from "../../store/taskStore";
 import type { AppNotification } from "../../types/notification";
+import { groupNotifications, notificationContext } from "../../utils/notificationPresentation";
 
 export function NotificationCenter({
   open: controlledOpen,
@@ -81,8 +82,7 @@ export function NotificationCenter({
     return () => document.removeEventListener("pointerdown", handlePointerDown, true);
   }, [open, setOpen]);
 
-  const unread = items.filter((item) => !item.readAt);
-  const read = items.filter((item) => item.readAt);
+  const { unread, read } = useMemo(() => groupNotifications(items), [items]);
 
   const handleMarkAllRead = async () => {
     setBusy(true);
@@ -214,8 +214,7 @@ function NotificationItem({
   projectById: Map<string, { name: string }>;
   onOpen: (item: AppNotification) => Promise<void>;
 }) {
-  const task = item.taskId ? taskById.get(item.taskId) : undefined;
-  const project = task?.projectId ? projectById.get(task.projectId) : undefined;
+  const { task, label } = notificationContext(item, taskById, projectById);
 
   return (
     <button
@@ -233,7 +232,7 @@ function NotificationItem({
         {!item.readAt ? <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--brand-primary)]" /> : null}
       </span>
       <span className="mt-3 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-[var(--text-soft)]">
-        {project ? <span>{project.name}</span> : task ? <span>Personal task</span> : null}
+        {task && label ? <span>{label}</span> : null}
         <span>{formatDistanceToNow(new Date(item.scheduledFor), { addSuffix: true })}</span>
       </span>
     </button>

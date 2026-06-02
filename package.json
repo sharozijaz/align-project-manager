@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "check:unused": "knip --exclude files",
     "check:ts-unused": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "check:release": "npm run check:unused && npm run check:ts-unused && npm audit --audit-level=moderate && npm run build",
@@ -41,6 +43,7 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^4.1.8"
   }
 }

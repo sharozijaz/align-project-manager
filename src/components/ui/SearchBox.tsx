@@ -1,4 +1,5 @@
 import { Search, X } from "lucide-react";
+import type { KeyboardEvent, RefObject } from "react";
 
 interface SearchBoxProps {
   value: string;
@@ -11,6 +12,10 @@ interface SearchBoxProps {
   clearable?: boolean;
   compact?: boolean;
   autoFocus?: boolean;
+  readOnly?: boolean;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  onFocus?: () => void;
+  onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function SearchBox({
@@ -24,6 +29,10 @@ export function SearchBox({
   clearable = true,
   compact = false,
   autoFocus = false,
+  readOnly = false,
+  inputRef,
+  onFocus,
+  onKeyDown,
 }: SearchBoxProps) {
   const showClear = clearable && value.length > 0;
 
@@ -41,7 +50,11 @@ export function SearchBox({
         } ${inputClassName}`}
         placeholder={placeholder}
         value={value}
+        ref={inputRef}
         autoFocus={autoFocus}
+        readOnly={readOnly}
+        onFocus={onFocus}
+        onKeyDown={onKeyDown}
         onChange={(event) => onChange(event.target.value)}
       />
       {showClear ? (
