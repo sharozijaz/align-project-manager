@@ -178,17 +178,6 @@ async function deleteStaleProjects(rows: ReturnType<typeof projectToRow>[], user
 
 async function replaceTasks(rows: ReturnType<typeof taskToRow>[], userId: string) {
   const client = requireClient();
-  const { data: existing, error: existingError } = await client.from("tasks").select("id").eq("user_id", userId);
-
-  if (existingError) throw new Error(errorMessage(existingError, "Could not read existing tasks."));
-
-  const nextIds = new Set(rows.map((row) => row.id));
-  const staleIds = (existing ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
-
-  if (staleIds.length) {
-    const { error: deleteError } = await client.from("tasks").delete().eq("user_id", userId).in("id", staleIds);
-    if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale tasks."));
-  }
 
   if (rows.length) {
     const { error: upsertError } = await client.from("tasks").upsert(rows);

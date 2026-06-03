@@ -27,6 +27,7 @@ export function WorkspaceAutoSync() {
   const replaceResources = useStudioStore((state) => state.replaceResources);
   const replaceNotes = useStudioStore((state) => state.replaceNotes);
   const replaceNoteSpaces = useStudioStore((state) => state.replaceNoteSpaces);
+  const upsertTasks = useTaskStore((state) => state.upsertTasks);
   const setSyncState = useSyncStore((state) => state.setSyncState);
   const setSynced = useSyncStore((state) => state.setSynced);
   const syncMode = useSyncStore((state) => state.mode);
@@ -149,7 +150,7 @@ export function WorkspaceAutoSync() {
 
         if (hasWorkspaceData(cloudWorkspace)) {
           applyingCloudRef.current = true;
-          replaceTasks(cloudWorkspace.tasks);
+          upsertTasks(cloudWorkspace.tasks);
           replaceProjects(cloudWorkspace.projects);
           replaceEvents(cloudWorkspace.events);
           replaceResources(cloudWorkspace.resources);
@@ -203,6 +204,7 @@ export function WorkspaceAutoSync() {
     setSynced,
     syncMode,
     tasks,
+    upsertTasks,
     noteSpaces,
     notes,
   ]);
