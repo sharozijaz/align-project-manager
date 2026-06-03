@@ -12,6 +12,7 @@ import { clearWorkspaceOwnerId, getWorkspaceOwnerId, setWorkspaceOwnerId } from 
 
 const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[] }) =>
   workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0 || Boolean(workspace.noteSpaces?.length);
+const TASK_PULL_INTERVAL_MS = 25_000;
 
 export function WorkspaceAutoSync() {
   const { session, loading, isConfigured } = useSupabaseSession();
@@ -238,6 +239,42 @@ export function WorkspaceAutoSync() {
 
     return () => window.clearTimeout(timeout);
   }, [events, isConfigured, noteSpaces, notes, projects, replaceTasks, resources, sessionId, setSyncState, setSynced, setTaskDiagnostics, syncMode, tasks, workspaceSnapshot]);
+
+  useEffect(() => {
+    if (syncMode !== "cloud" || !isConfigured || !sessionId) return;
+
+    let cancelled = false;
+    const syncRemoteTasks = () => {
+      if (cancelled || !readyToPushRef.current || applyingCloudRef.current || document.visibilityState !== "visible") return;
+
+      void syncTasksWithSupabase(tasks, projects)
+        .then((taskSync) => {
+          if (cancelled) return;
+          applyingCloudRef.current = true;
+          replaceTasks(taskSync.tasks);
+          setTaskDiagnostics(taskSync);
+          window.setTimeout(() => {
+            applyingCloudRef.current = false;
+          }, 0);
+          setSynced(`Tasks refreshed. ${taskSync.mergedCount} merged.`);
+        })
+        .catch((error) => {
+          if (!cancelled) setSyncState("error", errorMessage(error, "Could not refresh cloud tasks."));
+        });
+    };
+
+    const interval = window.setInterval(syncRemoteTasks, TASK_PULL_INTERVAL_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") syncRemoteTasks();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [isConfigured, projects, replaceTasks, sessionId, setSyncState, setSynced, setTaskDiagnostics, syncMode, tasks]);
 
   return null;
 }
