@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Opening Align</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #101012;
+        color: #ededf0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        background: #101012;
+      }
+
+      main {
+        width: min(88vw, 420px);
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.8rem;
+      }
+
+      p {
+        color: #b4b4bc;
+        line-height: 1.5;
+      }
+
+      a {
+        display: inline-flex;
+        min-height: 48px;
+        margin-top: 1rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: #3563e9;
+        color: white;
+        font-weight: 800;
+        padding: 0 1.25rem;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Opening Align</h1>
+      <p>Your sign-in is complete. If the Android app does not open automatically, tap the button below.</p>
+      <a id="open-app" href="align://auth">Open Align</a>
+    </main>
+    <script>
+      const target = `align://auth${window.location.search || ""}${window.location.hash || ""}`;
+      const link = document.getElementById("open-app");
+      link.href = target;
+      window.setTimeout(() => {
+        window.location.replace(target);
+      }, 120);
+    </script>
+  </body>
+</html>

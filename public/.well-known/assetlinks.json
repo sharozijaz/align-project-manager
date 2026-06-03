@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.sharoz.align",
+      "sha256_cert_fingerprints": [
+        "80:24:19:B3:64:34:FF:A1:82:04:84:B6:D8:54:8F:68:A5:F6:16:87:46:D5:D3:80:B5:B6:8F:4D:70:91:3F:85"
+      ]
+    }
+  }
+]

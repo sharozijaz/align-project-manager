@@ -23,6 +23,14 @@
       "destination": "/api/:path*"
     },
     {
+      "source": "/mobile-auth.html",
+      "destination": "/mobile-auth.html"
+    },
+    {
+      "source": "/mobile-auth",
+      "destination": "/mobile-auth.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

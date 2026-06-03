@@ -8,7 +8,6 @@ import { AppSidebar } from "../components/layout/AppSidebar";
 import { AppTopBar } from "../components/layout/AppTopBar";
 import { CommandPalette } from "../components/layout/CommandPalette";
 import { GoogleCalendarAutoSync } from "../components/sync/GoogleCalendarAutoSync";
-import { GoogleTodoAutoSync } from "../components/sync/GoogleTodoAutoSync";
 import { WorkspaceAutoSync } from "../components/sync/WorkspaceAutoSync";
 import { DesktopNotificationBridge } from "../components/notifications/DesktopNotificationBridge";
 import { DeletedTaskToast } from "../components/tasks/DeletedTaskToast";
@@ -67,7 +66,6 @@ export function App() {
                 </div>
                 <WorkspaceAutoSync />
                 <GoogleCalendarAutoSync />
-                <GoogleTodoAutoSync />
                 <DesktopNotificationBridge />
                 <ReminderEmailBridge />
                 <DeletedTaskToast />

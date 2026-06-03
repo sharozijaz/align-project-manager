@@ -25,6 +25,20 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/mobile-auth.html",
+    lazy: async () => {
+      const { MobileAuthBridge } = await import("../pages/MobileAuthBridge");
+      return { Component: MobileAuthBridge };
+    },
+  },
+  {
+    path: "/mobile-auth",
+    lazy: async () => {
+      const { MobileAuthBridge } = await import("../pages/MobileAuthBridge");
+      return { Component: MobileAuthBridge };
+    },
+  },
+  {
     path: "/",
     element: <App />,
     children: [
