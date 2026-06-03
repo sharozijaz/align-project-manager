@@ -45,7 +45,7 @@ import {
   type DesktopReminderHeartbeat,
 } from "../integrations/desktop/notifications";
 import { canUseDesktopAutostart, getDesktopAutostartEnabled, setDesktopAutostartEnabled } from "../integrations/desktop/autostart";
-import { clearWorkspaceInSupabase, pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../integrations/supabase/workspaceSync";
+import { clearWorkspaceInSupabase, pullWorkspaceFromSupabase, pushWorkspaceToSupabase, syncTasksWithSupabase } from "../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../integrations/supabase/useSupabaseSession";
 import {
   connectGoogleCalendar,
@@ -455,9 +455,11 @@ export function Settings() {
 
     try {
       saveSafetyBackup("manual-cloud-upload");
-      await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces });
-      syncState.setSynced("Local workspace uploaded to cloud.");
-      setSyncMessage("Local workspace uploaded to Supabase.");
+      const result = await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces });
+      replaceTasks(result.tasks);
+      syncState.setTaskDiagnostics(result.taskSync);
+      syncState.setSynced("Local workspace merged with cloud.");
+      setSyncMessage(`Tasks synced: ${result.taskSync.localCount} local, ${result.taskSync.remoteCount} cloud, ${result.taskSync.mergedCount} merged.`);
     } catch (error) {
       const message = errorMessage(error, "Could not upload workspace.");
       syncState.setSyncState("error", message);
@@ -474,10 +476,9 @@ export function Settings() {
     }
 
     const shouldReplace = await confirm({
-      title: "Replace local workspace?",
-      description: "Download from Supabase and replace this local workspace? Align will save a local safety backup first.",
-      confirmLabel: "Download and Replace",
-      tone: "danger",
+      title: "Merge cloud workspace?",
+      description: "Download from Supabase and merge cloud tasks into this device. Align will save a local safety backup first.",
+      confirmLabel: "Download and Merge",
     });
     if (!shouldReplace) return;
 
@@ -497,15 +498,17 @@ export function Settings() {
         return;
       }
 
-      replaceTasks(workspace.tasks);
+      const taskSync = await syncTasksWithSupabase(tasks, workspace.projects.length ? workspace.projects : projects);
+      replaceTasks(taskSync.tasks);
+      syncState.setTaskDiagnostics(taskSync);
       replaceProjects(workspace.projects);
       replaceEvents(workspace.events);
       replaceResources(workspace.resources);
       replaceNotes(workspace.notes);
       if (!workspace.noteSpacesUnavailable) replaceNoteSpaces(workspace.noteSpaces);
       if (session?.user.id) setWorkspaceOwnerId(session.user.id);
-      syncState.setSynced("Workspace downloaded from cloud.");
-      setSyncMessage("Workspace downloaded from Supabase.");
+      syncState.setSynced("Workspace merged from cloud.");
+      setSyncMessage(`Workspace downloaded from Supabase. Tasks: ${taskSync.localCount} local, ${taskSync.remoteCount} cloud, ${taskSync.mergedCount} merged.`);
     } catch (error) {
       const message = errorMessage(error, "Could not download workspace.");
       syncState.setSyncState("error", message);
@@ -1491,6 +1494,16 @@ export function Settings() {
                     ? "Automatic sync is paused. Use Upload Now or Download Now when you want to move data."
                     : "Local-only mode blocks Supabase upload and download from this device."}
               </p>
+              {syncState.taskDiagnostics ? (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text-muted)]">
+                  <p className="font-semibold text-[var(--text)]">Task sync</p>
+                  <p className="mt-1">
+                    {syncState.taskDiagnostics.localCount} local · {syncState.taskDiagnostics.remoteCount} cloud ·{" "}
+                    {syncState.taskDiagnostics.mergedCount} merged
+                  </p>
+                  <p className="mt-1">Last sync: {new Date(syncState.taskDiagnostics.lastSyncedAt).toLocaleString()}</p>
+                </div>
+              ) : null}
             </div>
           )}
           {syncMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{syncMessage}</p> : null}

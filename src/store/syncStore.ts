@@ -4,14 +4,25 @@ import { persist } from "zustand/middleware";
 type SyncStateValue = "idle" | "pulling" | "pushing" | "synced" | "error";
 export type SyncMode = "cloud" | "paused" | "local";
 
+export interface TaskSyncDiagnostics {
+  localCount: number;
+  remoteCount: number;
+  uploadedCount: number;
+  mergedCount: number;
+  lastSyncedAt: string;
+  lastError?: string;
+}
+
 interface SyncState {
   state: SyncStateValue;
   mode: SyncMode;
   message: string;
   lastSyncedAt?: string;
+  taskDiagnostics?: TaskSyncDiagnostics;
   setMode: (mode: SyncMode) => void;
   setSyncState: (state: SyncStateValue, message: string) => void;
   setSynced: (message?: string) => void;
+  setTaskDiagnostics: (diagnostics: TaskSyncDiagnostics) => void;
 }
 
 export const syncModeOptions: Array<{ value: SyncMode; label: string; description: string }> = [
@@ -41,6 +52,7 @@ export const useSyncStore = create<SyncState>()(
       setSyncState: (state, message) => set({ state, message }),
       setSynced: (message = "Workspace synced.") =>
         set({ state: "synced", message, lastSyncedAt: new Date().toISOString() }),
+      setTaskDiagnostics: (taskDiagnostics) => set({ taskDiagnostics }),
     }),
     {
       name: "align-sync-preferences-v1",

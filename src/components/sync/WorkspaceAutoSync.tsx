@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase } from "../../integrations/supabase/workspaceSync";
+import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase, syncTasksWithSupabase } from "../../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { useCalendarStore } from "../../store/calendarStore";
 import { useProjectStore } from "../../store/projectStore";
@@ -27,9 +27,9 @@ export function WorkspaceAutoSync() {
   const replaceResources = useStudioStore((state) => state.replaceResources);
   const replaceNotes = useStudioStore((state) => state.replaceNotes);
   const replaceNoteSpaces = useStudioStore((state) => state.replaceNoteSpaces);
-  const upsertTasks = useTaskStore((state) => state.upsertTasks);
   const setSyncState = useSyncStore((state) => state.setSyncState);
   const setSynced = useSyncStore((state) => state.setSynced);
+  const setTaskDiagnostics = useSyncStore((state) => state.setTaskDiagnostics);
   const syncMode = useSyncStore((state) => state.mode);
   const sessionId = session?.user.id;
   const pulledSessionRef = useRef<string | undefined>(undefined);
@@ -149,8 +149,10 @@ export function WorkspaceAutoSync() {
         if (cancelled) return;
 
         if (hasWorkspaceData(cloudWorkspace)) {
+          const taskSync = await syncTasksWithSupabase(tasks, cloudWorkspace.projects.length ? cloudWorkspace.projects : projects);
           applyingCloudRef.current = true;
-          upsertTasks(cloudWorkspace.tasks);
+          replaceTasks(taskSync.tasks);
+          setTaskDiagnostics(taskSync);
           replaceProjects(cloudWorkspace.projects);
           replaceEvents(cloudWorkspace.events);
           replaceResources(cloudWorkspace.resources);
@@ -163,7 +165,7 @@ export function WorkspaceAutoSync() {
 
           setWorkspaceOwnerId(sessionId);
           isolatedAccountRef.current = undefined;
-          setSynced("Cloud workspace downloaded.");
+          setSynced(`Cloud workspace downloaded. Tasks: ${taskSync.mergedCount} merged.`);
           return;
         }
 
@@ -202,9 +204,9 @@ export function WorkspaceAutoSync() {
     sessionId,
     setSyncState,
     setSynced,
+    setTaskDiagnostics,
     syncMode,
     tasks,
-    upsertTasks,
     noteSpaces,
     notes,
   ]);
@@ -222,12 +224,20 @@ export function WorkspaceAutoSync() {
     setSyncState("pushing", "Saving workspace to cloud...");
     const timeout = window.setTimeout(() => {
       void pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces })
-        .then(() => setSynced("Workspace saved to cloud."))
+        .then((result) => {
+          applyingCloudRef.current = true;
+          replaceTasks(result.tasks);
+          setTaskDiagnostics(result.taskSync);
+          window.setTimeout(() => {
+            applyingCloudRef.current = false;
+          }, 0);
+          setSynced(`Workspace saved to cloud. Tasks: ${result.taskSync.mergedCount} merged.`);
+        })
         .catch((error) => setSyncState("error", errorMessage(error, "Could not save workspace to cloud.")));
     }, 1200);
 
     return () => window.clearTimeout(timeout);
-  }, [events, isConfigured, noteSpaces, notes, projects, resources, sessionId, setSyncState, setSynced, syncMode, tasks, workspaceSnapshot]);
+  }, [events, isConfigured, noteSpaces, notes, projects, replaceTasks, resources, sessionId, setSyncState, setSynced, setTaskDiagnostics, syncMode, tasks, workspaceSnapshot]);
 
   return null;
 }

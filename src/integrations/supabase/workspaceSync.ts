@@ -29,6 +29,20 @@ export interface SyncedWorkspace {
   noteSpacesUnavailable?: boolean;
 }
 
+export interface TaskSyncResult {
+  tasks: Task[];
+  localCount: number;
+  remoteCount: number;
+  uploadedCount: number;
+  mergedCount: number;
+  lastSyncedAt: string;
+}
+
+export interface PushWorkspaceResult {
+  tasks: Task[];
+  taskSync: TaskSyncResult;
+}
+
 const requireClient = () => {
   if (!supabase) {
     throw new Error("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY first.");
@@ -89,28 +103,49 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
   };
 }
 
-export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace) {
+export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace): Promise<PushWorkspaceResult> {
   const client = requireClient();
   const userId = await requireUserId(client);
   const projectIds = new Set(workspace.projects.map((project) => project.id));
   const projectRows = workspace.projects.map((project) => projectToRow(project, userId));
-  const taskRows = workspace.tasks.map((task) =>
-    taskToRow(
-      {
-        ...task,
-        projectId: task.projectId && projectIds.has(task.projectId) ? task.projectId : undefined,
-      },
-      userId,
-    ),
-  );
 
   await upsertProjects(projectRows);
-  await replaceTasks(taskRows, userId);
+  const taskSync = await syncTasksWithSupabase(workspace.tasks, workspace.projects, userId);
   await deleteStaleProjects(projectRows, userId);
   await replaceCalendarEvents(workspace.events.map((event) => calendarEventToRow(event, userId)), userId);
   await replaceHubResources(workspace.resources.map((resource) => hubResourceToRow(resource, userId)), userId);
   await replaceHubNotes(workspace.notes.map((note) => hubNoteToRow(note, userId)), userId);
   await replaceHubNoteSpaces(workspace.noteSpaces.map((space) => hubNoteSpaceToRow(space, userId)), userId);
+
+  return {
+    tasks: taskSync.tasks,
+    taskSync,
+  };
+}
+
+export async function syncTasksWithSupabase(tasks: Task[], projects: Project[], userId?: string): Promise<TaskSyncResult> {
+  const client = requireClient();
+  const resolvedUserId = userId ?? (await requireUserId(client));
+  const projectIds = new Set(projects.map((project) => project.id));
+  const localTasks = tasks.map((task) => normalizeTaskForSync(task, projectIds));
+  const { data: remoteRows, error: remoteError } = await client.from("tasks").select("*").eq("user_id", resolvedUserId);
+
+  if (remoteError) throw new Error(errorMessage(remoteError, "Could not read cloud tasks."));
+
+  const remoteTasks = (remoteRows ?? []).map(rowToTask).map((task) => normalizeTaskForSync(task, projectIds));
+  const merged = mergeTasks(localTasks, remoteTasks);
+  const rows = merged.map((task) => taskToRow(task, resolvedUserId));
+
+  await upsertTasks(rows);
+
+  return {
+    tasks: merged,
+    localCount: localTasks.length,
+    remoteCount: remoteTasks.length,
+    uploadedCount: merged.length,
+    mergedCount: merged.length,
+    lastSyncedAt: new Date().toISOString(),
+  };
 }
 
 export async function clearWorkspaceInSupabase() {
@@ -176,7 +211,7 @@ async function deleteStaleProjects(rows: ReturnType<typeof projectToRow>[], user
   }
 }
 
-async function replaceTasks(rows: ReturnType<typeof taskToRow>[], userId: string) {
+async function upsertTasks(rows: ReturnType<typeof taskToRow>[]) {
   const client = requireClient();
 
   if (rows.length) {
@@ -214,6 +249,38 @@ async function replaceTasks(rows: ReturnType<typeof taskToRow>[], userId: string
       throw new Error(errorMessage(upsertError, "Could not upload tasks."));
     }
   }
+}
+
+function normalizeTaskForSync(task: Task, projectIds: Set<string>): Task {
+  return {
+    ...task,
+    category: task.category || "personal",
+    status: task.status || "not_started",
+    priority: task.priority || "medium",
+    reminder: task.reminder || "none",
+    recurrence: task.recurrence || "none",
+    projectId: task.projectId && projectIds.has(task.projectId) ? task.projectId : undefined,
+    createdAt: task.createdAt || new Date().toISOString(),
+    updatedAt: task.updatedAt || task.createdAt || new Date().toISOString(),
+  };
+}
+
+function mergeTasks(localTasks: Task[], remoteTasks: Task[]) {
+  const byId = new Map<string, Task>();
+
+  for (const task of [...remoteTasks, ...localTasks]) {
+    const existing = byId.get(task.id);
+    if (!existing || taskTimestamp(task.updatedAt) >= taskTimestamp(existing.updatedAt)) {
+      byId.set(task.id, task);
+    }
+  }
+
+  return Array.from(byId.values()).sort((a, b) => taskTimestamp(b.updatedAt) - taskTimestamp(a.updatedAt));
+}
+
+function taskTimestamp(value?: string) {
+  const timestamp = value ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function isMissingColumn(error: { message?: string; code?: string }, column: string) {
