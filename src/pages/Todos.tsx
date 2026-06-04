@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Circle, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -6,7 +6,9 @@ import { Button } from "../components/ui/Button";
 import { ScopedSearchNotice } from "../components/ui/ScopedSearchNotice";
 import { getTaskPriorityOption, isTerminalTaskStatus } from "../config/taskOptions";
 import { useSearchStore } from "../store/searchStore";
+import { useProjectStore } from "../store/projectStore";
 import { useTaskStore } from "../store/taskStore";
+import type { Project } from "../types/project";
 import type { Task, TaskInput } from "../types/task";
 import { dateLabel, isOverdue, isToday, isUpcoming } from "../utils/date";
 import { priorityTone, taskDateTone } from "../utils/taskVisuals";
@@ -15,6 +17,7 @@ type TodoFilter = "open" | "today" | "upcoming" | "completed";
 
 export function Todos() {
   const { tasks, addTask, updateTask, deleteTask, completeTask } = useTaskStore();
+  const projects = useProjectStore((state) => state.projects);
   const [filter, setFilter] = useState<TodoFilter>("open");
   const search = useSearchStore((state) => state.query);
   const clearSearch = useSearchStore((state) => state.clearQuery);
@@ -45,6 +48,10 @@ export function Todos() {
       completed: personal.filter((task) => isTerminalTaskStatus(task.status)).length,
     };
   }, [tasks]);
+  const activeProjects = useMemo(
+    () => projects.filter((project) => !project.deletedAt && (project.status === "active" || project.status === "paused")),
+    [projects],
+  );
 
   const addTodo = () => {
     const nextTitle = title.trim();
@@ -76,9 +83,9 @@ export function Todos() {
       <PageHeader title="Todos" description="Personal checklist items for quick capture and completion." />
       <ScopedSearchNotice query={search} scope="todos" resultCount={todos.length} onClear={clearSearch} />
 
-      <section className="rounded-[var(--radius-md)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-3 shadow-[var(--shadow-sm)] sm:p-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-          <label className="grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3">
+      <section className="rounded-[var(--radius-md)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-2 shadow-[var(--shadow-sm)] sm:p-3">
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-sm)] border border-transparent bg-[var(--panel-inset)] px-3 transition focus-within:border-[var(--brand-primary)] focus-within:shadow-[var(--shadow-focus)]">
             <Plus size={16} className="text-[var(--text-soft)]" />
             <input
               value={title}
@@ -90,7 +97,7 @@ export function Todos() {
               placeholder="Add a todo"
             />
           </label>
-          <Button onClick={addTodo} disabled={!title.trim()}>
+          <Button onClick={addTodo} disabled={!title.trim()} className="md:min-w-28">
             Add Todo
           </Button>
         </div>
@@ -98,7 +105,7 @@ export function Todos() {
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
         <main className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[var(--shadow-sm)]">
-          <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--panel-inset)] p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-end">
+          <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--panel-bg)] p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-end">
             <div className="flex flex-wrap gap-2 lg:justify-end">
               {todoFilters.map((option) => (
                 <button
@@ -122,9 +129,11 @@ export function Todos() {
                 <TodoRow
                   key={todo.id}
                   todo={todo}
+                  projects={activeProjects}
                   onComplete={completeTask}
                   onDelete={deleteTask}
                   onUpdate={updateTask}
+                  onOrganize={(todoId, projectId) => updateTask(todoId, { projectId, category: "project" })}
                 />
               ))
             ) : (
@@ -154,16 +163,21 @@ const todoFilters: Array<{ value: TodoFilter; label: string }> = [
 
 function TodoRow({
   todo,
+  projects,
   onComplete,
   onDelete,
   onUpdate,
+  onOrganize,
 }: {
   todo: Task;
+  projects: Project[];
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onUpdate: (id: string, input: Partial<TaskInput>) => void;
+  onOrganize: (id: string, projectId: string) => void;
 }) {
   const completed = isTerminalTaskStatus(todo.status);
+  const [projectId, setProjectId] = useState("");
 
   return (
     <div className="grid gap-3 p-4 transition hover:bg-[var(--surface-hover)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -172,20 +186,23 @@ function TodoRow({
           type="button"
           onClick={() => onComplete(todo.id)}
           disabled={completed}
-          className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border transition ${
+          className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border transition focus:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
             completed
               ? "border-[var(--success)] bg-[var(--success)] text-white"
-              : "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-soft)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
+              : "border-[var(--border-strong)] bg-transparent text-transparent hover:border-[var(--brand-primary)] hover:bg-[var(--accent-soft)] hover:text-[var(--brand-primary)]"
           }`}
           aria-label={`Complete ${todo.title}`}
         >
-          {completed ? <Check size={16} /> : <Circle size={15} />}
+          <Check size={15} strokeWidth={completed ? 3 : 2.4} />
         </button>
-        <div className="min-w-0">
-          <input
+        <div className="min-w-0 flex-1">
+          <textarea
             value={todo.title}
             onChange={(event) => onUpdate(todo.id, { title: event.target.value })}
-            className={`w-full min-w-0 bg-transparent text-base font-bold text-[var(--text)] outline-none ${completed ? "line-through opacity-60" : ""}`}
+            rows={1}
+            className={`block max-h-28 min-h-7 w-full min-w-0 resize-none overflow-y-auto bg-transparent text-base font-bold leading-7 text-[var(--text)] outline-none [field-sizing:content] placeholder:text-[var(--input-placeholder)] focus:text-[var(--text)] ${
+              completed ? "line-through opacity-60" : ""
+            }`}
             aria-label="Todo title"
           />
           <div className="mt-2 flex flex-wrap gap-2">
@@ -200,14 +217,48 @@ function TodoRow({
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => onDelete(todo.id)}
-        className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--danger)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)]"
-        aria-label={`Delete ${todo.title}`}
-      >
-        <Trash2 size={16} />
-      </button>
+      <div className="grid gap-2 sm:min-w-64 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+        {!completed && projects.length ? (
+          <>
+            <select
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+              className="min-h-9 min-w-0 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-semibold text-[var(--text)] outline-none transition focus:border-[var(--brand-primary)]"
+              aria-label={`Choose project for ${todo.title}`}
+            >
+              <option value="">Move to project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                if (!projectId) return;
+                onOrganize(todo.id, projectId);
+                setProjectId("");
+              }}
+              disabled={!projectId}
+              className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--brand-primary)] hover:bg-[var(--button-secondary-hover)] hover:text-[var(--brand-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Move ${todo.title} to selected project`}
+            >
+              <ArrowRight size={16} />
+            </button>
+          </>
+        ) : (
+          <span className="hidden sm:block" />
+        )}
+        <button
+          type="button"
+          onClick={() => onDelete(todo.id)}
+          className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--danger)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)]"
+          aria-label={`Delete ${todo.title}`}
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
     </div>
   );
 }

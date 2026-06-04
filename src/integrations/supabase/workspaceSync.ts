@@ -106,7 +106,6 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
 export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace): Promise<PushWorkspaceResult> {
   const client = requireClient();
   const userId = await requireUserId(client);
-  const projectIds = new Set(workspace.projects.map((project) => project.id));
   const projectRows = workspace.projects.map((project) => projectToRow(project, userId));
 
   await upsertProjects(projectRows);

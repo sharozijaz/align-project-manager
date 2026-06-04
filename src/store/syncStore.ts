@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 type SyncStateValue = "idle" | "pulling" | "pushing" | "synced" | "error";
 export type SyncMode = "cloud" | "paused" | "local";
 
-export interface TaskSyncDiagnostics {
+interface TaskSyncDiagnostics {
   localCount: number;
   remoteCount: number;
   uploadedCount: number;
