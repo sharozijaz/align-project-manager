@@ -85,7 +85,7 @@ export function Todos() {
 
       <section className="rounded-[var(--radius-md)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-2 shadow-[var(--shadow-sm)] sm:p-3">
         <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-          <label className="grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-sm)] border border-transparent bg-[var(--panel-inset)] px-3 transition focus-within:border-[var(--brand-primary)] focus-within:shadow-[var(--shadow-focus)]">
+          <label className="grid min-w-0 grid-cols-[20px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-sm)] border border-transparent bg-[var(--panel-inset)] px-3 transition focus-within:border-[var(--border-strong)] focus-within:shadow-none">
             <Plus size={16} className="text-[var(--text-soft)]" />
             <input
               value={title}
@@ -93,7 +93,7 @@ export function Todos() {
               onKeyDown={(event) => {
                 if (event.key === "Enter") addTodo();
               }}
-              className="min-h-11 min-w-0 bg-transparent text-sm font-semibold text-[var(--text)] outline-none placeholder:text-[var(--input-placeholder)]"
+              className="min-h-11 min-w-0 bg-transparent text-sm font-semibold text-[var(--text)] outline-none placeholder:text-[var(--input-placeholder)] focus-visible:shadow-none"
               placeholder="Add a todo"
             />
           </label>
@@ -186,10 +186,10 @@ function TodoRow({
           type="button"
           onClick={() => onComplete(todo.id)}
           disabled={completed}
-          className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border transition focus:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
+          className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border transition focus:outline-none focus-visible:border-[var(--border-strong)] focus-visible:shadow-none ${
             completed
               ? "border-[var(--success)] bg-[var(--success)] text-white"
-              : "border-[var(--border-strong)] bg-transparent text-transparent hover:border-[var(--brand-primary)] hover:bg-[var(--accent-soft)] hover:text-[var(--brand-primary)]"
+              : "border-[var(--border-strong)] bg-transparent text-transparent hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-muted)]"
           }`}
           aria-label={`Complete ${todo.title}`}
         >
@@ -200,7 +200,7 @@ function TodoRow({
             value={todo.title}
             onChange={(event) => onUpdate(todo.id, { title: event.target.value })}
             rows={1}
-            className={`block max-h-28 min-h-7 w-full min-w-0 resize-none overflow-y-auto bg-transparent text-base font-bold leading-7 text-[var(--text)] outline-none [field-sizing:content] placeholder:text-[var(--input-placeholder)] focus:text-[var(--text)] ${
+            className={`block max-h-28 min-h-7 w-full min-w-0 resize-none overflow-y-auto bg-transparent text-base font-bold leading-7 text-[var(--text)] outline-none [field-sizing:content] placeholder:text-[var(--input-placeholder)] focus:text-[var(--text)] focus-visible:shadow-none ${
               completed ? "line-through opacity-60" : ""
             }`}
             aria-label="Todo title"
@@ -223,7 +223,7 @@ function TodoRow({
             <select
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
-              className="min-h-9 min-w-0 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-semibold text-[var(--text)] outline-none transition focus:border-[var(--brand-primary)]"
+              className="min-h-9 min-w-0 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-semibold text-[var(--text)] outline-none transition focus:border-[var(--border-strong)] focus-visible:shadow-none"
               aria-label={`Choose project for ${todo.title}`}
             >
               <option value="">Move to project</option>
@@ -241,7 +241,7 @@ function TodoRow({
                 setProjectId("");
               }}
               disabled={!projectId}
-              className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--brand-primary)] hover:bg-[var(--button-secondary-hover)] hover:text-[var(--brand-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)] hover:text-[var(--text)] focus-visible:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
               aria-label={`Move ${todo.title} to selected project`}
             >
               <ArrowRight size={16} />
@@ -253,7 +253,7 @@ function TodoRow({
         <button
           type="button"
           onClick={() => onDelete(todo.id)}
-          className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--danger)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)]"
+          className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] text-[var(--text-muted)] transition hover:border-[var(--danger)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)] focus-visible:shadow-none"
           aria-label={`Delete ${todo.title}`}
         >
           <Trash2 size={16} />
