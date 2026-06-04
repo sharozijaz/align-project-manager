@@ -10,7 +10,7 @@ const ENCRYPTED_TOKEN_PREFIX = "enc:v1:";
 
 export const calendarScopes = ["https://www.googleapis.com/auth/calendar.events.owned"];
 export const googleTasksScopes = ["https://www.googleapis.com/auth/tasks"];
-export const googleWorkspaceScopes = [...calendarScopes, ...googleTasksScopes];
+export const googleWorkspaceScopes = [...calendarScopes];
 
 export function getEnv() {
   const supabaseUrl = normalizeUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);

@@ -3,30 +3,23 @@ import {
   ensureEnv,
   getEnv,
   getGoogleConnection,
-  getGoogleTaskLists,
-  getGoogleTodoSyncSettings,
   googleCalendarRequest,
   googleEventToCalendarEvent,
-  googleTasksScopes,
   handleApiError,
   refreshGoogleAccessTokenIfNeeded,
   requireAllowedUser,
   requireMethod,
-  syncGoogleTodosForUser,
   syncTasksToGoogleCalendarForUser,
-  upsertGoogleTodoSyncSettings,
 } from "./_googleCalendar.js";
 import {
   applyRateLimit,
   rejectOversizedPayload,
   requireJsonPayload,
-  sanitizeGoogleTodoSettings,
   sanitizeIdArray,
   sanitizeTaskSyncPayload,
 } from "./_security.js";
 
 const SYNC_MAX_BYTES = 512 * 1024;
-const SETTINGS_MAX_BYTES = 8 * 1024;
 
 export default async function handler(req, res) {
   if (applyApiCors(req, res, "GET,POST,OPTIONS")) return;
@@ -38,7 +31,7 @@ export default async function handler(req, res) {
     return;
   }
   if (action === "settings") {
-    await handleSettings(req, res);
+    res.status(410).json({ error: "Google Todo sync has been retired. Align tasks sync through Supabase." });
     return;
   }
   if (action === "sync") {
@@ -75,15 +68,11 @@ async function handleStatus(req, res) {
     const includeLists = req.query?.includeLists === "true" || req.query?.includeLists === "1";
     const user = await requireAllowedUser(req, env);
     const connection = await getGoogleConnection(env, user.id);
-    const settings = await getGoogleTodoSyncSettings(env, user.id);
     const scopes = connection?.scopes ?? [];
-    const needsReconnect = Boolean(connection) && googleTasksScopes.some((scope) => !scopes.includes(scope));
-    let lists = [];
     let refreshedConnection = connection;
 
-    if (connection && includeLists && !needsReconnect) {
+    if (connection && includeLists) {
       refreshedConnection = await refreshGoogleAccessTokenIfNeeded(env, connection);
-      lists = await getGoogleTaskLists(env, refreshedConnection);
     }
 
     res.status(200).json({
@@ -94,34 +83,7 @@ async function handleStatus(req, res) {
         updatedAt: connection?.updated_at,
         scopes,
       },
-      todos: {
-        connected: Boolean(connection),
-        needsReconnect,
-        scopes,
-        lists,
-        settings,
-        accountEmail: connection?.account_email,
-        updatedAt: connection?.updated_at,
-      },
     });
-  } catch (error) {
-    handleApiError(res, error);
-  }
-}
-
-async function handleSettings(req, res) {
-  if (requireMethod(req, res, "POST")) return;
-  if (rejectOversizedPayload(req, res, SETTINGS_MAX_BYTES)) return;
-  if (requireJsonPayload(req, res)) return;
-
-  const env = getEnv();
-  if (ensureEnv(res, env, ["supabaseUrl", "supabaseAnonKey", "supabaseServiceRoleKey"])) return;
-
-  try {
-    const user = await requireAllowedUser(req, env);
-    const settings = await upsertGoogleTodoSyncSettings(env, user.id, sanitizeGoogleTodoSettings(req.body));
-
-    res.status(200).json({ settings });
   } catch (error) {
     handleApiError(res, error);
   }
@@ -159,10 +121,6 @@ async function handleSync(req, res) {
         ...calendarResult,
         events: await fetchGoogleEventsForUser(env, user.id),
       };
-    }
-
-    if (req.body?.todos) {
-      result.todos = await syncGoogleTodosForUser(env, user.id, { tasks }, sanitizeGoogleTodoSettings(req.body?.settings));
     }
 
     res.status(200).json(result);

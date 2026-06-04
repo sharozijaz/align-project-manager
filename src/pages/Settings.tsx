@@ -7,13 +7,10 @@ import {
   DatabaseBackup,
   Download,
   HardDrive,
-  ListTodo,
   LogOut,
   Mail,
   Palette,
-  RefreshCw,
   ShieldCheck,
-  Smartphone,
   Trash2,
   Upload,
   UserRound,
@@ -54,9 +51,7 @@ import {
 } from "../integrations/googleCalendar/googleCalendarClient";
 import type { GoogleCalendarConnection } from "../integrations/googleCalendar/types";
 import { previewGoogleCalendarSync } from "../integrations/googleCalendar/sync";
-import { clearGoogleSyncStatusCache, getGoogleSyncStatus, saveGoogleSyncSettings, syncGoogleWorkspace } from "../integrations/googleSync/googleSyncClient";
-import { getGoogleTodoSyncReadiness } from "../integrations/googleTasks/googleTasksClient";
-import type { GoogleTodoSyncSettings, GoogleTodoSyncStatus } from "../integrations/googleTasks/types";
+import { clearGoogleSyncStatusCache, getGoogleSyncStatus, syncGoogleWorkspace } from "../integrations/googleSync/googleSyncClient";
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { plainDateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
@@ -98,15 +93,6 @@ export function Settings() {
   const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection | null>(null);
   const [checkingGoogleConnection, setCheckingGoogleConnection] = useState(false);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
-  const [googleTasksMessage, setGoogleTasksMessage] = useState("");
-  const [googleTasksStatus, setGoogleTasksStatus] = useState<GoogleTodoSyncStatus | null>(null);
-  const [googleTasksSettings, setGoogleTasksSettings] = useState<GoogleTodoSyncSettings>({
-    enabled: false,
-    todoListId: "",
-  });
-  const [checkingGoogleTasks, setCheckingGoogleTasks] = useState(false);
-  const [savingGoogleTasks, setSavingGoogleTasks] = useState(false);
-  const [syncingGoogleTasks, setSyncingGoogleTasks] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
@@ -125,7 +111,7 @@ export function Settings() {
   const { session, loading: sessionLoading } = useSupabaseSession();
   const profileDisplayName = getSessionDisplayName(session);
   const { projects, replaceProjects } = useProjectStore();
-  const { tasks, replaceTasks, upsertTasks } = useTaskStore();
+  const { tasks, replaceTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
   const { resources, notes, noteSpaces, replaceResources, replaceNotes, replaceNoteSpaces } = useStudioStore();
   const syncState = useSyncStore();
@@ -137,7 +123,6 @@ export function Settings() {
   const setAccentColor = useThemeStore((state) => state.setAccentColor);
   const activeTheme = themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
   const googleReadiness = getGoogleCalendarReadiness();
-  const googleTasksReadiness = getGoogleTodoSyncReadiness();
   const googlePreview = previewGoogleCalendarSync(tasks);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("google");
   const workspaceMode = syncMode === "local"
@@ -184,7 +169,7 @@ export function Settings() {
   const allSettingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
     { id: "account", label: "Account", description: "Profile and sign-in" },
     { id: "appearance", label: "Appearance", description: "Theme and accent color" },
-    { id: "google", label: "Google Sync", description: "Calendar and Todo sync" },
+    { id: "google", label: "Calendar Sync", description: "Google Calendar only" },
     { id: "notifications", label: "Notifications", description: "Email and desktop reminders" },
     { id: "data", label: "Data", description: "Backup, cloud sync, and cleanup" },
   ];
@@ -197,50 +182,40 @@ export function Settings() {
     if (calendarStatus === "connected") {
       clearGoogleSyncStatusCache();
       setCalendarMessage("Google Calendar connected.");
-      setGoogleTasksMessage("Google account connected. You can enable Todo sync below.");
       window.history.replaceState({}, "", "/settings");
     } else if (calendarStatus) {
       setCalendarMessage("Google Calendar connection did not complete.");
-      setGoogleTasksMessage("Google account connection did not complete.");
       window.history.replaceState({}, "", "/settings");
     }
   }, []);
 
   useEffect(() => {
-    if (!session || !googleReadiness.ready || !googleTasksReadiness.ready) return;
+    if (!session || !googleReadiness.ready) return;
 
     let cancelled = false;
     setCheckingGoogleConnection(true);
-    setCheckingGoogleTasks(true);
 
-    void getGoogleSyncStatus({ includeLists: true, maxAgeMs: 5 * 60_000 })
+    void getGoogleSyncStatus({ maxAgeMs: 5 * 60_000 })
       .then((status) => {
         if (cancelled) return;
         setGoogleConnection(status.calendar);
-        setGoogleTasksStatus(status.todos);
-        setGoogleTasksSettings(status.todos.settings);
-        if (status.todos.needsReconnect) {
-          setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
-        }
       })
       .catch((error) => {
         if (!cancelled) {
           const message = errorMessage(error, "Could not check Google sync.");
           setCalendarMessage(message);
-          setGoogleTasksMessage(message);
         }
       })
       .finally(() => {
         if (!cancelled) {
           setCheckingGoogleConnection(false);
-          setCheckingGoogleTasks(false);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [googleReadiness.ready, googleTasksReadiness.ready, session]);
+  }, [googleReadiness.ready, session]);
 
   useEffect(() => {
     if (!session || !isSupabaseConfigured) return;
@@ -673,8 +648,6 @@ export function Settings() {
       await disconnectGoogleCalendar();
       clearGoogleSyncStatusCache();
       setGoogleConnection({ connected: false });
-      setGoogleTasksStatus(null);
-      setGoogleTasksSettings({ enabled: false, todoListId: "" });
       replaceEvents(events.filter((event) => event.source !== "google"));
       googleSyncState.setStatus("idle", "Google Calendar disconnected.");
       setCalendarMessage("Google Calendar disconnected.");
@@ -682,86 +655,6 @@ export function Settings() {
       setCalendarMessage(errorMessage(error, "Could not disconnect Google Calendar."));
     } finally {
       setSyncingCalendar(false);
-    }
-  };
-
-  const refreshGoogleTodoSyncStatus = async () => {
-    setCheckingGoogleConnection(true);
-    setCheckingGoogleTasks(true);
-    setGoogleTasksMessage("");
-
-    try {
-      clearGoogleSyncStatusCache();
-      const status = await getGoogleSyncStatus({ includeLists: true });
-      setGoogleConnection(status.calendar);
-      setGoogleTasksStatus(status.todos);
-      setGoogleTasksSettings(status.todos.settings);
-      if (status.todos.needsReconnect) {
-        setGoogleTasksMessage("Reconnect Google so Align can use the Tasks scope.");
-      }
-    } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not check Google sync."));
-    } finally {
-      setCheckingGoogleConnection(false);
-      setCheckingGoogleTasks(false);
-    }
-  };
-
-  const handleGoogleTasksSettingsSave = async (settings = googleTasksSettings) => {
-    setSavingGoogleTasks(true);
-    setGoogleTasksMessage("");
-
-    try {
-      const savedSettings = await saveGoogleSyncSettings(settings);
-      setGoogleTasksSettings(savedSettings);
-      setGoogleTasksStatus((current) => (current ? { ...current, settings: savedSettings } : current));
-      setGoogleTasksMessage(savedSettings.enabled ? "Google Todo sync enabled." : "Google Todo sync paused.");
-    } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not save Google Todo sync settings."));
-    } finally {
-      setSavingGoogleTasks(false);
-    }
-  };
-
-  const handleGoogleTasksEnabledChange = async (enabled: boolean) => {
-    const nextSettings = { ...googleTasksSettings, enabled };
-    setGoogleTasksSettings(nextSettings);
-    await handleGoogleTasksSettingsSave(nextSettings);
-  };
-
-  const handleGoogleTasksSync = async () => {
-    setSyncingGoogleTasks(true);
-    setGoogleTasksMessage("");
-
-    try {
-      const syncResult = await syncGoogleWorkspace({
-        tasks,
-        settings: googleTasksSettings,
-        todos: true,
-      });
-      const result = syncResult.todos;
-      if (!result) throw new Error("Google Todo sync did not return a result.");
-
-      setGoogleTasksSettings(result.settings);
-      setGoogleTasksStatus((current) =>
-        current
-          ? {
-              ...current,
-              lists: result.lists,
-              settings: result.settings,
-            }
-          : current,
-      );
-      if (result.changedTasks.length) {
-        upsertTasks(result.changedTasks);
-      }
-      setGoogleTasksMessage(
-        `Google Todos synced. ${result.created} created, ${result.updated} updated, ${result.removed} removed, ${result.imported} imported.`,
-      );
-    } catch (error) {
-      setGoogleTasksMessage(errorMessage(error, "Could not sync Google Todos."));
-    } finally {
-      setSyncingGoogleTasks(false);
     }
   };
 
@@ -1082,98 +975,6 @@ export function Settings() {
             )}
           </div>
           {calendarMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{calendarMessage}</p> : null}
-        </Card>
-        <Card className="p-4 sm:p-5">
-          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Smartphone size={18} /> Google Todo Sync</h2>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Sync your Align Todos with one Google Tasks list for phone widgets and quick capture.
-          </p>
-          <div className="mt-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-sm sm:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[var(--text-muted)]">Google account</span>
-              <Badge tone={googleTasksStatus?.connected ? "emerald" : "slate"}>
-                {checkingGoogleTasks ? "checking" : googleTasksStatus?.connected ? "connected" : "not connected"}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[var(--text-muted)]">Tasks scope</span>
-              <Badge tone={googleTasksStatus?.needsReconnect ? "amber" : googleTasksStatus?.connected ? "emerald" : "slate"}>
-                {googleTasksStatus?.needsReconnect ? "reconnect needed" : googleTasksStatus?.connected ? "ready" : "not connected"}
-              </Badge>
-            </div>
-            <p className="text-[var(--text-soft)]">
-              Scope: <span className="text-[var(--text-muted)]">{googleTasksReadiness.scope}</span>
-            </p>
-            <p className="text-[var(--text-soft)]">
-              Project tasks stay in Align. Google Tasks only creates and updates personal Todos.
-            </p>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-              <div>
-                <p className="font-semibold text-[var(--text)]">Enable Todo sync</p>
-                <p className="text-sm text-[var(--text-muted)]">Runs automatically while Align is open. Sync Now still works when you want an immediate refresh.</p>
-              </div>
-              <Button
-                variant={googleTasksSettings.enabled ? "secondary" : "ghost"}
-                onClick={() => void handleGoogleTasksEnabledChange(!googleTasksSettings.enabled)}
-                disabled={!session || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || savingGoogleTasks}
-              >
-                {googleTasksSettings.enabled ? "Enabled" : "Paused"}
-              </Button>
-            </div>
-            <div className="grid gap-3">
-              <label className="grid gap-2 text-sm font-semibold text-[var(--text)]">
-                <span className="flex items-center gap-2"><ListTodo size={16} /> Google Todo list</span>
-                <select
-                  className="min-h-11 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-medium text-[var(--text)]"
-                  value={googleTasksSettings.todoListId}
-                  onChange={(event) => setGoogleTasksSettings((current) => ({ ...current, todoListId: event.target.value }))}
-                  disabled={!googleTasksStatus?.connected || googleTasksStatus.needsReconnect}
-                >
-                  <option value="">Auto-create Align Todos</option>
-                  {(googleTasksStatus?.lists ?? []).map((list) => (
-                    <option key={list.id} value={list.id}>{list.title}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {googleTasksSettings.lastSyncedAt ? (
-              <p className="text-xs text-[var(--text-soft)]">Last synced {new Date(googleTasksSettings.lastSyncedAt).toLocaleString()}</p>
-            ) : null}
-            {googleTasksSettings.lastError ? (
-              <p className="text-sm text-[var(--danger)]">{googleTasksSettings.lastError}</p>
-            ) : null}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {!googleTasksStatus?.connected || googleTasksStatus.needsReconnect ? (
-              <Button variant="secondary" onClick={() => void handleGoogleCalendarConnect()}>
-                {googleTasksStatus?.needsReconnect ? "Reconnect Google" : "Connect Google"}
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              icon={<RefreshCw size={16} />}
-              onClick={() => void refreshGoogleTodoSyncStatus()}
-              disabled={!session || checkingGoogleTasks}
-            >
-              Refresh
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void handleGoogleTasksSettingsSave()}
-              disabled={!session || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || savingGoogleTasks}
-            >
-              {savingGoogleTasks ? "Saving..." : "Save Sync"}
-            </Button>
-            <Button
-              onClick={() => void handleGoogleTasksSync()}
-              disabled={!session || !googleTasksSettings.enabled || !googleTasksStatus?.connected || googleTasksStatus.needsReconnect || syncingGoogleTasks}
-            >
-              {syncingGoogleTasks ? "Syncing..." : "Sync Now"}
-            </Button>
-          </div>
-          {googleTasksMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{googleTasksMessage}</p> : null}
         </Card>
         </>
         ) : null}

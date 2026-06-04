@@ -3,24 +3,19 @@ import type { Task } from "../../types/task";
 import { appUrl, supabase } from "../supabase/client";
 import { isTauriRuntime } from "../desktop/runtime";
 import type { GoogleCalendarConnection, GoogleCalendarSyncOptions, GoogleCalendarSyncResult } from "../googleCalendar/types";
-import type { GoogleTodoSyncResult, GoogleTodoSyncSettings, GoogleTodoSyncStatus } from "../googleTasks/types";
 
 export interface GoogleSyncStatus {
   calendar: GoogleCalendarConnection;
-  todos: GoogleTodoSyncStatus;
 }
 
 export interface GoogleWorkspaceSyncPayload {
   tasks: Task[];
-  settings?: GoogleTodoSyncSettings;
   calendar?: boolean;
-  todos?: boolean;
   forceTaskIds?: GoogleCalendarSyncOptions["forceTaskIds"];
 }
 
 export interface GoogleWorkspaceSyncResult {
   calendar?: GoogleCalendarSyncResult & { events: CalendarEvent[] };
-  todos?: GoogleTodoSyncResult;
 }
 
 let statusCache: { status: GoogleSyncStatus; fetchedAt: number; includesLists: boolean } | null = null;
@@ -61,26 +56,6 @@ export async function getGoogleSyncStatus(options: { includeLists?: boolean; max
   return status;
 }
 
-export async function saveGoogleSyncSettings(settings: GoogleTodoSyncSettings): Promise<GoogleTodoSyncSettings> {
-  const token = await getAccessToken();
-  const response = await fetch(apiEndpoint("/api/google-sync?action=settings"), {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(settings),
-  });
-  const data = (await response.json()) as { settings?: GoogleTodoSyncSettings; error?: string };
-
-  if (!response.ok || !data.settings) {
-    throw new Error(data.error || "Could not save Google sync settings.");
-  }
-
-  clearGoogleSyncStatusCache();
-  return normalizeSettings(data.settings);
-}
-
 export async function syncGoogleWorkspace(payload: GoogleWorkspaceSyncPayload): Promise<GoogleWorkspaceSyncResult> {
   const token = await getAccessToken();
   const response = await fetch(apiEndpoint("/api/google-sync?action=sync"), {
@@ -91,9 +66,7 @@ export async function syncGoogleWorkspace(payload: GoogleWorkspaceSyncPayload): 
     },
     body: JSON.stringify({
       tasks: payload.tasks,
-      settings: payload.settings,
       calendar: Boolean(payload.calendar),
-      todos: Boolean(payload.todos),
       forceTaskIds: payload.forceTaskIds ?? [],
     }),
   });
@@ -106,7 +79,6 @@ export async function syncGoogleWorkspace(payload: GoogleWorkspaceSyncPayload): 
   clearGoogleSyncStatusCache();
   return {
     calendar: data.calendar ? normalizeCalendarResult(data.calendar) : undefined,
-    todos: data.todos ? normalizeTodoResult(data.todos) : undefined,
   };
 }
 
@@ -121,15 +93,6 @@ function normalizeStatus(data: Partial<GoogleSyncStatus>): GoogleSyncStatus {
       updatedAt: data.calendar?.updatedAt,
       scopes: data.calendar?.scopes ?? [],
     },
-    todos: {
-      connected: Boolean(data.todos?.connected),
-      needsReconnect: Boolean(data.todos?.needsReconnect),
-      scopes: data.todos?.scopes ?? [],
-      lists: data.todos?.lists ?? [],
-      settings: normalizeSettings(data.todos?.settings),
-      accountEmail: data.todos?.accountEmail,
-      updatedAt: data.todos?.updatedAt,
-    },
   };
 }
 
@@ -141,29 +104,6 @@ function normalizeCalendarResult(result: Partial<GoogleCalendarSyncResult & { ev
     skipped: result.skipped ?? 0,
     conflicts: result.conflicts ?? [],
     events: result.events ?? [],
-  };
-}
-
-function normalizeTodoResult(result: Partial<GoogleTodoSyncResult>): GoogleTodoSyncResult {
-  return {
-    created: result.created ?? 0,
-    updated: result.updated ?? 0,
-    removed: result.removed ?? 0,
-    skipped: result.skipped ?? 0,
-    imported: result.imported ?? 0,
-    changedTasks: result.changedTasks ?? [],
-    settings: normalizeSettings(result.settings),
-    lists: result.lists ?? [],
-  };
-}
-
-function normalizeSettings(settings: Partial<GoogleTodoSyncSettings> | undefined): GoogleTodoSyncSettings {
-  return {
-    enabled: Boolean(settings?.enabled),
-    todoListId: settings?.todoListId ?? "",
-    lastSyncedAt: settings?.lastSyncedAt,
-    lastError: settings?.lastError,
-    updatedAt: settings?.updatedAt,
   };
 }
 
