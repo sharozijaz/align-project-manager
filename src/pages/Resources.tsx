@@ -82,6 +82,8 @@ type ResourceFormState = {
 };
 
 type ResourceFilter = HubResourceType | "all" | "favorites";
+type ResourceSort = "newest" | "title" | "favorites" | "collection";
+type MetadataStatus = "idle" | "loading" | "success" | "fallback" | "error";
 type NoteFilter = "all" | "inbox" | "favorites" | "review" | "archived";
 type NoteSpaceSelection = { type: "space" | "project"; id: string };
 type NoteSpaceView = {
@@ -201,11 +203,13 @@ function noteFilterLabel(value: NoteFilter) {
 function normalizeResourceUrl(url?: string) {
   const trimmed = url?.trim();
   if (!trimmed) return undefined;
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const withProtocol = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
-    return new URL(withProtocol).toString();
+    const parsed = new URL(withProtocol);
+    if (!["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) return undefined;
+    return parsed.toString();
   } catch {
-    return trimmed;
+    return undefined;
   }
 }
 
@@ -222,6 +226,135 @@ function getResourceHost(url?: string) {
 function getResourceFavicon(url?: string) {
   const host = getResourceHost(url);
   return host ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64` : undefined;
+}
+
+function getDirectFavicon(url?: string) {
+  const normalized = normalizeResourceUrl(url);
+  if (!normalized) return undefined;
+  try {
+    const parsed = new URL(normalized);
+    return `${parsed.origin}/favicon.ico`;
+  } catch {
+    return undefined;
+  }
+}
+
+function titleFromUrl(url?: string) {
+  const host = getResourceHost(url);
+  if (!host) return "";
+  return host
+    .split(".")[0]
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+type ResourceMetadata = {
+  title?: string;
+  description?: string;
+  canonicalUrl?: string;
+  faviconUrl?: string;
+};
+
+function buildFallbackResourceMetadata(url: string, form: ResourceFormState): ResourceMetadata {
+  const host = getResourceHost(url);
+  return {
+    title: form.title.trim() || titleFromUrl(url),
+    description: form.notes.trim() || (host ? `Saved reference from ${host}.` : ""),
+    canonicalUrl: url,
+    faviconUrl: getDirectFavicon(url),
+  };
+}
+
+async function fetchResourceMetadata(url: string): Promise<ResourceMetadata> {
+  const response = await fetch(url, { method: "GET", mode: "cors", credentials: "omit" });
+  if (!response.ok) throw new Error("Could not fetch page metadata.");
+  const html = await response.text();
+  const doc = new DOMParser().parseFromString(html.slice(0, 250_000), "text/html");
+  const title =
+    getMetaContent(doc, "meta[property='og:title']") ||
+    getMetaContent(doc, "meta[name='twitter:title']") ||
+    doc.querySelector("title")?.textContent?.trim() ||
+    "";
+  const description =
+    getMetaContent(doc, "meta[property='og:description']") ||
+    getMetaContent(doc, "meta[name='description']") ||
+    getMetaContent(doc, "meta[name='twitter:description']") ||
+    "";
+  const canonicalUrl = (doc.querySelector("link[rel='canonical']") as HTMLLinkElement | null)?.href || url;
+  const faviconUrl =
+    (doc.querySelector("link[rel='icon']") as HTMLLinkElement | null)?.href ||
+    (doc.querySelector("link[rel='shortcut icon']") as HTMLLinkElement | null)?.href ||
+    getDirectFavicon(url);
+
+  return { title, description, canonicalUrl, faviconUrl };
+}
+
+function getMetaContent(doc: Document, selector: string) {
+  return (doc.querySelector(selector) as HTMLMetaElement | null)?.content?.trim() ?? "";
+}
+
+function mergeResourceMetadata(form: ResourceFormState, fallback: ResourceMetadata, metadata: ResourceMetadata | null): ResourceFormState {
+  const next = metadata ?? fallback;
+  const nextTitle = form.title.trim() || next.title || fallback.title || "";
+  const nextUrl = normalizeResourceUrl(next.canonicalUrl) || normalizeResourceUrl(form.url) || form.url;
+  const nextNotes = form.notes.trim() || next.description || fallback.description || "";
+  const inferredType = form.type === emptyResourceForm.type ? inferResourceType(`${nextTitle} ${nextUrl} ${nextNotes}`) : form.type;
+
+  return {
+    ...form,
+    title: nextTitle,
+    url: nextUrl ?? form.url,
+    type: inferredType,
+    notes: nextNotes,
+    tags: form.tags || buildSuggestedTags({ ...form, title: nextTitle, url: nextUrl ?? form.url, notes: nextNotes }).slice(0, 3).join(", "),
+  };
+}
+
+function inferResourceType(value: string): HubResourceType {
+  const text = value.toLowerCase();
+  if (/(inspiration|gallery|showcase|example|pattern|design)/.test(text)) return "inspiration";
+  if (/(tool|generator|app|utility|checker|audit|remove|compress)/.test(text)) return "tools";
+  if (/(asset|icon|font|photo|image|mockup|illustration)/.test(text)) return "assets";
+  if (/(snippet|code|css|react|tailwind|component)/.test(text)) return "snippets";
+  return "learning";
+}
+
+function buildSuggestedTags(form: ResourceFormState) {
+  const text = `${form.title} ${form.url} ${form.notes}`.toLowerCase();
+  const tags = new Set<string>();
+  const rules: Array<[RegExp, string]> = [
+    [/color|palette|hue|gradient/, "color"],
+    [/type|font|typography/, "typography"],
+    [/landing|saas|homepage/, "landing-page"],
+    [/seo|keyword|search/, "seo"],
+    [/ai|generator|prompt/, "ai"],
+    [/image|photo|background|remove/, "image"],
+    [/icon|svg/, "icons"],
+    [/component|react|tailwind|css/, "frontend"],
+    [/checklist|audit/, "checklist"],
+    [/copy|writing|headline/, "copywriting"],
+  ];
+  rules.forEach(([pattern, tag]) => {
+    if (pattern.test(text)) tags.add(tag);
+  });
+  return [...tags].filter((tag) => !form.tags.toLowerCase().split(",").map((item) => item.trim()).includes(tag));
+}
+
+function appendTag(tags: string, tag: string) {
+  const existing = tags.split(",").map((item) => item.trim()).filter(Boolean);
+  if (existing.map((item) => item.toLowerCase()).includes(tag.toLowerCase())) return tags;
+  return [...existing, tag].join(", ");
+}
+
+function sortResources(resources: HubResource[], sort: ResourceSort) {
+  return [...resources].sort((left, right) => {
+    if (sort === "favorites" && Boolean(left.favorite) !== Boolean(right.favorite)) return left.favorite ? -1 : 1;
+    if (sort === "title") return left.title.localeCompare(right.title);
+    if (sort === "collection") return (left.collection ?? "zzzz").localeCompare(right.collection ?? "zzzz") || left.title.localeCompare(right.title);
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  });
 }
 
 function getResourceInitials(title: string) {
@@ -354,6 +487,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const query = useSearchStore((state) => state.query);
   const clearQuery = useSearchStore((state) => state.clearQuery);
   const [type, setType] = useState<ResourceFilter>("all");
+  const [resourceSort, setResourceSort] = useState<ResourceSort>("newest");
+  const [collectionFilter, setCollectionFilter] = useState("all");
   const [noteFilter, setNoteFilter] = useState<NoteFilter>("all");
   const [docTypeFilter, setDocTypeFilter] = useState<HubNoteDocType | "all">("all");
   const [selectedSpaceKey, setSelectedSpaceKey] = useState<string | null>(null);
@@ -366,6 +501,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const [noteAutosaveStatus, setNoteAutosaveStatus] = useState("");
   const [editNoteForm, setEditNoteForm] = useState<NoteFormState>(emptyNoteForm);
   const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
+  const [resourceCaptureExpanded, setResourceCaptureExpanded] = useState(false);
+  const [metadataStatus, setMetadataStatus] = useState<MetadataStatus>("idle");
+  const [metadataMessage, setMetadataMessage] = useState("");
   const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm);
   const [spaceModalOpen, setSpaceModalOpen] = useState(false);
   const [spaceForm, setSpaceForm] = useState({ name: "", description: "" });
@@ -397,13 +535,32 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
 
   const filteredResources = useMemo(
     () =>
-      resources.filter((item) => {
-        const haystack = `${item.title} ${item.url ?? ""} ${item.collection ?? ""} ${item.tags ?? ""} ${item.notes ?? ""}`.toLowerCase();
-        const matchesFilter = type === "all" || (type === "favorites" ? item.favorite : item.type === type);
-        return matchesFilter && haystack.includes(query.toLowerCase());
-      }),
-    [query, resources, type],
+      sortResources(
+        resources.filter((item) => {
+          const haystack = `${item.title} ${item.url ?? ""} ${item.collection ?? ""} ${item.tags ?? ""} ${item.notes ?? ""}`.toLowerCase();
+          const matchesFilter = type === "all" || (type === "favorites" ? item.favorite : item.type === type);
+          const matchesCollection = collectionFilter === "all" || (item.collection ?? "") === collectionFilter;
+          return matchesFilter && matchesCollection && haystack.includes(query.toLowerCase());
+        }),
+        resourceSort,
+      ),
+    [collectionFilter, query, resourceSort, resources, type],
   );
+
+  const resourceCollections = useMemo(
+    () =>
+      [...new Set(resources.map((item) => item.collection?.trim()).filter((collection): collection is string => Boolean(collection)))]
+        .sort((left, right) => left.localeCompare(right)),
+    [resources],
+  );
+
+  const duplicateResource = useMemo(() => {
+    const normalizedUrl = normalizeResourceUrl(resourceForm.url);
+    if (!normalizedUrl) return null;
+    return resources.find((item) => item.url && normalizeResourceUrl(item.url) === normalizedUrl) ?? null;
+  }, [resourceForm.url, resources]);
+
+  const suggestedTags = useMemo(() => buildSuggestedTags(resourceForm), [resourceForm]);
 
   const personalSpaces = useMemo(() => buildPersonalSpaceViews(noteSpaces, notes), [noteSpaces, notes]);
   const projectSpaces = useMemo(() => buildProjectSpaceViews(projects, notes), [projects, notes]);
@@ -597,19 +754,69 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
 
   const submitResource = (event: FormEvent) => {
     event.preventDefault();
-    if (!resourceForm.title.trim()) return;
+    const normalizedUrl = normalizeResourceUrl(resourceForm.url);
+    const title = resourceForm.title.trim() || titleFromUrl(normalizedUrl) || "Saved resource";
+    if (!normalizedUrl && !title.trim()) return;
     const payload = {
       ...resourceForm,
-      title: resourceForm.title.trim(),
-      url: normalizeResourceUrl(resourceForm.url),
+      title,
+      url: normalizedUrl,
       collection: resourceForm.collection.trim() || undefined,
       tags: resourceForm.tags.trim() || undefined,
       notes: resourceForm.notes.trim() || undefined,
     };
     addResource(payload);
+    setSelectedResourceId(null);
     setResourceForm(emptyResourceForm);
-    setShowForm(null);
+    setResourceCaptureExpanded(false);
+    setMetadataStatus("idle");
+    setMetadataMessage("");
     setView("resources");
+  };
+
+  const autofillResource = async () => {
+    const normalizedUrl = normalizeResourceUrl(resourceForm.url);
+    if (!normalizedUrl) {
+      setMetadataStatus("error");
+      setMetadataMessage("Enter a domain or URL first.");
+      return;
+    }
+
+    setMetadataStatus("loading");
+    setMetadataMessage("Looking for public page details...");
+
+    const fallback = buildFallbackResourceMetadata(normalizedUrl, resourceForm);
+    try {
+      const metadata = await fetchResourceMetadata(normalizedUrl);
+      const nextForm = mergeResourceMetadata(resourceForm, fallback, metadata);
+      setResourceForm(nextForm);
+      setResourceCaptureExpanded(true);
+      setMetadataStatus(metadata.title || metadata.description ? "success" : "fallback");
+      setMetadataMessage(metadata.title || metadata.description ? "Details filled from page metadata." : "Page loaded, but metadata was limited.");
+    } catch {
+      setResourceForm(mergeResourceMetadata(resourceForm, fallback, null));
+      setResourceCaptureExpanded(true);
+      setMetadataStatus("fallback");
+      setMetadataMessage("Public metadata was blocked, so Align used the domain as a smart fallback.");
+    }
+  };
+
+  const updateDuplicateResource = () => {
+    if (!duplicateResource) return;
+    const normalizedUrl = normalizeResourceUrl(resourceForm.url);
+    updateResource(duplicateResource.id, {
+      title: resourceForm.title.trim() || duplicateResource.title,
+      url: normalizedUrl,
+      type: resourceForm.type,
+      collection: resourceForm.collection.trim() || undefined,
+      tags: resourceForm.tags.trim() || undefined,
+      notes: resourceForm.notes.trim() || undefined,
+    });
+    setSelectedResourceId(duplicateResource.id);
+    setResourceForm(emptyResourceForm);
+    setResourceCaptureExpanded(false);
+    setMetadataStatus("idle");
+    setMetadataMessage("");
   };
 
   const saveNewNote = () => {
@@ -898,8 +1105,9 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               </>
             ) : (
               <Button icon={<Plus size={16} />} onClick={() => {
-                setShowForm("resource");
+                setResourceCaptureExpanded(true);
                 setView("resources");
+                window.setTimeout(() => document.getElementById("resource-capture-url")?.focus(), 0);
               }}>
                 Add Resource
               </Button>
@@ -1008,21 +1216,38 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       />
 
       {view === "resources" ? (
-        <Card className="p-2">
-          <div className="flex flex-wrap gap-2">
-            <FilterChip active={type === "all"} onClick={() => setType("all")}>
-              All
-            </FilterChip>
-            {resourceTypes.map((item) => (
-              <FilterChip key={item.value} active={type === item.value} onClick={() => setType(item.value)}>
-                {item.label}
-              </FilterChip>
-            ))}
-            <FilterChip active={type === "favorites"} onClick={() => setType("favorites")}>
-              Favorites
-            </FilterChip>
-          </div>
-        </Card>
+        <>
+          <ResourceCaptureBar
+            form={resourceForm}
+            expanded={resourceCaptureExpanded}
+            metadataStatus={metadataStatus}
+            metadataMessage={metadataMessage}
+            duplicate={duplicateResource}
+            suggestedTags={suggestedTags}
+            onFormChange={setResourceForm}
+            onToggleExpanded={() => setResourceCaptureExpanded((expanded) => !expanded)}
+            onAutofill={() => void autofillResource()}
+            onSubmit={submitResource}
+            onUpdateDuplicate={updateDuplicateResource}
+            onCancel={() => {
+              setResourceForm(emptyResourceForm);
+              setResourceCaptureExpanded(false);
+              setMetadataStatus("idle");
+              setMetadataMessage("");
+            }}
+          />
+          <ResourceLibraryToolbar
+            type={type}
+            collectionFilter={collectionFilter}
+            collections={resourceCollections}
+            sort={resourceSort}
+            resultCount={filteredResources.length}
+            totalCount={resources.length}
+            onTypeChange={setType}
+            onCollectionChange={setCollectionFilter}
+            onSortChange={setResourceSort}
+          />
+        </>
       ) : null}
 
       <div className={`grid gap-5 ${view === "notes" ? "xl:grid-cols-[360px_minmax(0,1fr)]" : "2xl:grid-cols-[minmax(0,1fr)_400px]"}`}>
@@ -1061,35 +1286,6 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         ) : null}
 
         <main className="min-w-0 space-y-4">
-          {showForm === "resource" ? (
-            <Card className="p-4">
-              <form onSubmit={submitResource} className="grid gap-3">
-                <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px]">
-                  <Input value={resourceForm.title} onChange={(event) => setResourceForm({ ...resourceForm, title: event.target.value })} placeholder="Resource title" />
-                  <Input value={resourceForm.url} onChange={(event) => setResourceForm({ ...resourceForm, url: event.target.value })} placeholder="https://..." />
-                  <Select value={resourceForm.type} onChange={(event) => setResourceForm({ ...resourceForm, type: event.target.value as HubResourceType })}>
-                    {resourceTypes.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <Input value={resourceForm.collection} onChange={(event) => setResourceForm({ ...resourceForm, collection: event.target.value })} placeholder="Collection, e.g. SaaS landing pages" />
-                  <Input value={resourceForm.tags} onChange={(event) => setResourceForm({ ...resourceForm, tags: event.target.value })} placeholder="Tags, comma separated" />
-                </div>
-                <StudioTextarea value={resourceForm.notes} onChange={(event) => setResourceForm({ ...resourceForm, notes: event.target.value })} placeholder="Why this is useful..." />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="secondary" onClick={() => setShowForm(null)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Save Resource</Button>
-                </div>
-              </form>
-            </Card>
-          ) : null}
-
           {view === "resources" ? (
             filteredResources.length ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-2">
@@ -2885,6 +3081,206 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
   );
 }
 
+function ResourceCaptureBar({
+  form,
+  expanded,
+  metadataStatus,
+  metadataMessage,
+  duplicate,
+  suggestedTags,
+  onFormChange,
+  onToggleExpanded,
+  onAutofill,
+  onSubmit,
+  onUpdateDuplicate,
+  onCancel,
+}: {
+  form: ResourceFormState;
+  expanded: boolean;
+  metadataStatus: MetadataStatus;
+  metadataMessage: string;
+  duplicate: HubResource | null;
+  suggestedTags: string[];
+  onFormChange: (form: ResourceFormState) => void;
+  onToggleExpanded: () => void;
+  onAutofill: () => void;
+  onSubmit: (event: FormEvent) => void;
+  onUpdateDuplicate: () => void;
+  onCancel: () => void;
+}) {
+  const host = getResourceHost(form.url);
+  const favicon = getResourceFavicon(form.url);
+  const canSave = Boolean(normalizeResourceUrl(form.url) || form.title.trim());
+
+  return (
+    <Card className="overflow-hidden p-0">
+      <form onSubmit={onSubmit}>
+        <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_170px_170px_auto] lg:items-end">
+          <label className="grid gap-1.5">
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Capture resource</span>
+            <div className="flex min-w-0 items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 transition hover:border-[var(--border-strong)] focus-within:border-[var(--border-strong)] focus-within:bg-[var(--surface)]">
+              <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
+                {favicon ? <img src={favicon} alt="" className="h-5 w-5" /> : <ExternalLink size={15} className="text-[var(--text-soft)]" />}
+              </span>
+              <input
+                id="resource-capture-url"
+                name="align-resource-capture-url"
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={form.url}
+                onChange={(event) => onFormChange({ ...form, url: event.target.value })}
+                onBlur={() => {
+                  const normalizedUrl = normalizeResourceUrl(form.url);
+                  if (normalizedUrl && !form.title.trim()) onFormChange(mergeResourceMetadata(form, buildFallbackResourceMetadata(normalizedUrl, form), null));
+                }}
+                placeholder="Paste a URL or domain..."
+                className="min-h-11 min-w-0 flex-1 bg-transparent text-sm font-bold text-[var(--text)] outline-none ring-0 placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-0 focus-visible:outline-none"
+              />
+            </div>
+          </label>
+
+          <label className="grid gap-1.5">
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Type</span>
+            <Select value={form.type} onChange={(event) => onFormChange({ ...form, type: event.target.value as HubResourceType })}>
+              {resourceTypes.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <label className="grid gap-1.5">
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Collection</span>
+            <Input value={form.collection} onChange={(event) => onFormChange({ ...form, collection: event.target.value })} placeholder="Design tools" />
+          </label>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button type="button" variant="secondary" onClick={onAutofill} disabled={metadataStatus === "loading" || !form.url.trim()}>
+              {metadataStatus === "loading" ? "Filling..." : "Autofill"}
+            </Button>
+            <Button type="submit" icon={<Save size={15} />} disabled={!canSave}>
+              Save
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-t border-[var(--border)] px-4 py-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[var(--text)]">{form.title.trim() || titleFromUrl(normalizeResourceUrl(form.url)) || "Ready for a useful link"}</p>
+              <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
+                {metadataMessage || (host ? `${host} · browser-side metadata only` : "No Supabase proxy, no screenshots, no extra storage.")}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {duplicate ? (
+                <>
+                  <Badge tone="amber">Already saved</Badge>
+                  <Button type="button" variant="secondary" onClick={onUpdateDuplicate}>
+                    Update Existing
+                  </Button>
+                </>
+              ) : null}
+              <Button type="button" variant="ghost" onClick={onToggleExpanded}>
+                {expanded ? "Hide Details" : "Details"}
+              </Button>
+              {(form.url || form.title || form.collection || form.tags || form.notes) ? (
+                <Button type="button" variant="ghost" onClick={onCancel}>
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          {expanded ? (
+            <div className="mt-4 grid gap-3">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Input value={form.title} onChange={(event) => onFormChange({ ...form, title: event.target.value })} placeholder="Resource title" />
+                <Input value={form.tags} onChange={(event) => onFormChange({ ...form, tags: event.target.value })} placeholder="Tags, comma separated" />
+              </div>
+              {suggestedTags.length ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Suggested</span>
+                  {suggestedTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => onFormChange({ ...form, tags: appendTag(form.tags, tag) })}
+                      className="rounded-full border border-[var(--border)] bg-[var(--panel-bg-soft)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <StudioTextarea value={form.notes} onChange={(event) => onFormChange({ ...form, notes: event.target.value })} placeholder="Why this is useful..." />
+            </div>
+          ) : null}
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function ResourceLibraryToolbar({
+  type,
+  collectionFilter,
+  collections,
+  sort,
+  resultCount,
+  totalCount,
+  onTypeChange,
+  onCollectionChange,
+  onSortChange,
+}: {
+  type: ResourceFilter;
+  collectionFilter: string;
+  collections: string[];
+  sort: ResourceSort;
+  resultCount: number;
+  totalCount: number;
+  onTypeChange: (type: ResourceFilter) => void;
+  onCollectionChange: (collection: string) => void;
+  onSortChange: (sort: ResourceSort) => void;
+}) {
+  return (
+    <Card className="p-3">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <FilterChip active={type === "all"} onClick={() => onTypeChange("all")}>All</FilterChip>
+          {resourceTypes.map((item) => (
+            <FilterChip key={item.value} active={type === item.value} onClick={() => onTypeChange(item.value)}>
+              {item.label}
+            </FilterChip>
+          ))}
+          <FilterChip active={type === "favorites"} onClick={() => onTypeChange("favorites")}>Favorites</FilterChip>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,220px)_180px_auto] sm:items-center">
+          <Select value={collectionFilter} onChange={(event) => onCollectionChange(event.target.value)}>
+            <option value="all">All collections</option>
+            {collections.map((collection) => (
+              <option key={collection} value={collection}>
+                {collection}
+              </option>
+            ))}
+          </Select>
+          <Select value={sort} onChange={(event) => onSortChange(event.target.value as ResourceSort)}>
+            <option value="newest">Newest first</option>
+            <option value="favorites">Favorites first</option>
+            <option value="title">Title A-Z</option>
+            <option value="collection">Collection</option>
+          </Select>
+          <p className="text-xs font-bold text-[var(--text-soft)] sm:text-right">{resultCount} of {totalCount}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function ResourceCard({
   item,
   selected,
@@ -2904,30 +3300,31 @@ function ResourceCard({
   const host = getResourceHost(item.url);
   const favicon = getResourceFavicon(item.url);
   return (
-    <Card className={`group overflow-hidden p-0 ${selected ? "border-[var(--brand-primary)]" : ""}`}>
+    <Card className={`group overflow-hidden p-0 transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)] ${selected ? "border-[var(--brand-primary)]" : ""}`}>
       <button type="button" onClick={onSelect} className="block w-full p-4 text-left">
-        <div className="mb-4 flex h-32 flex-col justify-between overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-          <div className="flex items-start justify-between gap-3">
-            <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
-              {favicon ? <img src={favicon} alt="" className="h-7 w-7" loading="lazy" /> : <span className="font-display text-sm font-bold text-[var(--brand-primary)]">{getResourceInitials(item.title)}</span>}
-            </span>
-            <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-soft)]">
-              {host ? "Website" : "Saved item"}
-            </span>
-          </div>
-          <div>
-            <p className="line-clamp-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-soft)]">{host || item.collection || type.label}</p>
-            <p className="mt-1 line-clamp-1 text-sm font-semibold text-[var(--text-muted)]">{item.collection || item.tags || "Resource reference"}</p>
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+            {favicon ? <img src={favicon} alt="" className="h-6 w-6" loading="lazy" /> : <span className="font-display text-sm font-bold text-[var(--brand-primary)]">{getResourceInitials(item.title)}</span>}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{host || item.collection || "Saved resource"}</p>
+                <h3 className="mt-1 line-clamp-2 font-display text-lg font-bold leading-6 text-[var(--text)]">{item.title}</h3>
+              </div>
+              <Star size={16} className={item.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
+            </div>
           </div>
         </div>
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-2 font-display text-lg font-bold text-[var(--text)]">{item.title}</h3>
-          <Star size={16} className={item.favorite ? "fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "text-[var(--text-soft)]"} />
-        </div>
-        <p className="mt-2 line-clamp-2 text-sm text-[var(--text-muted)]">{item.notes || item.url || "No notes yet."}</p>
+        <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-[var(--text-muted)]">{item.notes || item.url || "No notes yet."}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge tone={type.tone}>{type.label}</Badge>
           {item.collection ? <Badge>{item.collection}</Badge> : null}
+          {item.tags
+            ?.split(",")
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((tag) => <Badge key={tag.trim()}>{tag.trim()}</Badge>)}
         </div>
       </button>
       <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3">
@@ -3014,6 +3411,7 @@ function ResourceDetailInline({
 
   const host = getResourceHost(item.url);
   const favicon = getResourceFavicon(item.url);
+  const normalizedUrl = normalizeResourceUrl(item.url);
   return (
     <Card className="overflow-hidden border-[var(--brand-primary)] bg-[var(--surface-raised)] p-0">
       <div className={detailLayoutClass}>
@@ -3023,7 +3421,7 @@ function ResourceDetailInline({
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-soft)]">{host || "Saved resource"}</p>
-            {item.url ? <p className="mt-1 break-all text-sm text-[var(--text-muted)]">{item.url}</p> : <p className="mt-1 text-sm text-[var(--text-muted)]">Add a URL when you edit this resource.</p>}
+            {normalizedUrl ? <p className="mt-1 break-all text-sm text-[var(--text-muted)]">{normalizedUrl}</p> : <p className="mt-1 text-sm text-[var(--text-muted)]">Add a URL when you edit this resource.</p>}
           </div>
         </div>
         <div className="min-w-0">
@@ -3045,6 +3443,16 @@ function ResourceDetailInline({
             </div>
           </div>
           <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--text-muted)]">{item.notes || "No notes yet. Add context, why this is useful, login hints, or when you reach for it."}</p>
+          <div className="mt-4 grid gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Domain</p>
+              <p className="mt-1 truncate font-bold text-[var(--text)]">{host || "No website"}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Collection</p>
+              <p className="mt-1 truncate font-bold text-[var(--text)]">{item.collection || "Unfiled"}</p>
+            </div>
+          </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <Badge tone={(resourceTypes.find((entry) => entry.value === item.type) ?? resourceTypes[0]).tone}>{(resourceTypes.find((entry) => entry.value === item.type) ?? resourceTypes[0]).label}</Badge>
             {item.collection ? <Badge>{item.collection}</Badge> : null}
@@ -3055,12 +3463,12 @@ function ResourceDetailInline({
                 <Badge key={tag.trim()}>{tag.trim()}</Badge>
               ))}
           </div>
-          {item.url ? (
+          {normalizedUrl ? (
             <div className={compact ? "mt-6 grid gap-2" : "mt-6 flex flex-wrap gap-2"}>
-              <Button variant="secondary" onClick={() => navigator.clipboard.writeText(item.url!)} icon={<Copy size={15} />}>
+              <Button variant="secondary" onClick={() => navigator.clipboard.writeText(normalizedUrl)} icon={<Copy size={15} />}>
                 Copy Link
               </Button>
-              <Button onClick={() => window.open(normalizeResourceUrl(item.url), "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>
+              <Button onClick={() => window.open(normalizedUrl, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>
                 Open Website
               </Button>
             </div>
