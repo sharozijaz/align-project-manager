@@ -48,3 +48,10 @@ create policy "hub_snippets_owner_all"
 
 create index if not exists project_milestones_user_project_idx on public.project_milestones(user_id, project_id);
 create index if not exists hub_snippets_user_type_idx on public.hub_snippets(user_id, type);
+
+grant select, insert, update, delete on public.project_milestones to authenticated;
+grant select, insert, update, delete on public.project_milestones to service_role;
+grant select, insert, update, delete on public.hub_snippets to authenticated;
+grant select, insert, update, delete on public.hub_snippets to service_role;
+
+notify pgrst, 'reload schema';
