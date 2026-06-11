@@ -24,6 +24,24 @@ const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; ev
   Boolean(workspace.snippets?.length);
 const TASK_PULL_INTERVAL_MS = 25_000;
 
+function mergeByNewest<T extends { id: string; updatedAt?: string; createdAt?: string }>(localItems: T[], cloudItems: T[]) {
+  const merged = new Map<string, T>();
+
+  [...cloudItems, ...localItems].forEach((item) => {
+    const current = merged.get(item.id);
+    if (!current) {
+      merged.set(item.id, item);
+      return;
+    }
+
+    const itemTime = new Date(item.updatedAt ?? item.createdAt ?? 0).getTime();
+    const currentTime = new Date(current.updatedAt ?? current.createdAt ?? 0).getTime();
+    if (itemTime >= currentTime) merged.set(item.id, item);
+  });
+
+  return [...merged.values()].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime());
+}
+
 export function WorkspaceAutoSync() {
   const { session, loading, isConfigured } = useSupabaseSession();
   const tasks = useTaskStore((state) => state.tasks);
@@ -178,7 +196,7 @@ export function WorkspaceAutoSync() {
           setTaskDiagnostics(taskSync);
           replaceProjects(cloudWorkspace.projects);
           replaceEvents(cloudWorkspace.events);
-          replaceResources(cloudWorkspace.resources);
+          replaceResources(mergeByNewest(resources, cloudWorkspace.resources));
           replaceNotes(cloudWorkspace.notes);
           if (!cloudWorkspace.noteSpacesUnavailable) replaceNoteSpaces(cloudWorkspace.noteSpaces);
           if (!cloudWorkspace.palettesUnavailable) replacePalettes(cloudWorkspace.palettes);
