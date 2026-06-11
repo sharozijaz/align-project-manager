@@ -9,6 +9,7 @@ This guide is for maintaining Align after the project is finished. It covers saf
 - Supabase is the source of truth only for users who enable Cloud sync against a configured Supabase project.
 - Vercel deploys the web app from the repo.
 - The desktop app is rebuilt from the same source code with Tauri.
+- The Android companion app is personal/private only. It is not part of public GitHub source, public releases, or public support.
 - `.env.local` is private local configuration and must never be committed.
 
 ## Recent Finalization Notes
@@ -27,6 +28,40 @@ Recent work completed before the Windows reinstall prep:
 - Cleaned generated folders so the backup copy is small.
 
 Important recovery note: if an installed desktop app opens empty after an update or reinstall, do not recreate replacement projects. Local-only users should restore a full workspace JSON backup. Cloud-sync users can go to Settings > Supabase Sync and press **Download Now**.
+
+## Security Handoff - 2026-06-05
+
+A public-repo secret audit was completed because of a vague email warning. GitHub reports `sharozijaz/align-project-manager` is public. Tracked files and local git history did not show committed live secrets or Android signing credentials. Local untracked/ignored Android signing material and APK/ZIP artifacts were moved outside the repo to:
+
+```text
+C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\private-backups-20260605-195017
+C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\android-signing-20260605-200000
+```
+
+Keep those quarantine folders private. If those signing files were ever uploaded, emailed, cloud-synced, or shared, create a new Android release keystore and treat the old key as exposed. Keep the Android project itself private as well; do not stage or push `android-app/` to the public repo.
+
+Security changes made in this handoff:
+
+- `.gitignore` now blocks private backups, Android signing keys, APK/AAB files, keystore formats, and Android build outputs.
+- Android app backup and cleartext traffic are disabled.
+- Android widget task actions use a non-exported receiver.
+- Android auth callbacks are scheme/host allowlisted before sessions are saved.
+- Android release builds enable minification and resource shrinking.
+
+Verification passed:
+
+```powershell
+npm audit --audit-level=moderate
+npm run check:unused
+npm run check:ts-unused
+npm test
+npm run build
+Set-Location android-app
+.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleRelease
+```
+
+`npm run check:public-release-env` failed locally because configured cloud frontend env keys are present. That is expected for this private dev machine, but public releases must run it from a local-first environment or remove configured backend env values first.
 
 ## After Folder Cleanup
 
@@ -281,6 +316,9 @@ Back up `.env.local` privately. It is needed for local builds, but it must not b
 - Never commit `.env.local`.
 - Never commit `SUPABASE_SERVICE_ROLE_KEY`.
 - Never commit Google client secrets, Resend keys, database passwords, or OAuth secrets.
+- Never commit the private `android-app/` source tree to the public repository.
+- Never commit Android `keystore.properties`, `.jks`, `.keystore`, `.p12`, `.pfx`, APK, or AAB files.
+- Keep private backups and release artifacts outside the repo folder.
 - Frontend code should only use public `VITE_*` values.
 - Service-role Supabase logic belongs only in server/API routes or Vercel environment variables.
 - If a secret is accidentally exposed, rotate it immediately in the provider dashboard and update Vercel/local env vars.

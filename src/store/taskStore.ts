@@ -42,6 +42,8 @@ export const useTaskStore = create<TaskState>()(
             reminder: normalizeTaskReminder(input.reminder),
             recurrence: normalizeTaskRecurrence(input.recurrence),
             parentTaskId: parentTask ? parentTask.id : undefined,
+            linkedNoteIds: normalizeIds(input.linkedNoteIds),
+            milestoneId: input.milestoneId || undefined,
             sortOrder: nextTopSortOrder(state.tasks),
             id: id(),
             createdAt: stamp(),
@@ -69,6 +71,8 @@ export const useTaskStore = create<TaskState>()(
               ...(updates.reminder ? { reminder: normalizeTaskReminder(updates.reminder) } : {}),
               ...(updates.recurrence ? { recurrence: normalizeTaskRecurrence(updates.recurrence) } : {}),
               parentTaskId: parentTask ? parentTask.id : undefined,
+              linkedNoteIds: updates.linkedNoteIds ? normalizeIds(updates.linkedNoteIds) : task.linkedNoteIds ?? [],
+              milestoneId: updates.milestoneId !== undefined ? updates.milestoneId || undefined : task.milestoneId,
               updatedAt: stamp(),
             };
           }),
@@ -173,10 +177,16 @@ function normalizeTaskOrder(tasks: Task[]) {
         reminder: normalizeTaskReminder(task.reminder),
         recurrence: normalizeTaskRecurrence(task.recurrence),
         parentTaskId: task.parentTaskId || undefined,
+        linkedNoteIds: normalizeIds(task.linkedNoteIds),
+        milestoneId: task.milestoneId || undefined,
         sortOrder: Number.isFinite(task.sortOrder) ? task.sortOrder : index,
       };
     })
     .sort(compareSortOrder);
+}
+
+function normalizeIds(ids: string[] | undefined) {
+  return [...new Set((ids ?? []).filter(Boolean))];
 }
 
 function isRemovedPrototypeTask(task: Task) {

@@ -34,7 +34,7 @@ const blank: ProjectInput = {
   startTime: "",
   dueDate: "",
   dueTime: "",
-  coverImage: "morning-lake",
+  coverImage: "align-gradient-emerald",
   accentColor: "#3b82f6",
   icon: "◈",
   mood: "focused",
@@ -54,11 +54,15 @@ export function ProjectForm({
     initialProject?.status === "paused" || initialProject?.status === "completed" || initialProject?.status === "archived"
       ? initialProject.status
       : "active";
+  const initialCoverImage = heroOptions.some((option) => option.value === initialProject?.coverImage)
+    ? initialProject?.coverImage
+    : blank.coverImage;
   const [form, setForm] = useState<ProjectInput>({
     ...blank,
     ...initialProject,
     area: initialProject?.area ?? "business",
     status: initialStatus,
+    coverImage: initialCoverImage,
   });
   const [showTimeline, setShowTimeline] = useState(() => Boolean(initialProject?.startDate || initialProject?.startTime || initialProject?.dueDate || initialProject?.dueTime));
   const update = (key: keyof ProjectInput, value: string) => setForm((current) => ({ ...current, [key]: value }));

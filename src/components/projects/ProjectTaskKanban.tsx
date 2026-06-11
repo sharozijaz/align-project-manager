@@ -5,7 +5,7 @@ import { getTaskPriorityOption, getTaskStatusOption, taskStatusOptions } from ".
 import type { Project } from "../../types/project";
 import type { Task, TaskInput, TaskStatus } from "../../types/task";
 import { dateLabel } from "../../utils/date";
-import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
+import { getClampedDragPreviewPosition, getDragPreviewAnchor } from "../../utils/dragPreview";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -19,8 +19,8 @@ type KanbanDragState = {
   startY: number;
   x: number;
   y: number;
-  grabOffsetX: number;
-  grabOffsetY: number;
+  previewOffsetX: number;
+  previewOffsetY: number;
   active: boolean;
 };
 
@@ -66,15 +66,15 @@ export function ProjectTaskKanban({
     if (event.button !== 0 || isInteractiveTarget(event.target)) return;
 
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
+    const anchor = getDragPreviewAnchor(event.currentTarget, event.clientX, event.clientY, 260, 150);
     const initialState: KanbanDragState = {
       task,
       startX: event.clientX,
       startY: event.clientY,
       x: event.clientX,
       y: event.clientY,
-      grabOffsetX: Math.min(Math.max(event.clientX - rect.left, 24), 236),
-      grabOffsetY: Math.min(Math.max(event.clientY - rect.top, 18), 72),
+      previewOffsetX: anchor.offsetX,
+      previewOffsetY: anchor.offsetY,
       active: false,
     };
     setDragState(initialState);
@@ -142,19 +142,25 @@ export function ProjectTaskKanban({
       <div className="grid min-w-[1540px] grid-cols-7 gap-3 2xl:min-w-0">
         {taskStatusOptions.map((status) => {
           const columnTasks = parentTasks.filter((task) => task.status === status.value);
+          const columnTint = `color-mix(in srgb, ${status.border} 11%, var(--panel-bg))`;
+          const columnTintStrong = `color-mix(in srgb, ${status.border} 18%, var(--panel-bg))`;
 
           return (
             <motion.section
               key={status.value}
-              className="flex min-h-[520px] flex-col overflow-hidden rounded-[var(--radius-md)] border bg-[var(--surface-raised)]"
-              style={{ borderColor: dragOverStatus === status.value ? status.border : "var(--border)" }}
+              className="flex min-h-[520px] flex-col overflow-hidden rounded-[var(--radius-md)] border shadow-[var(--shadow-sm)]"
+              style={{
+                borderColor: dragOverStatus === status.value ? status.border : `color-mix(in srgb, ${status.border} 42%, var(--border))`,
+                background: columnTint,
+              }}
               layout
               transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.8 }}
             >
               <header
-                className="flex items-center justify-between gap-2 border-b px-3 py-3"
-                style={{ borderColor: status.border, background: "var(--surface-raised)" }}
+                className="relative flex items-center justify-between gap-2 border-b px-3 py-3"
+                style={{ borderColor: `color-mix(in srgb, ${status.border} 56%, var(--border))`, background: columnTintStrong }}
               >
+                <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: status.border }} />
                 <span
                   className="rounded-full border px-2.5 py-1 text-xs font-bold"
                   style={{ backgroundColor: status.bg, borderColor: status.border, color: status.text }}
@@ -165,8 +171,9 @@ export function ProjectTaskKanban({
               </header>
               <div
                 className={`grid flex-1 content-start gap-3 rounded-b-[var(--radius-md)] p-3 transition ${
-                  dragOverStatus === status.value ? "bg-[var(--accent-soft)] shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--brand-primary)_42%,transparent)]" : ""
+                  dragOverStatus === status.value ? "shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--brand-primary)_42%,transparent)]" : ""
                 }`}
+                style={{ background: dragOverStatus === status.value ? `color-mix(in srgb, ${status.border} 18%, var(--panel-bg))` : columnTint }}
                 data-kanban-status={status.value}
               >
                 <AnimatePresence initial={false}>
@@ -189,14 +196,14 @@ export function ProjectTaskKanban({
                     className={`rounded-[var(--radius-sm)] border border-dashed p-6 text-center text-xs transition ${
                       dragOverStatus === status.value
                         ? "align-drop-zone min-h-24 text-[var(--text)]"
-                        : "border-[var(--border)] bg-[var(--empty-bg)] text-[var(--text-soft)]"
+                        : "border-[var(--border)] bg-[var(--panel-bg)]/70 text-[var(--text-soft)]"
                     }`}
                   >
                     {draggedTaskId ? "Drop task here" : "No tasks"}
                   </div>
                 ) : null}
                 {onAddTask && project ? (
-                  <div className="mt-1 grid gap-2 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-2">
+                  <div className="mt-1 grid gap-2 rounded-[var(--radius-sm)] border border-dashed p-2" style={{ borderColor: `color-mix(in srgb, ${status.border} 34%, var(--border))`, background: "var(--panel-bg)" }}>
                     <Input
                       className="min-h-8 border-transparent bg-transparent text-xs hover:border-[var(--border)] focus:bg-[var(--surface-raised)] sm:min-h-8"
                       value={drafts[status.value] ?? ""}
@@ -224,8 +231,8 @@ export function ProjectTaskKanban({
             subtaskCount={subtasksByParent.get(dragState.task.id)?.length ?? 0}
             x={dragState.x}
             y={dragState.y}
-            grabOffsetX={dragState.grabOffsetX}
-            grabOffsetY={dragState.grabOffsetY}
+            offsetX={dragState.previewOffsetX}
+            offsetY={dragState.previewOffsetY}
           />
         ) : null}
       </AnimatePresence>
@@ -260,6 +267,7 @@ function KanbanTaskCard({
       className={`group touch-none select-none p-3 transition duration-200 ${
         dragging ? "align-drag-source" : "cursor-grab hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)] active:cursor-grabbing"
       }`}
+      style={{ borderColor: `color-mix(in srgb, ${status.border} 32%, var(--panel-border))` }}
       layout
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: dragging ? 1.03 : 1 }}
@@ -306,18 +314,18 @@ function KanbanDragPreview({
   subtaskCount,
   x,
   y,
-  grabOffsetX,
-  grabOffsetY,
+  offsetX,
+  offsetY,
 }: {
   task: Task;
   subtaskCount: number;
   x: number;
   y: number;
-  grabOffsetX: number;
-  grabOffsetY: number;
+  offsetX: number;
+  offsetY: number;
 }) {
   const priority = getTaskPriorityOption(task.priority);
-  const position = getClampedDragPreviewPosition(x, y, 260, 150, { offsetX: grabOffsetX, offsetY: grabOffsetY, lift: 8 });
+  const position = getClampedDragPreviewPosition(x, y, 260, 150, { offsetX, offsetY });
 
   return (
     <motion.div

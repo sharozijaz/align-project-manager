@@ -50,6 +50,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "today",
+        lazy: async () => {
+          const { Today } = await import("../pages/Today");
+          return { Component: () => <RequireFeature feature="project_management"><Today /></RequireFeature> };
+        },
+      },
+      {
         path: "projects",
         lazy: async () => {
           const { Projects } = await import("../pages/Projects");

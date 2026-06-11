@@ -4,6 +4,8 @@ Align is a local-first project and life planning app for freelance web designers
 
 The public open-source app is designed to work without a hosted backend. Supabase sync, Google sync, email reminders, and share links are optional cloud features for users who configure their own backend.
 
+The Android companion app is personal/private only. Do not commit, publish, or include `android-app/` in the public GitHub repository or public release artifacts.
+
 ## Status
 
 Align is past the alpha/beta stage for personal daily use, but the public open-source release is being prepared in phases. See `ROADMAP.md`.
@@ -181,6 +183,8 @@ Desktop notes live in `DESKTOP.md`.
 Owner maintenance and update steps live in `MAINTENANCE.md`.
 
 After a cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
+
+Android builds are not part of the public source release. Keep the Android project, signing material, APKs, AABs, and mobile release notes private.
 
 ## Project Structure
 

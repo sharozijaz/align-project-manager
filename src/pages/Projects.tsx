@@ -10,15 +10,29 @@ import { Modal } from "../components/ui/Modal";
 import { ScopedSearchNotice } from "../components/ui/ScopedSearchNotice";
 import { Select } from "../components/ui/Select";
 import { useProjectStore } from "../store/projectStore";
+import { useMilestoneStore } from "../store/milestoneStore";
 import { useSearchStore } from "../store/searchStore";
+import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
 import type { Project, ProjectArea, ProjectStatus } from "../types/project";
-import { getClampedDragPreviewPosition } from "../utils/dragPreview";
+import type { HubNote, HubPalette } from "../types/studio";
+import type { TaskInput } from "../types/task";
+import { getClampedDragPreviewPosition, getDragPreviewAnchor } from "../utils/dragPreview";
+import { projectTemplates, type ProjectTemplate } from "../utils/projectTemplates";
 
 type ProjectAreaFilter = "all" | ProjectArea;
 type ProjectLifecycleFilter = Extract<ProjectStatus, "active" | "paused" | "completed" | "archived">;
 type ProjectSort = "manual" | "updated" | "name" | "due";
-type ProjectDragState = { id: string; startX: number; startY: number; x: number; y: number; active: boolean };
+type ProjectDragState = {
+  id: string;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  previewOffsetX: number;
+  previewOffsetY: number;
+  active: boolean;
+};
 
 export function Projects() {
   const confirm = useConfirm();
@@ -33,7 +47,10 @@ export function Projects() {
   const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
   const projectDragRef = useRef<ProjectDragState | null>(null);
   const { projects, addProject, updateProject, deleteProject, reorderProjects, completeProject, archiveProject, restoreProject } = useProjectStore();
-  const { tasks } = useTaskStore();
+  const { tasks, addTask } = useTaskStore();
+  const addMilestone = useMilestoneStore((state) => state.addMilestone);
+  const addNote = useStudioStore((state) => state.addNote);
+  const addPalette = useStudioStore((state) => state.addPalette);
   const liveProjects = useMemo(() => projects.filter((project) => !project.deletedAt), [projects]);
   const lifecycleProjects = useMemo(() => liveProjects.filter((project) => project.status === lifecycleFilter), [lifecycleFilter, liveProjects]);
   const shareableProjects = useMemo(() => liveProjects.filter((project) => project.status !== "archived"), [liveProjects]);
@@ -170,7 +187,17 @@ export function Projects() {
             onPointerDown={(event) => {
               if (sortMode !== "manual" || event.button !== 0 || isInteractiveDragTarget(event.target)) return;
               event.preventDefault();
-              setProjectDrag({ id: project.id, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
+              const anchor = getDragPreviewAnchor(event.currentTarget, event.clientX, event.clientY, 520, 120);
+              setProjectDrag({
+                id: project.id,
+                startX: event.clientX,
+                startY: event.clientY,
+                x: event.clientX,
+                y: event.clientY,
+                previewOffsetX: anchor.offsetX,
+                previewOffsetY: anchor.offsetY,
+                active: false,
+              });
             }}
             className={`relative min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
               sortMode === "manual" ? "cursor-grab active:cursor-grabbing" : ""
@@ -211,7 +238,7 @@ export function Projects() {
           </div>
         ))}
       </div>
-      {projectDrag?.active && draggedProject ? <ProjectDragPreview project={draggedProject} x={projectDrag.x} y={projectDrag.y} /> : null}
+      {projectDrag?.active && draggedProject ? <ProjectDragPreview project={draggedProject} x={projectDrag.x} y={projectDrag.y} offsetX={projectDrag.previewOffsetX} offsetY={projectDrag.previewOffsetY} /> : null}
       {!visibleProjects.length ? (
         <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-10 text-center text-sm text-[var(--text-muted)]">
           {searchQuery.trim()
@@ -222,6 +249,12 @@ export function Projects() {
         </div>
       ) : null}
       <Modal title="Create project" description="Define the project context, status, priority, and timeline." open={creating} onClose={() => setCreating(false)}>
+        <ProjectTemplatePicker
+          onApply={(template) => {
+            applyProjectTemplate(template, { addProject, addTask, addNote, addPalette, addMilestone });
+            setCreating(false);
+          }}
+        />
         <ProjectForm
           onSubmit={(input) => {
             addProject(input);
@@ -306,8 +339,81 @@ function DropCue() {
   );
 }
 
-function ProjectDragPreview({ project, x, y }: { project: Project; x: number; y: number }) {
-  const position = getClampedDragPreviewPosition(x, y, 520, 120);
+function ProjectTemplatePicker({ onApply }: { onApply: (template: ProjectTemplate) => void }) {
+  return (
+    <section className="mb-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+      <div className="mb-3">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Templates</p>
+        <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">Projects are outcomes. Pick a starter workflow or create a blank project below.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {projectTemplates.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => onApply(template)}
+            className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+          >
+            <span className="block font-black text-[var(--text)]">{template.name}</span>
+            <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--text-muted)]">{template.description}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function applyProjectTemplate(
+  template: ProjectTemplate,
+  actions: {
+    addProject: (input: ProjectTemplate["project"]) => Project;
+    addTask: (input: TaskInput) => void;
+    addNote: (input: Omit<HubNote, "id" | "createdAt" | "updatedAt">) => HubNote;
+    addPalette: (input: Omit<HubPalette, "id" | "createdAt" | "updatedAt">) => HubPalette;
+    addMilestone: (input: { projectId: string; title: string; status: "planned" | "active" | "done"; sortOrder?: number; startDate?: string; dueDate?: string }) => { id: string; title: string };
+  },
+) {
+  const project = actions.addProject(template.project);
+  const milestones = new Map<string, string>();
+  template.milestones.forEach((milestone) => {
+    const created = actions.addMilestone({ ...milestone, projectId: project.id });
+    milestones.set(created.title, created.id);
+  });
+
+  const notes = new Map<string, HubNote>();
+  template.docs.forEach((doc) => {
+    const milestoneId = doc.milestoneTitle ? milestones.get(doc.milestoneTitle) : undefined;
+    const created = actions.addNote({
+      ...doc,
+      milestoneId,
+      projectIds: [project.id],
+      relatedNoteIds: [],
+    });
+    notes.set(created.title, created);
+  });
+
+  template.tasks.forEach(({ milestoneTitle, linkedDocTitle, ...task }) => {
+    const linkedNote = linkedDocTitle ? notes.get(linkedDocTitle) : undefined;
+    actions.addTask({
+      ...task,
+      projectId: project.id,
+      milestoneId: milestoneTitle ? milestones.get(milestoneTitle) : undefined,
+      linkedNoteIds: linkedNote ? [linkedNote.id] : [],
+    });
+  });
+
+  if (template.palette) {
+    const noteIds = (template.palette.noteTitles ?? []).map((title) => notes.get(title)?.id).filter((id): id is string => Boolean(id));
+    actions.addPalette({
+      ...template.palette,
+      projectIds: [project.id],
+      noteIds,
+    });
+  }
+}
+
+function ProjectDragPreview({ project, x, y, offsetX, offsetY }: { project: Project; x: number; y: number; offsetX: number; offsetY: number }) {
+  const position = getClampedDragPreviewPosition(x, y, 520, 120, { offsetX, offsetY });
 
   return (
     <motion.div

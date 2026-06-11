@@ -2,6 +2,8 @@
 
 Align is moving toward a public, open-source Windows desktop release while keeping the maintainer's private hosted backend protected.
 
+Public releases cover the web app and Windows desktop app only. The Android companion app is personal/private and must not be pushed to the public repository or attached to public releases.
+
 ## Current Foundation
 
 - React, TypeScript, Vite, Tailwind CSS, Zustand, and Tauri.
@@ -46,6 +48,7 @@ Align is moving toward a public, open-source Windows desktop release while keepi
 ## Phase 5 - GitHub Release Pipeline
 
 - Publish Windows installers through GitHub Releases.
+- Exclude the private Android app and Android release artifacts from GitHub source and releases.
 - Keep package and Tauri versions aligned.
 - Run checks before release: unused code, TypeScript, audit, build, desktop build, secret scan, and smoke tests.
 - First public release can be unsigned, with a documented Windows SmartScreen warning.

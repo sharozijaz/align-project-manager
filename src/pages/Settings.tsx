@@ -25,7 +25,10 @@ import { useConfirm } from "../components/ui/ConfirmProvider";
 import { AccentColorPicker, ThemeToggle } from "../components/ui/ThemeToggle";
 import { useCalendarStore } from "../store/calendarStore";
 import { useGoogleCalendarSyncStore } from "../store/googleCalendarSyncStore";
+import { useMilestoneStore } from "../store/milestoneStore";
 import { useProjectStore } from "../store/projectStore";
+import { useRestorePointStore } from "../store/restorePointStore";
+import { useSnippetStore } from "../store/snippetStore";
 import { syncModeOptions, useSyncStore } from "../store/syncStore";
 import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
@@ -55,6 +58,7 @@ import { clearGoogleSyncStatusCache, getGoogleSyncStatus, syncGoogleWorkspace } 
 import { isRateLimitMessage, useMagicLinkCooldown } from "../hooks/useMagicLinkCooldown";
 import { plainDateLabel } from "../utils/date";
 import { errorMessage } from "../utils/errors";
+import { buildSampleWorkspace } from "../utils/sampleWorkspace";
 import { createWorkspaceBackup, downloadJson, parseWorkspaceBackup, saveWorkspaceSafetyBackup } from "../utils/storage";
 import { getWorkspaceOwnerId, setWorkspaceOwnerId } from "../utils/workspaceIdentity";
 import { appBuild, appVersion } from "../utils/appVersion";
@@ -71,9 +75,18 @@ type SettingsSection = "account" | "appearance" | "google" | "notifications" | "
 
 const LAST_WORKSPACE_EXPORT_KEY = "align-last-workspace-export-v2";
 const IMPORT_SAFETY_BACKUP_KEY = "align-import-safety-backup-v2";
+const DAILY_RESTORE_POINT_KEY = "align-last-daily-restore-point-v1";
 
-const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[] }) =>
-  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0 || Boolean(workspace.noteSpaces?.length);
+const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[]; palettes?: unknown[]; milestones?: unknown[]; snippets?: unknown[] }) =>
+  workspace.tasks.length > 0 ||
+  workspace.projects.length > 0 ||
+  workspace.events.length > 0 ||
+  workspace.resources.length > 0 ||
+  workspace.notes.length > 0 ||
+  Boolean(workspace.noteSpaces?.length) ||
+  Boolean(workspace.palettes?.length) ||
+  Boolean(workspace.milestones?.length) ||
+  Boolean(workspace.snippets?.length);
 
 function getSessionDisplayName(session: ReturnType<typeof useSupabaseSession>["session"]) {
   const metadata = session?.user.user_metadata as Record<string, unknown> | undefined;
@@ -113,7 +126,10 @@ export function Settings() {
   const { projects, replaceProjects } = useProjectStore();
   const { tasks, replaceTasks } = useTaskStore();
   const { events, replaceEvents } = useCalendarStore();
-  const { resources, notes, noteSpaces, replaceResources, replaceNotes, replaceNoteSpaces } = useStudioStore();
+  const { resources, notes, noteSpaces, palettes, replaceResources, replaceNotes, replaceNoteSpaces, replacePalettes } = useStudioStore();
+  const { milestones, replaceMilestones } = useMilestoneStore();
+  const { snippets, replaceSnippets } = useSnippetStore();
+  const { restorePoints, addRestorePoint, deleteRestorePoint } = useRestorePointStore();
   const syncState = useSyncStore();
   const syncMode = syncState.mode;
   const googleSyncState = useGoogleCalendarSyncStore();
@@ -263,6 +279,9 @@ export function Settings() {
       resources,
       notes,
       noteSpaces,
+      palettes,
+      milestones,
+      snippets,
       preferences: {
         theme,
         accentColor,
@@ -279,6 +298,9 @@ export function Settings() {
       resources,
       notes,
       noteSpaces,
+      palettes,
+      milestones,
+      snippets,
       preferences: {
         theme,
         accentColor,
@@ -286,6 +308,26 @@ export function Settings() {
         autoCleanProjects,
       },
     });
+
+  const restoreWorkspaceBackup = (backup: ReturnType<typeof buildWorkspaceBackup>) => {
+    replaceTasks(backup.tasks);
+    replaceProjects(backup.projects);
+    replaceEvents(backup.events);
+    replaceResources(backup.resources);
+    replaceNotes(backup.notes);
+    replaceNoteSpaces(backup.noteSpaces);
+    replacePalettes(backup.palettes);
+    replaceMilestones(backup.milestones);
+    replaceSnippets(backup.snippets);
+  };
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (window.localStorage.getItem(DAILY_RESTORE_POINT_KEY) === today) return;
+    if (!hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets })) return;
+    addRestorePoint("daily", buildWorkspaceBackup());
+    window.localStorage.setItem(DAILY_RESTORE_POINT_KEY, today);
+  }, []);
 
   const exportData = () => {
     const backup = buildWorkspaceBackup();
@@ -310,13 +352,12 @@ export function Settings() {
 
       if (!shouldImport) return;
 
-      window.localStorage.setItem(IMPORT_SAFETY_BACKUP_KEY, JSON.stringify(buildWorkspaceBackup()));
-      replaceTasks(backup.tasks);
-      replaceProjects(backup.projects);
-      replaceEvents(backup.events);
-      replaceResources(backup.resources);
-      replaceNotes(backup.notes);
-      replaceNoteSpaces(backup.noteSpaces);
+      const safetyBackup = buildWorkspaceBackup();
+      window.localStorage.setItem(IMPORT_SAFETY_BACKUP_KEY, JSON.stringify(safetyBackup));
+      addRestorePoint("before-import", safetyBackup);
+      restoreWorkspaceBackup(backup);
+      replaceMilestones(backup.milestones);
+      replaceSnippets(backup.snippets);
 
       const restoredTheme = themeOptions.find((option) => option.value === backup.preferences.theme);
       if (restoredTheme) {
@@ -348,6 +389,45 @@ export function Settings() {
         importInputRef.current.value = "";
       }
     }
+  };
+
+  const restorePoint = async (pointId: string) => {
+    const point = restorePoints.find((item) => item.id === pointId);
+    if (!point) return;
+    const shouldRestore = await confirm({
+      title: "Restore this point?",
+      description: `This will replace the current local workspace with the restore point from ${new Date(point.createdAt).toLocaleString()}. Align will create a safety restore point first.`,
+      confirmLabel: "Restore Point",
+    });
+    if (!shouldRestore) return;
+    addRestorePoint("before-restore", buildWorkspaceBackup());
+    restoreWorkspaceBackup(point.backup);
+    setDataMessage(`Restored ${point.reason} point from ${new Date(point.createdAt).toLocaleString()}.`);
+  };
+
+  const loadSampleWorkspace = async () => {
+    const hasData = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets });
+    if (hasData) {
+      const confirmed = await confirm({
+        title: "Load sample workspace?",
+        description: "This will replace the current local workspace with sample freelancer data. Align will create a restore point first.",
+        confirmLabel: "Load Sample",
+      });
+      if (!confirmed) return;
+    }
+
+    addRestorePoint("before-sample-workspace", buildWorkspaceBackup());
+    const sample = buildSampleWorkspace();
+    replaceProjects(sample.projects);
+    replaceTasks(sample.tasks);
+    replaceEvents(sample.events);
+    replaceNotes(sample.notes);
+    replacePalettes(sample.palettes);
+    replaceMilestones(sample.milestones);
+    replaceResources([]);
+    replaceNoteSpaces([]);
+    replaceSnippets([]);
+    setDataMessage("Sample freelancer workspace loaded locally.");
   };
 
   const signIn = async () => {
@@ -399,7 +479,7 @@ export function Settings() {
     }
 
     const ownerId = getWorkspaceOwnerId();
-    const currentWorkspaceHasData = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces });
+    const currentWorkspaceHasData = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets });
     if (session?.user.id && ownerId && ownerId !== session.user.id) {
       saveSafetyBackup("blocked-cross-account-upload");
       const message = "Upload blocked because this local workspace belongs to another account. A safety backup was saved.";
@@ -430,7 +510,7 @@ export function Settings() {
 
     try {
       saveSafetyBackup("manual-cloud-upload");
-      const result = await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces });
+      const result = await pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets });
       replaceTasks(result.tasks);
       syncState.setTaskDiagnostics(result.taskSync);
       syncState.setSynced("Local workspace merged with cloud.");
@@ -466,7 +546,7 @@ export function Settings() {
       const workspace = await pullWorkspaceFromSupabase();
       const ownerId = getWorkspaceOwnerId();
       const isSameAccountWorkspace = Boolean(session?.user.id && ownerId === session.user.id);
-      if (!hasWorkspaceData(workspace) && isSameAccountWorkspace && hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces })) {
+      if (!hasWorkspaceData(workspace) && isSameAccountWorkspace && hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets })) {
         const message = "Cloud sync unavailable. Local data is safe on this device.";
         syncState.setSyncState("error", message);
         setSyncMessage(`${message} Supabase returned an empty workspace, so Align did not replace your local data.`);
@@ -481,6 +561,9 @@ export function Settings() {
       replaceResources(workspace.resources);
       replaceNotes(workspace.notes);
       if (!workspace.noteSpacesUnavailable) replaceNoteSpaces(workspace.noteSpaces);
+      if (!workspace.palettesUnavailable) replacePalettes(workspace.palettes);
+      if (!workspace.milestonesUnavailable) replaceMilestones(workspace.milestones);
+      if (!workspace.snippetsUnavailable) replaceSnippets(workspace.snippets);
       if (session?.user.id) setWorkspaceOwnerId(session.user.id);
       syncState.setSynced("Workspace merged from cloud.");
       setSyncMessage(`Workspace downloaded from Supabase. Tasks: ${taskSync.localCount} local, ${taskSync.remoteCount} cloud, ${taskSync.mergedCount} merged.`);
@@ -530,6 +613,9 @@ export function Settings() {
         replaceResources([]);
         replaceNotes([]);
         replaceNoteSpaces([]);
+        replacePalettes([]);
+        replaceMilestones([]);
+        replaceSnippets([]);
         setWorkspaceOwnerId(session.user.id);
       }
 
@@ -1000,7 +1086,7 @@ export function Settings() {
                     Exports include tasks, projects, calendar events, notes, resources, and supported preferences.
                   </p>
                 </div>
-                <Badge tone="slate">Backup v2</Badge>
+                <Badge tone="slate">Backup v3</Badge>
               </div>
               <p className="mt-3 text-xs text-[var(--text-soft)]">
                 {lastWorkspaceExport ? `Last exported ${new Date(lastWorkspaceExport).toLocaleString()}` : "No full workspace export recorded on this device yet."}
@@ -1036,6 +1122,42 @@ export function Settings() {
             {syncState.lastSyncedAt && session ? (
               <p className="mt-2 text-xs text-[var(--text-soft)]">Last cloud sync {new Date(syncState.lastSyncedAt).toLocaleString()}</p>
             ) : null}
+          </div>
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold text-[var(--text)]">Sample Workspace</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Load an optional local freelancer demo with one project, docs, tasks, milestones, a palette, and a calendar review.</p>
+              </div>
+              <Button variant="secondary" onClick={() => void loadSampleWorkspace()}>Load Sample</Button>
+            </div>
+          </div>
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold text-[var(--text)]">Restore Points</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Align keeps the latest five local safety snapshots before imports, restores, and daily work.</p>
+              </div>
+              <Badge tone="slate">{restorePoints.length} saved</Badge>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {restorePoints.length ? restorePoints.map((point) => (
+                <div key={point.id} className="flex flex-col gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-[var(--text)]">{point.reason}</p>
+                    <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
+                      {new Date(point.createdAt).toLocaleString()} · {point.backup.projects.length} projects · {point.backup.tasks.length} tasks · {point.backup.notes.length} docs
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={() => void restorePoint(point.id)}>Restore</Button>
+                    <Button variant="ghost" icon={<Trash2 size={14} />} onClick={() => deleteRestorePoint(point.id)} aria-label="Delete restore point" />
+                  </div>
+                </div>
+              )) : (
+                <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-3 text-sm font-semibold text-[var(--text-muted)]">No restore points yet. Align creates one automatically when useful.</p>
+              )}
+            </div>
           </div>
           <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--surface-raised)] p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { MotionConfig, motion } from "motion/react";
 import { AuthGate } from "../components/auth/AuthGate";
 import { DesktopTitleBar } from "../components/desktop/DesktopTitleBar";
+import { DesktopContextMenuGuard } from "../components/desktop/DesktopContextMenuGuard";
 import { AppShortcuts } from "../components/layout/AppShortcuts";
 import { AppSidebar } from "../components/layout/AppSidebar";
 import { AppTopBar } from "../components/layout/AppTopBar";
@@ -67,6 +68,7 @@ export function App() {
                 <WorkspaceAutoSync />
                 <GoogleCalendarAutoSync />
                 <DesktopNotificationBridge />
+                <DesktopContextMenuGuard />
                 <ReminderEmailBridge />
                 <DeletedTaskToast />
                 <AppShortcuts />

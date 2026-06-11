@@ -1,4 +1,4 @@
-const CACHE_NAME = "align-static-v5";
+const CACHE_NAME = "align-static-v6";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -6,26 +6,10 @@ const STATIC_ASSETS = [
   "/align-logo.png",
   "/align-logo-light.png",
   "/hero-mountain.webp",
-  "/heroes/midnight-mountain.webp",
-  "/heroes/violet-dunes.webp",
-  "/heroes/neon-skyline.webp",
-  "/heroes/moonlit-ocean.webp",
-  "/heroes/shadow-peaks.webp",
-  "/heroes/morning-lake.webp",
-  "/heroes/aqua-ribbon.webp",
-  "/heroes/violet-city.webp",
-  "/heroes/mist-ink-mountains.webp",
-  "/heroes/luminous-grove.webp",
-  "/heroes/ember-village.webp",
-  "/heroes/sky-citadel.webp",
-  "/heroes/pixel-valley.webp",
-  "/heroes/island-kingdom.webp",
-  "/heroes/candlekeep-tavern.webp",
-  "/heroes/ringed-planet.webp",
-  "/heroes/orbital-station.webp",
-  "/heroes/galaxy-outpost.webp",
-  "/heroes/cloud-realm.webp",
-  "/heroes/pixel-spaceport.webp"
+  "/heroes/align-gradient-emerald.png",
+  "/heroes/align-gradient-mist.png",
+  "/heroes/align-gradient-amber.png",
+  "/heroes/align-gradient-violet.png"
 ];
 const IS_TAURI_RUNTIME =
   self.location.protocol === "tauri:" || self.location.origin.includes("tauri.localhost");

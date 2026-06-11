@@ -3,7 +3,7 @@ import type { Project } from "../types/project";
 import type { HubNote, HubResource } from "../types/studio";
 import type { Task } from "../types/task";
 
-export type WorkspaceSearchKind = "command" | "project" | "task" | "todo" | "note" | "resource" | "event";
+export type WorkspaceSearchKind = "action" | "command" | "project" | "task" | "todo" | "note" | "resource" | "event";
 
 export interface WorkspaceSearchResult {
   id: string;
@@ -28,6 +28,7 @@ interface WorkspaceSearchInput {
 
 const navigationCommands: Omit<WorkspaceSearchResult, "score">[] = [
   { id: "command-dashboard", kind: "command", title: "Open Dashboard", subtitle: "Project command center", to: "/", keywords: "home dashboard command center overview" },
+  { id: "command-today", kind: "command", title: "Open Today", subtitle: "Daily focus workspace", to: "/today", keywords: "today focus daily next actions" },
   { id: "command-projects", kind: "command", title: "Open Projects", subtitle: "Manage client and personal projects", to: "/projects", keywords: "projects clients work pipeline" },
   { id: "command-tasks", kind: "command", title: "Open Tasks", subtitle: "Project work and task views", to: "/tasks", keywords: "tasks work list board table" },
   { id: "command-todos", kind: "command", title: "Open Todos", subtitle: "Personal todos", to: "/todos", keywords: "todos personal checklist" },
@@ -36,6 +37,14 @@ const navigationCommands: Omit<WorkspaceSearchResult, "score">[] = [
   { id: "command-resources", kind: "command", title: "Open Resources", subtitle: "Links, assets, inspiration", to: "/resources", keywords: "resources links assets inspiration" },
   { id: "command-reports", kind: "command", title: "Open Reports", subtitle: "Progress and workload reports", to: "/reports", keywords: "reports progress analytics" },
   { id: "command-settings", kind: "command", title: "Open Settings", subtitle: "Theme, sync, data, and preferences", to: "/settings", keywords: "settings theme sync data preferences" },
+];
+
+const actionCommands: Omit<WorkspaceSearchResult, "score">[] = [
+  { id: "action-create-project", kind: "action", title: "Create Project", subtitle: "Start a client or personal outcome", to: "/projects?new=project", keywords: "new create project client outcome template" },
+  { id: "action-create-task", kind: "action", title: "Create Task", subtitle: "Add execution work tied to a project", to: "/tasks?new=task", keywords: "new create task execution project work" },
+  { id: "action-create-todo", kind: "action", title: "Create Todo", subtitle: "Capture loose personal work", to: "/todos?new=todo", keywords: "new create todo personal loose work" },
+  { id: "action-create-doc", kind: "action", title: "Create Project Doc", subtitle: "Capture a brief, strategy, research, or decision", to: "/notes?new=doc", keywords: "new create doc note brief strategy research decision" },
+  { id: "action-create-palette", kind: "action", title: "Create Palette", subtitle: "Save reusable project colors", to: "/notes?new=palette", keywords: "new create palette colors brand swatches" },
 ];
 
 export function buildWorkspaceSearchResults({
@@ -53,6 +62,7 @@ export function buildWorkspaceSearchResults({
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const candidates: Omit<WorkspaceSearchResult, "score">[] = [
     ...navigationCommands,
+    ...actionCommands,
     ...projects
       .filter((project) => !project.deletedAt)
       .map((project) => ({
@@ -110,7 +120,7 @@ export function buildWorkspaceSearchResults({
       ...candidate,
       score: scoreCandidate(candidate, normalizedQuery, scopeProjectId),
     }))
-    .filter((candidate) => (normalizedQuery ? candidate.score > 0 : candidate.kind === "command"))
+    .filter((candidate) => (normalizedQuery ? candidate.score > 0 : candidate.kind === "command" || candidate.kind === "action"))
     .sort((a, b) => b.score - a.score || kindWeight(b.kind) - kindWeight(a.kind) || a.title.localeCompare(b.title))
     .slice(0, limit);
 }
@@ -143,6 +153,7 @@ function kindWeight(kind: WorkspaceSearchKind) {
   if (kind === "project") return 8;
   if (kind === "task") return 7;
   if (kind === "todo") return 6;
+  if (kind === "action") return 6;
   if (kind === "command") return 5;
   if (kind === "note") return 4;
   if (kind === "resource") return 3;

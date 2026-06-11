@@ -1,6 +1,7 @@
 import { CalendarDays, CheckCircle2, FolderKanban, ListChecks, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getTaskPriorityOption, getTaskStatusOption, taskPriorityOptions, taskStatusOptions } from "../../config/taskOptions";
+import { useStudioStore } from "../../store/studioStore";
 import type { Project } from "../../types/project";
 import type { HubNote } from "../../types/studio";
 import type { Task, TaskInput } from "../../types/task";
@@ -59,12 +60,17 @@ export function TaskDetailModal({
   const [savedAt, setSavedAt] = useState("");
   const [error, setError] = useState("");
   const [selectedNote, setSelectedNote] = useState<HubNote | null>(null);
+  const addNote = useStudioStore((state) => state.addNote);
   const projectContext = project ?? (task?.projectId ? projects.find((item) => item.id === task.projectId) : undefined);
   const subtasks = useMemo(() => (task ? tasks.filter((item) => item.parentTaskId === task.id) : []), [task, tasks]);
-  const linkedNotes = useMemo(() => {
+  const projectNotes = useMemo(() => {
     if (!projectContext) return [];
     return notes.filter((note) => note.projectIds?.includes(projectContext.id));
   }, [notes, projectContext]);
+  const linkedNotes = useMemo(() => {
+    const linkedIds = new Set(task?.linkedNoteIds ?? []);
+    return projectNotes.filter((note) => linkedIds.has(note.id));
+  }, [projectNotes, task?.linkedNoteIds]);
 
   useEffect(() => {
     setDraft(toDraft(task));
@@ -166,6 +172,30 @@ export function TaskDetailModal({
     if (!confirmed) return;
     await onDeleteTask(task.id);
     onClose();
+  };
+
+  const toggleLinkedNote = (noteId: string) => {
+    if (readOnly) return;
+    const next = new Set(task.linkedNoteIds ?? []);
+    if (next.has(noteId)) next.delete(noteId);
+    else next.add(noteId);
+    void persistTask({ linkedNoteIds: [...next] });
+  };
+
+  const createLinkedDoc = () => {
+    if (readOnly || !projectContext) return;
+    const created = addNote({
+      title: `${task.title} Notes`,
+      body: `# ${task.title} Notes\n\n## Context\n\n## Decisions\n\n## Follow-up\n\n- [ ] \n`,
+      docType: "general",
+      docStatus: "draft",
+      clientVisible: false,
+      favorite: false,
+      projectIds: [projectContext.id],
+      relatedNoteIds: [],
+    });
+    void persistTask({ linkedNoteIds: [...(task.linkedNoteIds ?? []), created.id] });
+    setSelectedNote(created);
   };
 
   return (
@@ -320,7 +350,7 @@ export function TaskDetailModal({
               </div>
               <p className="mt-3 text-xs font-bold text-[var(--text-muted)]">{startDateLabel(draft.startDate, draft.startTime)} · {dateLabel(draft.dueDate, draft.dueTime)}</p>
             </InfoCard>
-            <InfoCard title="Linked notes">
+            <InfoCard title="Linked docs">
               <div className="space-y-2">
                 {linkedNotes.length ? linkedNotes.map((note) => (
                   <button
@@ -330,9 +360,26 @@ export function TaskDetailModal({
                     onClick={() => setSelectedNote(note)}
                   >
                     <span className="block truncate text-sm font-bold text-[var(--text)]">{note.title}</span>
-                    <span className="mt-1 block text-xs text-[var(--text-muted)]">Open note</span>
+                    <span className="mt-1 block text-xs text-[var(--text-muted)]">Open document</span>
                   </button>
-                )) : <p className="text-sm text-[var(--text-muted)]">No linked notes for this task yet.</p>}
+                )) : <p className="text-sm text-[var(--text-muted)]">No docs linked to this task yet.</p>}
+                {!readOnly ? (
+                  <>
+                    <div className="max-h-44 space-y-1 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-2">
+                      {projectNotes.length ? projectNotes.map((note) => (
+                        <label key={note.id} className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-xs)] px-2 py-1.5 text-xs font-bold text-[var(--text)] hover:bg-[var(--surface-hover)]">
+                          <input type="checkbox" checked={(task.linkedNoteIds ?? []).includes(note.id)} onChange={() => toggleLinkedNote(note.id)} />
+                          <span className="min-w-0 truncate">{note.title}</span>
+                        </label>
+                      )) : <p className="px-2 py-1 text-xs font-semibold text-[var(--text-muted)]">No project docs yet.</p>}
+                    </div>
+                    {projectContext ? (
+                      <Button type="button" variant="secondary" className="w-full" icon={<Plus size={14} />} onClick={createLinkedDoc}>
+                        New Linked Doc
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
               </div>
             </InfoCard>
             <InfoCard title="Activity">

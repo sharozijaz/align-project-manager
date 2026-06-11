@@ -2,10 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Project, ProjectInput, ProjectStatus } from "../types/project";
 import { isDeletedBeyondRetention } from "../utils/trash";
+import { useStudioStore } from "./studioStore";
 
 interface ProjectState {
   projects: Project[];
-  addProject: (input: ProjectInput) => void;
+  addProject: (input: ProjectInput) => Project;
   updateProject: (id: string, updates: Partial<ProjectInput>) => void;
   completeProject: (id: string, archive?: boolean) => void;
   archiveProject: (id: string) => void;
@@ -22,32 +23,43 @@ interface ProjectState {
 const stamp = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
 
+function cleanupProjectArtifacts(projectId: string) {
+  useStudioStore.getState().cleanupProjectArtifacts(projectId);
+}
+
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set) => ({
       projects: [],
-      addProject: (input) =>
-        set((state) => ({
-          projects: [
-            {
-              ...input,
-              status: normalizeProjectStatus(input.status),
-              id: id(),
-              sortOrder: nextTopSortOrder(state.projects),
-              createdAt: stamp(),
-              updatedAt: stamp(),
-            },
-            ...state.projects,
-          ],
-        })),
+      addProject: (input) => {
+        const now = stamp();
+        let createdProject: Project | null = null;
+        set((state) => {
+          createdProject = {
+            ...input,
+            status: normalizeProjectStatus(input.status),
+            id: id(),
+            sortOrder: nextTopSortOrder(state.projects),
+            createdAt: now,
+            updatedAt: now,
+          };
+          return { projects: [createdProject, ...state.projects] };
+        });
+        if (!createdProject) throw new Error("Project could not be created.");
+        return createdProject;
+      },
       updateProject: (projectId, updates) =>
-        set((state) => ({
-          projects: state.projects.map((project) =>
-            project.id === projectId ? applyProjectUpdates(project, updates) : project,
-          ),
-        })),
+        set((state) => {
+          if (updates.status === "completed" || updates.status === "archived") cleanupProjectArtifacts(projectId);
+          return {
+            projects: state.projects.map((project) =>
+              project.id === projectId ? applyProjectUpdates(project, updates) : project,
+            ),
+          };
+        }),
       completeProject: (projectId, archive = false) =>
         set((state) => {
+          cleanupProjectArtifacts(projectId);
           const now = stamp();
           return {
             projects: state.projects.map((project) =>
@@ -66,6 +78,7 @@ export const useProjectStore = create<ProjectState>()(
         }),
       archiveProject: (projectId) =>
         set((state) => {
+          cleanupProjectArtifacts(projectId);
           const now = stamp();
           return {
             projects: state.projects.map((project) =>
@@ -114,13 +127,20 @@ export const useProjectStore = create<ProjectState>()(
           };
         }),
       deleteProject: (projectId) =>
-        set((state) => ({
-          projects: state.projects.map((project) =>
-            project.id === projectId ? { ...project, deletedAt: stamp(), updatedAt: stamp() } : project,
-          ),
-        })),
+        set((state) => {
+          cleanupProjectArtifacts(projectId);
+          const now = stamp();
+          return {
+            projects: state.projects.map((project) =>
+              project.id === projectId ? { ...project, deletedAt: now, updatedAt: now } : project,
+            ),
+          };
+        }),
       permanentlyDeleteProject: (projectId) =>
-        set((state) => ({ projects: state.projects.filter((project) => project.id !== projectId) })),
+        set((state) => {
+          cleanupProjectArtifacts(projectId);
+          return { projects: state.projects.filter((project) => project.id !== projectId) };
+        }),
       cleanupDeletedProjects: (retentionDays) =>
         set((state) => ({
           projects: state.projects.filter((project) => !isDeletedBeyondRetention(project.deletedAt, retentionDays)),

@@ -22,6 +22,8 @@ export interface Task {
   recurrence: TaskRecurrence;
   recurringParentId?: string;
   parentTaskId?: string;
+  linkedNoteIds?: string[];
+  milestoneId?: string;
   plannedMonth?: string;
   plannedWeekStart?: string;
   sortOrder?: number;

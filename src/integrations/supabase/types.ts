@@ -1,6 +1,6 @@
 import type { ProjectNote } from "../../types/project";
 import type { AppRole, FeatureKey } from "../../features/access/featureRegistry";
-import type { HubResourceType } from "../../types/studio";
+import type { HubNoteDocStatus, HubNoteDocType, HubPaletteColor, HubResourceType, HubSnippetType } from "../../types/studio";
 import type { ProjectStatus } from "../../types/project";
 import type { TaskCategory, TaskPriority, TaskRecurrence, TaskReminder, TaskStatus } from "../../types/task";
 
@@ -113,6 +113,8 @@ export interface Database {
           recurrence: TaskRecurrence;
           recurring_parent_id: string | null;
           parent_task_id: string | null;
+          linked_note_ids: string[] | null;
+          milestone_id: string | null;
           planned_month: string | null;
           planned_week_start: string | null;
           sort_order: number | null;
@@ -137,6 +139,8 @@ export interface Database {
           recurrence?: TaskRecurrence;
           recurring_parent_id?: string | null;
           parent_task_id?: string | null;
+          linked_note_ids?: string[] | null;
+          milestone_id?: string | null;
           planned_month?: string | null;
           planned_week_start?: string | null;
           sort_order?: number | null;
@@ -313,8 +317,11 @@ export interface Database {
           tags: string | null;
           favorite: boolean;
           client_visible: boolean;
+          doc_type: HubNoteDocType | null;
+          doc_status: HubNoteDocStatus | null;
           project_ids: string[] | null;
           related_note_ids: string[] | null;
+          milestone_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -327,8 +334,11 @@ export interface Database {
           tags?: string | null;
           favorite?: boolean;
           client_visible?: boolean;
+          doc_type?: HubNoteDocType | null;
+          doc_status?: HubNoteDocStatus | null;
           project_ids?: string[] | null;
           related_note_ids?: string[] | null;
+          milestone_id?: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -357,6 +367,84 @@ export interface Database {
           updated_at: string;
         };
         Update: Partial<Database["public"]["Tables"]["hub_note_spaces"]["Insert"]>;
+        Relationships: [];
+      };
+      hub_palettes: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          project_ids: string[] | null;
+          note_ids: string[] | null;
+          colors: HubPaletteColor[] | null;
+          tags: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          name: string;
+          project_ids?: string[] | null;
+          note_ids?: string[] | null;
+          colors?: HubPaletteColor[] | null;
+          tags?: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["hub_palettes"]["Insert"]>;
+        Relationships: [];
+      };
+      project_milestones: {
+        Row: {
+          id: string;
+          user_id: string;
+          project_id: string;
+          title: string;
+          status: "planned" | "active" | "done";
+          sort_order: number | null;
+          start_date: string | null;
+          due_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          project_id: string;
+          title: string;
+          status?: "planned" | "active" | "done";
+          sort_order?: number | null;
+          start_date?: string | null;
+          due_date?: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["project_milestones"]["Insert"]>;
+        Relationships: [];
+      };
+      hub_snippets: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          type: HubSnippetType;
+          body: string;
+          tags: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          title: string;
+          type?: HubSnippetType;
+          body: string;
+          tags?: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["hub_snippets"]["Insert"]>;
         Relationships: [];
       };
     };

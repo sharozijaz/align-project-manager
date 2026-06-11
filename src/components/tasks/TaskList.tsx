@@ -6,10 +6,20 @@ import { TaskTable } from "./TaskTable";
 import type { TaskViewMode } from "./TaskViewToggle";
 import type { Project } from "../../types/project";
 import type { Task, TaskInput } from "../../types/task";
-import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
+import { getClampedDragPreviewPosition, getDragPreviewAnchor } from "../../utils/dragPreview";
 import type { ProjectTaskFieldVisibility } from "../projects/projectTaskFields";
 
-type TaskDragState = { id: string; groupIds: string[]; startX: number; startY: number; x: number; y: number; active: boolean };
+type TaskDragState = {
+  id: string;
+  groupIds: string[];
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  previewOffsetX: number;
+  previewOffsetY: number;
+  active: boolean;
+};
 
 export function TaskList({
   tasks,
@@ -122,7 +132,18 @@ export function TaskList({
           onPointerDown={(event) => {
             if (!onReorder || event.button !== 0 || isInteractiveTaskDragTarget(event.target)) return;
             event.preventDefault();
-            setTaskDrag({ id: task.id, groupIds, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
+            const anchor = getDragPreviewAnchor(event.currentTarget, event.clientX, event.clientY, 520, 120);
+            setTaskDrag({
+              id: task.id,
+              groupIds,
+              startX: event.clientX,
+              startY: event.clientY,
+              x: event.clientX,
+              y: event.clientY,
+              previewOffsetX: anchor.offsetX,
+              previewOffsetY: anchor.offsetY,
+              active: false,
+            });
           }}
           className={`relative min-w-0 rounded-[var(--radius-md)] transition-[opacity,transform] duration-150 ${
             onReorder ? "cursor-grab active:cursor-grabbing" : ""
@@ -147,7 +168,17 @@ export function TaskList({
     </motion.div>
   );
 
-  const dragPreview = taskDrag?.active && draggedTask ? <TaskDragPreview task={draggedTask} project={draggedTask.projectId ? projectById.get(draggedTask.projectId) : undefined} x={taskDrag.x} y={taskDrag.y} /> : null;
+  const dragPreview =
+    taskDrag?.active && draggedTask ? (
+      <TaskDragPreview
+        task={draggedTask}
+        project={draggedTask.projectId ? projectById.get(draggedTask.projectId) : undefined}
+        x={taskDrag.x}
+        y={taskDrag.y}
+        offsetX={taskDrag.previewOffsetX}
+        offsetY={taskDrag.previewOffsetY}
+      />
+    ) : null;
 
   const cards = groupByProject ? (
     <>
@@ -278,8 +309,8 @@ function TaskDropCue() {
   );
 }
 
-function TaskDragPreview({ task, project, x, y }: { task: Task; project?: Project; x: number; y: number }) {
-  const position = getClampedDragPreviewPosition(x, y, 520, 120);
+function TaskDragPreview({ task, project, x, y, offsetX, offsetY }: { task: Task; project?: Project; x: number; y: number; offsetX: number; offsetY: number }) {
+  const position = getClampedDragPreviewPosition(x, y, 520, 120, { offsetX, offsetY });
 
   return (
     <motion.div

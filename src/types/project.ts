@@ -40,3 +40,19 @@ export interface Project {
 }
 
 export type ProjectInput = Omit<Project, "id" | "createdAt" | "updatedAt" | "completedAt" | "archivedAt" | "deletedAt">;
+
+export type ProjectMilestoneStatus = "planned" | "active" | "done";
+
+export interface ProjectMilestone {
+  id: string;
+  projectId: string;
+  title: string;
+  status: ProjectMilestoneStatus;
+  sortOrder?: number;
+  startDate?: string;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectMilestoneInput = Omit<ProjectMilestone, "id" | "createdAt" | "updatedAt">;

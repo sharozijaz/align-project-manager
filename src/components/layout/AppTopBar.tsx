@@ -1,4 +1,4 @@
-import { Command, Keyboard } from "lucide-react";
+import { Keyboard, Search } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { NotificationCenter } from "../notifications/NotificationCenter";
 import { SyncIndicator } from "../sync/SyncIndicator";
@@ -17,7 +17,7 @@ export function AppTopBar() {
       <div className="mx-auto flex max-w-[2200px] items-center justify-between gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--brand-primary)] shadow-[var(--shadow-sm)]">
-            <Command size={17} />
+            <Search size={17} />
           </div>
           <SearchBox
             value={query}

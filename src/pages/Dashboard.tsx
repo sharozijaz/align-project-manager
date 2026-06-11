@@ -1,41 +1,34 @@
 import {
   ArrowUpRight,
+  AlertTriangle,
   CalendarClock,
-  Check,
   CheckCircle2,
   Clock3,
+  FileText,
   Flame,
   FolderKanban,
-  ListChecks,
   NotebookText,
-  Plus,
   Sparkles,
   Target,
   Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { addDays, endOfWeek, format, formatISO, startOfWeek } from "date-fns";
 import { ActiveProjects } from "../components/dashboard/ActiveProjects";
 import { StatsCards } from "../components/dashboard/StatsCards";
-import { TaskForm } from "../components/tasks/TaskForm";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Modal } from "../components/ui/Modal";
 import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from "../config/taskOptions";
-import { useCalendarStore } from "../store/calendarStore";
 import { useProjectStore } from "../store/projectStore";
 import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
-import type { CalendarEvent } from "../types/calendar";
 import type { Project } from "../types/project";
+import type { HubNote } from "../types/studio";
 import type { Task } from "../types/task";
-import { dateLabel, isOverdue, isToday } from "../utils/date";
+import { dateLabel, isOverdue } from "../utils/date";
 import { priorityTone } from "../utils/taskVisuals";
 
-type FocusPanel = "today" | "upcoming";
-type DeadlineItem = Task | Project;
 type ActivityItem = { id: string; title: string; meta: string; tone: "emerald" | "blue" | "amber" | "rose"; at: string };
 type ProjectMetric = {
   project: Project;
@@ -47,50 +40,36 @@ type ProjectMetric = {
   progress: number;
   atRisk: boolean;
   dueSoon: boolean;
+  stale: boolean;
+  attentionScore: number;
   nextDue?: string;
 };
 
 export function Dashboard() {
   const { projects } = useProjectStore();
-  const { tasks, addTask, completeTask } = useTaskStore();
-  const { events } = useCalendarStore();
+  const { tasks } = useTaskStore();
   const notes = useStudioStore((state) => state.notes);
-  const [addingTask, setAddingTask] = useState(false);
-  const [focusPanel, setFocusPanel] = useState<FocusPanel>("today");
 
   const today = todayISO();
   const soon = formatISO(addDays(new Date(), 7), { representation: "date" });
   const weekRange = getCurrentWeekRange();
-  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const activeTasks = useMemo(() => tasks.filter((task) => !task.deletedAt), [tasks]);
-  const openTasks = activeTasks.filter((task) => !isTerminalTaskStatus(task.status));
   const projectTasks = activeTasks.filter((task) => Boolean(task.projectId));
   const completedProjectTasks = projectTasks.filter((task) => isTerminalTaskStatus(task.status));
-  const personalOpenTasks = openTasks.filter((task) => !task.projectId);
   const activeProjects = projects.filter((project) => project.status === "active" && !project.deletedAt);
   const projectMetrics = activeProjects.map((project) => buildProjectMetric(project, projectTasks, today, soon)).sort(sortProjectMetrics);
   const atRiskProjects = projectMetrics.filter((metric) => metric.atRisk);
   const dueSoonProjects = projectMetrics.filter((metric) => metric.dueSoon);
   const averageProjectProgress = projectMetrics.length ? Math.round(projectMetrics.reduce((sum, metric) => sum + metric.progress, 0) / projectMetrics.length) : 0;
-  const priorityProject = projectMetrics[0];
-
-  const todayTasks = openTasks.filter((task) => isToday(task.dueDate));
-  const thisWeekTasks = openTasks
-    .filter((task) => task.dueDate && task.dueDate >= weekRange.start && task.dueDate <= weekRange.end)
-    .sort(sortTasksByFocus)
-    .slice(0, 7);
-  const todayEvents = events
-    .filter((event) => isToday(event.startDate))
-    .filter((event) => !todayTasks.some((task) => event.linkedTaskId === task.id || event.title.trim().toLowerCase() === task.title.trim().toLowerCase()))
-    .sort((a, b) => a.startDate.localeCompare(b.startDate))
-    .slice(0, 5);
-  const upcomingDeadlines = [...openTasks, ...activeProjects]
+  const watchProject = projectMetrics[0];
+  const upcomingProjectDeadlines = activeProjects
     .filter((item) => Boolean(item.dueDate))
     .filter((item) => item.dueDate! >= today)
     .sort((a, b) => (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31"))
     .slice(0, 6);
   const activity = buildActivity(activeTasks, projects).slice(0, 5);
   const completedProjectTasksThisWeek = completedProjectTasks.filter((task) => task.updatedAt >= weekRange.start).length;
+  const docStats = buildDocStats(notes, activeProjects);
 
   return (
     <div className="space-y-5">
@@ -98,7 +77,6 @@ export function Dashboard() {
         activeProjects={activeProjects.length}
         atRiskProjects={atRiskProjects.length}
         nextDeadline={projectMetrics.find((metric) => metric.nextDue)?.nextDue}
-        onAddTask={() => setAddingTask(true)}
       />
 
       <StatsCards
@@ -113,45 +91,27 @@ export function Dashboard() {
       <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="space-y-5">
           <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-            <PriorityProjectCard metric={priorityProject} onComplete={completeTask} />
+            <WatchProjectCard metric={watchProject} />
             <ProjectMomentumCard
               averageProgress={averageProjectProgress}
               completedThisWeek={completedProjectTasksThisWeek}
               activeProjectCount={activeProjects.length}
               atRiskCount={atRiskProjects.length}
-              personalOpenCount={personalOpenTasks.length}
+              staleCount={projectMetrics.filter((metric) => metric.stale).length}
             />
           </div>
 
           <ProjectPipeline metrics={projectMetrics.slice(0, 5)} />
-          <ThisWeekPanel tasks={thisWeekTasks} projectById={projectById} weekRange={weekRange} onComplete={completeTask} />
           <ActiveProjects projects={projects} tasks={activeTasks} />
         </div>
 
         <div className="space-y-5">
-          <AgendaPanel
-            focusPanel={focusPanel}
-            setFocusPanel={setFocusPanel}
-            todayTasks={todayTasks}
-            todayEvents={todayEvents}
-            upcomingDeadlines={upcomingDeadlines}
-            projectById={projectById}
-            onComplete={completeTask}
-          />
+          <ProjectsNeedingAttention metrics={projectMetrics.filter((metric) => metric.atRisk || metric.stale || metric.highPriorityOpen.length).slice(0, 5)} />
+          <ProjectDeadlinesPanel projects={upcomingProjectDeadlines} />
+          <DocumentationLoadPanel stats={docStats} />
           <RecentActivityPanel activity={activity} notesCount={notes.length} />
         </div>
       </div>
-
-      <Modal title="Add task" description="Capture a quick task or todo from the command center." open={addingTask} onClose={() => setAddingTask(false)}>
-        <TaskForm
-          projects={projects}
-          onSubmit={(input) => {
-            addTask(input);
-            setAddingTask(false);
-          }}
-          compact
-        />
-      </Modal>
     </div>
   );
 }
@@ -160,12 +120,10 @@ function CommandHeader({
   activeProjects,
   atRiskProjects,
   nextDeadline,
-  onAddTask,
 }: {
   activeProjects: number;
   atRiskProjects: number;
   nextDeadline?: string;
-  onAddTask: () => void;
 }) {
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
@@ -176,9 +134,13 @@ function CommandHeader({
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">{projectDashboardMessage(activeProjects, atRiskProjects, nextDeadline)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button icon={<Plus size={17} />} onClick={onAddTask}>
-            Add Task
-          </Button>
+          <Link
+            to="/today"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+          >
+            Open Today
+            <ArrowUpRight size={15} />
+          </Link>
           <Link
             to="/projects"
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
@@ -192,13 +154,11 @@ function CommandHeader({
   );
 }
 
-function PriorityProjectCard({ metric, onComplete }: { metric?: ProjectMetric; onComplete: (id: string) => void }) {
-  const nextTask = metric?.openTasks.sort(sortTasksByFocus)[0];
-
+function WatchProjectCard({ metric }: { metric?: ProjectMetric }) {
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b border-[var(--border)] px-5 py-4">
-        <SectionTitle icon={<Target size={18} />} title="Priority Project" helper="The project that deserves the next clean move" />
+        <SectionTitle icon={<Target size={18} />} title="Watch Project" helper="The project most worth inspecting from a portfolio view" />
       </div>
       {metric ? (
         <div className="p-5">
@@ -208,34 +168,20 @@ function PriorityProjectCard({ metric, onComplete }: { metric?: ProjectMetric; o
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">{projectReason(metric)}</p>
                 <h2 className="mt-2 text-2xl font-black leading-8 text-[var(--text)]">{metric.project.name}</h2>
                 <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">
-                  {metric.openTasks.length} open · {metric.highPriorityOpen.length} high priority
+                  {metric.openTasks.length} open tasks · {metric.highPriorityOpen.length} high priority
                   {metric.nextDue ? ` · next ${dateLabel(metric.nextDue)}` : ""}
                 </p>
               </div>
-              <ProgressDial value={metric.progress} label="Done" size="sm" />
+              <ProgressDotStrip value={metric.progress} label="Delivery progress" compact />
             </div>
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-[var(--progress-track)]">
               <div className="h-full rounded-full bg-[var(--brand-primary)]" style={{ width: `${metric.progress}%` }} />
             </div>
-            {nextTask ? (
-              <div className="mt-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg)] p-3">
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Next task</p>
-                <div className="mt-2 flex items-start gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onComplete(nextTask.id)}
-                    className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[var(--border-strong)] bg-[var(--surface)] text-transparent transition hover:border-[var(--brand-primary)] hover:bg-[var(--accent-soft)] hover:text-[var(--brand-primary)]"
-                    aria-label={`Complete ${nextTask.title}`}
-                  >
-                    <Check size={15} />
-                  </button>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-[var(--text)]">{nextTask.title}</p>
-                    <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{nextTask.dueDate ? dateLabel(nextTask.dueDate, nextTask.dueTime) : getTaskStatusOption(nextTask.status).label}</p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+            <div className="mt-5 grid gap-2 sm:grid-cols-3">
+              <PortfolioSignal label="Status" value={metric.project.status} />
+              <PortfolioSignal label="Overdue" value={metric.overdueOpen.length} />
+              <PortfolioSignal label="Stale" value={metric.stale ? "Yes" : "No" } />
+            </div>
             <Link
               to={`/projects/${metric.project.id}`}
               className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
@@ -246,7 +192,7 @@ function PriorityProjectCard({ metric, onComplete }: { metric?: ProjectMetric; o
           </div>
         </div>
       ) : (
-        <EmptyPanel icon={<Sparkles size={18} />} title="No priority project" body="Create or activate a project and this space will become your project launchpad." />
+        <EmptyPanel icon={<Sparkles size={18} />} title="No project to watch" body="Active projects will appear here when there is delivery pressure, stale work, or upcoming deadlines." />
       )}
     </Card>
   );
@@ -257,24 +203,24 @@ function ProjectMomentumCard({
   completedThisWeek,
   activeProjectCount,
   atRiskCount,
-  personalOpenCount,
+  staleCount,
 }: {
   averageProgress: number;
   completedThisWeek: number;
   activeProjectCount: number;
   atRiskCount: number;
-  personalOpenCount: number;
+  staleCount: number;
 }) {
   return (
     <Card className="p-5">
-      <SectionTitle icon={<Flame size={18} />} title="Project Momentum" helper="Progress across active project work" />
+      <SectionTitle icon={<Flame size={18} />} title="Delivery Momentum" helper="How active project work is moving" />
       <div className="mt-5 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-        <ProgressDial value={averageProgress} label="Avg progress" />
+        <ProgressDotStrip value={averageProgress} label="Average delivery progress" />
         <div className="grid gap-3">
-          <MomentumRow label="Project tasks done this week" value={completedThisWeek} tone="var(--success)" />
+          <MomentumRow label="Project tasks completed this week" value={completedThisWeek} tone="var(--success)" />
           <MomentumRow label="Active projects" value={activeProjectCount} tone="var(--brand-primary)" />
-          <MomentumRow label="At-risk projects" value={atRiskCount} tone="var(--danger)" />
-          <MomentumRow label="Personal open tasks" value={personalOpenCount} tone="var(--warning)" />
+          <MomentumRow label="Projects needing attention" value={atRiskCount} tone="var(--danger)" />
+          <MomentumRow label="Projects with stale movement" value={staleCount} tone="var(--warning)" />
         </div>
       </div>
       <div className="mt-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3">
@@ -288,7 +234,7 @@ function ProjectPipeline({ metrics }: { metrics: ProjectMetric[] }) {
   return (
     <Card className="overflow-hidden p-0">
       <div className="flex flex-col gap-3 border-b border-[var(--border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <SectionTitle icon={<FolderKanban size={18} />} title="Project Pipeline" helper="Active projects, risk, and next deadlines" />
+        <SectionTitle icon={<FolderKanban size={18} />} title="Project Pipeline" helper="Active projects, attention points, and next deadlines" />
         <Link to="/projects" className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]">
           View projects
           <ArrowUpRight size={14} />
@@ -309,7 +255,7 @@ function ProjectPipeline({ metrics }: { metrics: ProjectMetric[] }) {
                     {metric.openTasks.length} open · {metric.highPriorityOpen.length} high priority
                   </p>
                 </div>
-                <Badge tone={metric.atRisk ? "red" : metric.dueSoon ? "amber" : "emerald"}>{metric.atRisk ? "At risk" : metric.dueSoon ? "Due soon" : "On track"}</Badge>
+                <Badge tone={metric.atRisk ? "red" : metric.dueSoon ? "amber" : "emerald"}>{metric.atRisk ? "Needs attention" : metric.dueSoon ? "Due soon" : "On track"}</Badge>
               </div>
               <div className="mt-4 flex items-center gap-3">
                 <div className="min-w-0 flex-1">
@@ -323,83 +269,84 @@ function ProjectPipeline({ metrics }: { metrics: ProjectMetric[] }) {
             </Link>
           ))
         ) : (
-          <EmptyPanel icon={<FolderKanban size={18} />} title="No active projects" body="Projects you activate will appear here with progress and risk signals." />
+          <EmptyPanel icon={<FolderKanban size={18} />} title="No active projects" body="Active projects will appear here with progress and delivery signals." />
         )}
       </div>
     </Card>
   );
 }
 
-function ThisWeekPanel({
-  tasks,
-  projectById,
-  weekRange,
-  onComplete,
-}: {
-  tasks: Task[];
-  projectById: Map<string, Project>;
-  weekRange: { start: string; end: string };
-  onComplete: (id: string) => void;
-}) {
+function ProjectsNeedingAttention({ metrics }: { metrics: ProjectMetric[] }) {
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex flex-col gap-3 border-b border-[var(--border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <SectionTitle icon={<ListChecks size={18} />} title="This Week's Execution" helper={`${dateLabel(weekRange.start)} to ${dateLabel(weekRange.end)}`} />
-        <Link to="/tasks" className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]">
-          View all
+      <div className="border-b border-[var(--border)] px-5 py-4">
+        <SectionTitle icon={<AlertTriangle size={18} />} title="Projects Needing Attention" helper="Risk, stale movement, and high-priority pressure" />
+      </div>
+      <div className="space-y-3 p-4 sm:p-5">
+        {metrics.length ? metrics.map((metric) => (
+          <Link key={metric.project.id} to={`/projects/${metric.project.id}`} className="block rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-[var(--text)]">{metric.project.name}</p>
+                <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{attentionReason(metric)}</p>
+              </div>
+              <Badge tone={metric.atRisk ? "red" : metric.stale ? "amber" : "slate"}>{metric.atRisk ? "Risk" : metric.stale ? "Stale" : "Priority"}</Badge>
+            </div>
+          </Link>
+        )) : (
+          <EmptyPanel icon={<CheckCircle2 size={18} />} title="No attention points" body="Active projects do not show overdue, stale, or high-priority pressure right now." compact />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function ProjectDeadlinesPanel({ projects }: { projects: Project[] }) {
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="border-b border-[var(--border)] px-5 py-4">
+        <SectionTitle icon={<CalendarClock size={18} />} title="Upcoming Project Deadlines" helper="Project-level deadlines only" />
+      </div>
+      <div className="space-y-3 p-4 sm:p-5">
+        {projects.length ? projects.map((project) => (
+          <Link key={project.id} to={`/projects/${project.id}`} className="block rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-[var(--text)]">{project.name}</p>
+                <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{project.description || "Project deadline"}</p>
+              </div>
+              <Badge tone={priorityTone(project.priority)}>{getTaskPriorityOption(project.priority).label}</Badge>
+            </div>
+            <p className="mt-3 text-xs font-black text-[var(--text)]">
+              <CalendarClock size={13} className="mr-1 inline-block align-[-2px] text-[var(--text-soft)]" />
+              {dateLabel(project.dueDate)}
+            </p>
+          </Link>
+        )) : (
+          <EmptyPanel icon={<Clock3 size={18} />} title="No project deadlines" body="Add project due dates when portfolio timing matters." compact />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function DocumentationLoadPanel({ stats }: { stats: ReturnType<typeof buildDocStats> }) {
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="border-b border-[var(--border)] px-5 py-4">
+        <SectionTitle icon={<FileText size={18} />} title="Documentation Load" helper="Planning, review, and client-safe context" />
+      </div>
+      <div className="grid gap-2 p-4 sm:p-5">
+        <MomentumRow label="Project docs" value={stats.projectDocs} tone="var(--brand-primary)" />
+        <MomentumRow label="Needs review" value={stats.needsReview} tone="var(--warning)" />
+        <MomentumRow label="Client-visible" value={stats.clientVisible} tone="var(--success)" />
+        <MomentumRow label="Unfiled docs" value={stats.unfiled} tone="var(--danger)" />
+      </div>
+      <div className="border-t border-[var(--border)] px-5 py-3">
+        <Link to="/notes" className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]">
+          Inspect docs
           <ArrowUpRight size={14} />
         </Link>
-      </div>
-      <div className="divide-y divide-[var(--border)]">
-        {tasks.length ? (
-          tasks.map((task) => <WorkRow key={task.id} task={task} project={projectById.get(task.projectId ?? "")} onComplete={onComplete} />)
-        ) : (
-          <EmptyPanel icon={<CheckCircle2 size={18} />} title="No dated work this week" body="Your week is clear unless you add a due date." />
-        )}
-      </div>
-    </Card>
-  );
-}
-
-function AgendaPanel({
-  focusPanel,
-  setFocusPanel,
-  todayTasks,
-  todayEvents,
-  upcomingDeadlines,
-  projectById,
-  onComplete,
-}: {
-  focusPanel: FocusPanel;
-  setFocusPanel: (panel: FocusPanel) => void;
-  todayTasks: Task[];
-  todayEvents: CalendarEvent[];
-  upcomingDeadlines: DeadlineItem[];
-  projectById: Map<string, Project>;
-  onComplete: (id: string) => void;
-}) {
-  return (
-    <Card className="overflow-hidden p-0">
-      <div className="grid grid-cols-2 gap-1 border-b border-[var(--border)] bg-[var(--panel-inset)] p-1">
-        {(["today", "upcoming"] as const).map((panel) => (
-          <button
-            key={panel}
-            type="button"
-            onClick={() => setFocusPanel(panel)}
-            className={`min-h-11 rounded-[var(--radius-sm)] px-3 text-sm font-black transition ${
-              focusPanel === panel ? "bg-[var(--brand-primary)] text-white shadow-[var(--shadow-sm)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-            }`}
-          >
-            {panel === "today" ? "Today" : "Upcoming"}
-          </button>
-        ))}
-      </div>
-      <div className="p-4 sm:p-5">
-        {focusPanel === "today" ? (
-          <GroupedTaskPanel tasks={todayTasks} events={todayEvents} projectById={projectById} onComplete={onComplete} />
-        ) : (
-          <UpcomingPanel items={upcomingDeadlines} projectById={projectById} />
-        )}
       </div>
     </Card>
   );
@@ -409,7 +356,7 @@ function RecentActivityPanel({ activity, notesCount }: { activity: ActivityItem[
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b border-[var(--border)] px-5 py-4">
-        <SectionTitle icon={<Zap size={18} />} title="Recent Activity" helper={`${notesCount} notes in your workspace`} />
+        <SectionTitle icon={<Zap size={18} />} title="Latest Project Updates" helper={`${notesCount} docs in your workspace`} />
       </div>
       <div className="space-y-3 p-4 sm:p-5">
         {activity.length ? (
@@ -430,123 +377,11 @@ function RecentActivityPanel({ activity, notesCount }: { activity: ActivityItem[
   );
 }
 
-function GroupedTaskPanel({
-  tasks,
-  events,
-  projectById,
-  onComplete,
-}: {
-  tasks: Task[];
-  events: CalendarEvent[];
-  projectById: Map<string, Project>;
-  onComplete: (id: string) => void;
-}) {
-  if (!tasks.length && !events.length) {
-    return <EmptyPanel icon={<CalendarClock size={18} />} title="Nothing planned today" body="A quiet day is allowed. Capture a task when something appears." compact />;
-  }
-
-  const groups = groupTasksByProject(tasks, projectById);
-
+function PortfolioSignal({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="space-y-4">
-      {groups.map((group) => (
-        <div key={group.key} className="space-y-2">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{group.label}</p>
-          {group.tasks.map((task) => (
-            <MiniTask key={task.id} task={task} meta={task.dueTime || getTaskStatusOption(task.status).label} onComplete={onComplete} />
-          ))}
-        </div>
-      ))}
-      {events.map((event) => (
-        <div key={event.id} className="rounded-[var(--radius-md)] border border-[var(--border)] border-l-[3px] border-l-[var(--brand-primary)] bg-[var(--panel-bg-soft)] px-3 py-3">
-          <p className="text-sm font-black text-[var(--text)]">{event.title}</p>
-          <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{event.description || (event.source === "google" ? "Google Calendar" : "Local event")}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function UpcomingPanel({ items, projectById }: { items: DeadlineItem[]; projectById: Map<string, Project> }) {
-  if (!items.length) {
-    return <EmptyPanel icon={<Clock3 size={18} />} title="No upcoming deadlines" body="No dated work is waiting in the queue." compact />;
-  }
-
-  return (
-    <div className="space-y-3">
-      {items.map((item) => {
-        const isProject = "name" in item;
-        const title = isProject ? item.name : item.title;
-        const meta = isProject ? "Project deadline" : projectById.get(item.projectId ?? "")?.name ?? "Personal task";
-
-        return (
-          <Link
-            key={item.id}
-            to={isProject ? `/projects/${item.id}` : "/tasks"}
-            className="block rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[var(--text)]">{title}</p>
-                <p className="mt-1 truncate text-xs font-semibold text-[var(--text-muted)]">{meta}</p>
-              </div>
-              <Badge tone={priorityTone(item.priority)}>{getTaskPriorityOption(item.priority).label}</Badge>
-            </div>
-            <p className="mt-3 text-xs font-black text-[var(--text)]">
-              <CalendarClock size={13} className="mr-1 inline-block align-[-2px] text-[var(--text-soft)]" />
-              {dateLabel(item.dueDate)}
-            </p>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-function WorkRow({ task, project, onComplete }: { task: Task; project?: Project; onComplete: (id: string) => void }) {
-  return (
-    <div className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-hover)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-      <div className="flex min-w-0 items-start gap-3">
-        <button
-          type="button"
-          onClick={() => onComplete(task.id)}
-          className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[var(--border-strong)] bg-[var(--surface)] text-transparent transition hover:border-[var(--brand-primary)] hover:bg-[var(--accent-soft)] hover:text-[var(--brand-primary)]"
-          aria-label={`Complete ${task.title}`}
-        >
-          <Check size={15} />
-        </button>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-[var(--text)]">{task.title}</p>
-          <p className="mt-1 truncate text-xs font-semibold text-[var(--text-muted)]">{project?.name ?? "Personal task"}</p>
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-2 lg:justify-end">
-        <Badge>{getTaskStatusOption(task.status).label}</Badge>
-        <Badge tone={priorityTone(task.priority)}>{getTaskPriorityOption(task.priority).label}</Badge>
-        <Badge tone={isOverdue(task.dueDate) ? "red" : "slate"}>{dateLabel(task.dueDate, task.dueTime)}</Badge>
-      </div>
-    </div>
-  );
-}
-
-function MiniTask({ task, meta, onComplete }: { task: Task; meta: string; onComplete: (id: string) => void }) {
-  return (
-    <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3">
-      <button
-        type="button"
-        onClick={() => onComplete(task.id)}
-        className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] text-transparent transition hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
-        aria-label={`Complete ${task.title}`}
-      >
-        <Check size={15} />
-      </button>
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <p className="truncate text-sm font-black text-[var(--text)]">{task.title}</p>
-          <Badge tone={priorityTone(task.priority)}>{getTaskPriorityOption(task.priority).label}</Badge>
-        </div>
-        <p className="mt-1 truncate text-xs font-semibold text-[var(--text-muted)]">{meta}</p>
-      </div>
+    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--panel-bg)] p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</p>
+      <p className="mt-1 truncate text-sm font-black capitalize text-[var(--text)]">{value}</p>
     </div>
   );
 }
@@ -577,21 +412,22 @@ function EmptyPanel({ icon, title, body, compact = false }: { icon: React.ReactN
   );
 }
 
-function ProgressDial({ value, label, size = "md" }: { value: number; label: string; size?: "sm" | "md" }) {
-  const background = `conic-gradient(var(--brand-primary) ${value * 3.6}deg, var(--ring-track) 0deg)`;
-  const outer = size === "sm" ? "h-16 w-16" : "h-28 w-28";
-  const inner = size === "sm" ? "h-12 w-12" : "h-20 w-20";
-
+function ProgressDotStrip({ value, label, compact = false }: { value: number; label: string; compact?: boolean }) {
+  const filled = Math.round(value / 10);
   return (
-    <div className="grid justify-items-center gap-2">
-      <span className={`grid place-items-center rounded-full ${outer}`} style={{ background }}>
-        <span className={`grid place-items-center rounded-full bg-[var(--panel-bg)] text-center ${inner}`}>
-          <span>
-            <strong className={`${size === "sm" ? "text-sm" : "text-2xl"} block font-black text-[var(--text)]`}>{value}%</strong>
-            <span className="block text-[10px] font-bold text-[var(--text-soft)]">{label}</span>
-          </span>
-        </span>
-      </span>
+    <div className={`grid min-w-[150px] gap-2 ${compact ? "max-w-[170px]" : "max-w-[260px]"}`}>
+      <div className="flex items-end justify-between gap-3">
+        <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</span>
+        <strong className={`${compact ? "text-lg" : "text-2xl"} font-black text-[var(--text)]`}>{value}%</strong>
+      </div>
+      <div className="grid grid-cols-10 gap-1" aria-hidden="true">
+        {Array.from({ length: 10 }).map((_, index) => (
+          <span
+            key={index}
+            className={`h-2.5 rounded-full transition-colors ${index < filled ? "bg-[var(--brand-primary)]" : "bg-[var(--ring-track)]"}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -618,6 +454,15 @@ function buildProjectMetric(project: Project, tasks: Task[], today: string, soon
   const taskDueSoon = openTasks.some((task) => task.dueDate && task.dueDate >= today && task.dueDate <= soon);
   const dueSoon = projectDueSoon || taskDueSoon;
   const progress = projectTasks.length ? Math.round((completedTasks.length / projectTasks.length) * 100) : 0;
+  const activityDates = [project.updatedAt, ...projectTasks.map((task) => task.updatedAt)].sort();
+  const latestActivity = activityDates[activityDates.length - 1] ?? project.updatedAt;
+  const stale = Boolean(openTasks.length && daysSince(latestActivity, today) >= 14);
+  const attentionScore = overdueOpen.length * 50
+    + (projectDueSoon ? 35 : 0)
+    + highPriorityOpen.length * 20
+    + (stale ? 18 : 0)
+    + (dueSoon ? 10 : 0)
+    + (openTasks.length ? Math.max(0, 25 - progress) : 0);
 
   return {
     project,
@@ -629,49 +474,50 @@ function buildProjectMetric(project: Project, tasks: Task[], today: string, soon
     progress,
     atRisk: Boolean(overdueOpen.length || projectDueSoon),
     dueSoon,
+    stale,
+    attentionScore,
     nextDue,
   };
 }
 
 function sortProjectMetrics(a: ProjectMetric, b: ProjectMetric) {
-  return Number(b.atRisk) - Number(a.atRisk)
+  return b.attentionScore - a.attentionScore
+    || Number(b.atRisk) - Number(a.atRisk)
     || b.highPriorityOpen.length - a.highPriorityOpen.length
     || (a.nextDue ?? "9999-12-31").localeCompare(b.nextDue ?? "9999-12-31")
     || b.openTasks.length - a.openTasks.length;
 }
 
-function groupTasksByProject(tasks: Task[], projectById: Map<string, Project>) {
-  const groups = new Map<string, { key: string; label: string; tasks: Task[] }>();
-  tasks.forEach((task) => {
-    const project = task.projectId ? projectById.get(task.projectId) : undefined;
-    const key = project?.id ?? "personal";
-    const label = project?.name ?? "Personal";
-    const group = groups.get(key) ?? { key, label, tasks: [] };
-    group.tasks.push(task);
-    groups.set(key, group);
-  });
-  return [...groups.values()].map((group) => ({ ...group, tasks: group.tasks.sort(sortTasksByFocus) }));
-}
-
-function sortTasksByFocus(a: Task, b: Task) {
-  return focusRank(a) - focusRank(b) || getTaskPriorityOption(a.priority).rank - getTaskPriorityOption(b.priority).rank || (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31");
-}
-
-function focusRank(task: Task) {
-  const urgent = task.priority === "urgent" || task.priority === "high";
-  if (isOverdue(task.dueDate) && urgent) return 0;
-  if (isOverdue(task.dueDate)) return 1;
-  if (isToday(task.dueDate) && urgent) return 2;
-  if (isToday(task.dueDate)) return 3;
-  if (task.dueDate) return 4;
-  return 5;
-}
-
 function projectReason(metric: ProjectMetric) {
   if (metric.overdueOpen.length) return "Overdue project work";
-  if (metric.highPriorityOpen.length) return "High priority project";
+  if (metric.dueSoon) return "Deadline pressure";
+  if (metric.highPriorityOpen.length) return "High-priority work open";
+  if (metric.stale) return "No recent movement";
   if (metric.nextDue) return "Nearest project deadline";
-  return "Most active project";
+  return "Portfolio watch project";
+}
+
+function attentionReason(metric: ProjectMetric) {
+  const reasons = [
+    metric.overdueOpen.length ? `${metric.overdueOpen.length} overdue` : "",
+    metric.highPriorityOpen.length ? `${metric.highPriorityOpen.length} high-priority` : "",
+    metric.stale ? "stale movement" : "",
+    metric.nextDue ? `next ${dateLabel(metric.nextDue)}` : "",
+  ].filter(Boolean);
+  return reasons.length ? reasons.join(" · ") : "Worth inspecting";
+}
+
+function buildDocStats(notes: HubNote[], activeProjects: Project[]) {
+  const activeProjectIds = new Set(activeProjects.map((project) => project.id));
+  const projectDocs = notes.filter((note) => note.projectIds?.some((projectId) => activeProjectIds.has(projectId)));
+  const unfiled = notes.filter((note) => !(note.projectIds?.length) && (note.docStatus ?? "active") !== "archived").length;
+
+  return {
+    projectDocs: projectDocs.length,
+    needsReview: projectDocs.filter((note) => note.docStatus === "review").length,
+    clientVisible: projectDocs.filter((note) => note.clientVisible).length,
+    unfiled,
+  };
 }
 
 function buildActivity(tasks: Task[], projects: Project[]): ActivityItem[] {
@@ -703,16 +549,16 @@ function activityToneClass(tone: ActivityItem["tone"]) {
 }
 
 function projectDashboardMessage(activeProjects: number, atRiskProjects: number, nextDeadline?: string) {
-  if (atRiskProjects) return `${atRiskProjects} project${atRiskProjects === 1 ? "" : "s"} need attention. Start with the project risk, then the task list gets simpler.`;
+  if (atRiskProjects) return `${atRiskProjects} project${atRiskProjects === 1 ? "" : "s"} need attention. Inspect delivery risk, stale movement, and deadline pressure across the portfolio.`;
   if (nextDeadline) return `${activeProjects} active project${activeProjects === 1 ? "" : "s"} in motion. Next project deadline is ${dateLabel(nextDeadline)}.`;
-  if (activeProjects) return `${activeProjects} active project${activeProjects === 1 ? "" : "s"} in motion. No project deadline is pressing right now.`;
+  if (activeProjects) return `${activeProjects} active project${activeProjects === 1 ? "" : "s"} in motion. Use this view to inspect health before choosing where to work.`;
   return "No active projects yet. Create a project and Align will turn it into a clear operating view.";
 }
 
 function projectMomentumMessage(progress: number, atRiskCount: number) {
-  if (atRiskCount) return "One focused project recovery will improve the whole workspace.";
-  if (progress >= 75) return "Projects are moving well. Keep the next deadline visible.";
-  return "Progress is building. Pick the priority project and keep the pipeline warm.";
+  if (atRiskCount) return "Attention points are visible. Inspect the riskiest project before planning new work.";
+  if (progress >= 75) return "Portfolio delivery is healthy. Keep deadlines and client-facing docs current.";
+  return "Portfolio progress is still building. Watch stale projects and deadline pressure.";
 }
 
 function relativeDate(value: string) {
@@ -723,6 +569,12 @@ function relativeDate(value: string) {
 
 function todayISO() {
   return formatISO(new Date(), { representation: "date" });
+}
+
+function daysSince(value: string, today: string) {
+  const start = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const end = new Date(`${today}T00:00:00`);
+  return Math.floor((end.getTime() - start.getTime()) / 86_400_000);
 }
 
 function getCurrentWeekRange() {

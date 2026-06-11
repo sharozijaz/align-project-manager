@@ -2,7 +2,8 @@ import { ExternalLink } from "lucide-react";
 import { plainDateLabel } from "../../utils/date";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
-import { MarkdownRenderer } from "./MarkdownRenderer";
+import type { HubNote, HubPalette } from "../../types/studio";
+import { RichNoteRenderer } from "./RichNoteRenderer";
 
 export interface NoteReaderModalNote {
   title: string;
@@ -16,10 +17,18 @@ export function NoteReaderModal({
   note,
   onClose,
   action,
+  allNotes = [],
+  palettes = [],
+  onOpenNote,
+  onToggleChecklistLine,
 }: {
   note: NoteReaderModalNote | null;
   onClose: () => void;
   action?: { label: string; href: string };
+  allNotes?: HubNote[];
+  palettes?: HubPalette[];
+  onOpenNote?: (noteId: string) => void;
+  onToggleChecklistLine?: (lineIndex: number) => void;
 }) {
   const tags = note?.tags
     ?.split(",")
@@ -45,7 +54,7 @@ export function NoteReaderModal({
             </div>
           </div>
           <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-7">
-            <MarkdownRenderer body={note.body} className="max-w-none text-sm leading-7 sm:text-base" />
+            <RichNoteRenderer body={note.body} allNotes={allNotes} palettes={palettes} onOpenNote={onOpenNote} onToggleChecklistLine={onToggleChecklistLine} className="max-w-none text-sm leading-7 sm:text-base" />
           </div>
           {action ? (
             <div className="border-t border-[var(--border)] px-5 py-4 sm:px-7">

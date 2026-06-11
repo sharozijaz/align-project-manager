@@ -6,6 +6,7 @@ This guide is the Phase 5 release pipeline for publishing Align desktop builds t
 
 - GitHub `main` is the source of truth for app code and documentation.
 - The public Windows desktop app should work in `Local only` mode without a hosted backend.
+- The Android companion app is personal/private only and must never be committed to the public repo or attached to public GitHub Releases.
 - Cloud sync, Google integrations, share links, and email reminders are optional self-hosted features.
 - `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` must use the same release version.
 - The package stays `"private": true` because Align is released through GitHub, not npm.
@@ -62,11 +63,15 @@ Then run these additional checks:
 git diff --check
 rg -n "(service_role|client_secret|api[_-]?key|password|token|Bearer\\s+[A-Za-z0-9._-]+)" --glob "!node_modules/**" --glob "!dist/**" --glob "!src-tauri/target/**" --glob "!package-lock.json"
 rg -n "(gmail|@gmail|internal-only|CONTEXT HANDOFF|NEXT CHAT HANDOFF|Gumroad|\\$[0-9]|client secret|service role|refresh token)" -g "*.md" -g "!RELEASE.md"
+git ls-files .env .env.local .env.production android-app/keystore.properties android-app/*.jks private-backups
+git check-ignore -v private-backups/test.zip android-app/keystore.properties android-app/align-release.jks android-app/app-release.apk android-app/app/build/outputs/bundle/release/app-release.aab
 ```
 
 The secret scan can show placeholder names in docs or env examples. Investigate every match and only proceed when there are no real secrets.
 
 Before pushing public docs, review Markdown for private client details, personal emails, private monetization experiments, internal handoff notes, and sensitive architecture notes. Keep public monetization docs high-level: paid templates, optional customization services, and possible future cloud hosting only. Confirm `GOOGLE_TOKEN_ENCRYPTION_KEY`, `ALLOWED_API_ORIGINS`, and `public.allowed_users` are configured before testing private hosted Google sync. Put production hosted domains behind Cloudflare WAF or an equivalent edge firewall for `/api/*`, share routes, OAuth callback, reminders, and cron endpoints.
+
+Do not publish or commit the Android app. Keep `android-app/` out of public source commits, and keep `android-app/keystore.properties`, `.jks`, `.keystore`, `.p12`, `.pfx`, APK, AAB, and private backup ZIP files outside GitHub release source commits. If signing material was ever exposed, rotate it before making a private Android build.
 
 ## Desktop Build
 

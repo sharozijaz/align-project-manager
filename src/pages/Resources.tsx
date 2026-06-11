@@ -22,10 +22,12 @@ import {
   List,
   ListOrdered,
   Minus,
+  Palette,
   Pin,
   Plus,
   Quote,
   Save,
+  Search,
   Star,
   StickyNote,
   Strikethrough,
@@ -50,9 +52,10 @@ import { Select } from "../components/ui/Select";
 import { EmptyState, StudioTextarea } from "../components/studio/StudioForm";
 import { useProjectStore } from "../store/projectStore";
 import { useSearchStore } from "../store/searchStore";
+import { useSnippetStore } from "../store/snippetStore";
 import { useStudioStore } from "../store/studioStore";
 import type { Project } from "../types/project";
-import type { HubNote, HubNoteSpace, HubResource, HubResourceType, HubView } from "../types/studio";
+import type { HubNote, HubNoteDocStatus, HubNoteDocType, HubNoteSpace, HubPalette, HubResource, HubResourceType, HubSnippet, HubSnippetType, HubView } from "../types/studio";
 import {
   downloadTextFile,
   exportHubNotesJson,
@@ -79,7 +82,7 @@ type ResourceFormState = {
 };
 
 type ResourceFilter = HubResourceType | "all" | "favorites";
-type NoteFilter = "inbox" | "favorites";
+type NoteFilter = "all" | "inbox" | "favorites" | "review" | "archived";
 type NoteSpaceSelection = { type: "space" | "project"; id: string };
 type NoteSpaceView = {
   key: string;
@@ -97,9 +100,26 @@ type NoteFormState = {
   collection: string;
   tags: string;
   clientVisible: boolean;
+  docType: HubNoteDocType;
+  docStatus: HubNoteDocStatus;
   projectIds: string[];
   relatedNoteIds: string[];
   manualSpaceIds: string[];
+};
+
+type PaletteFormState = {
+  name: string;
+  tags: string;
+  projectIds: string[];
+  noteIds: string[];
+  colors: Array<{ id: string; name: string; hex: string; role: string }>;
+};
+
+type SnippetFormState = {
+  title: string;
+  type: HubSnippetType;
+  body: string;
+  tags: string;
 };
 
 const emptyResourceForm: ResourceFormState = {
@@ -111,16 +131,72 @@ const emptyResourceForm: ResourceFormState = {
   notes: "",
 };
 
+const emptySnippetForm: SnippetFormState = {
+  title: "",
+  type: "general",
+  body: "",
+  tags: "",
+};
+
 const emptyNoteForm: NoteFormState = {
   title: "",
   body: "",
   collection: "",
   tags: "",
   clientVisible: false,
+  docType: "general",
+  docStatus: "active",
   projectIds: [],
   relatedNoteIds: [],
   manualSpaceIds: [],
 };
+
+const noteDocTypeOptions: Array<{ value: HubNoteDocType; label: string; templateTitle: string }> = [
+  { value: "general", label: "General", templateTitle: "General Note" },
+  { value: "brief", label: "Brief", templateTitle: "Project Brief" },
+  { value: "strategy", label: "Strategy", templateTitle: "Strategy Plan" },
+  { value: "research", label: "Research", templateTitle: "Research Notes" },
+  { value: "palette", label: "Palette", templateTitle: "Color Palette" },
+  { value: "meeting", label: "Meeting", templateTitle: "Meeting Notes" },
+  { value: "prompt", label: "Prompt", templateTitle: "Prompt Library" },
+  { value: "checklist", label: "Checklist", templateTitle: "Checklist" },
+  { value: "reference", label: "Reference", templateTitle: "Reference" },
+];
+
+const noteDocStatusOptions: Array<{ value: HubNoteDocStatus; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "draft", label: "Draft" },
+  { value: "review", label: "Needs Review" },
+  { value: "archived", label: "Archived" },
+];
+
+const emptyPaletteForm: PaletteFormState = {
+  name: "",
+  tags: "",
+  projectIds: [],
+  noteIds: [],
+  colors: [
+    { id: "color-1", name: "Primary", hex: "#1C1C1C", role: "Base" },
+    { id: "color-2", name: "Text", hex: "#E5E5E5", role: "Foreground" },
+    { id: "color-3", name: "Subtle", hex: "#A1A1A1", role: "Muted" },
+  ],
+};
+
+function docTypeLabel(value?: HubNoteDocType) {
+  return noteDocTypeOptions.find((option) => option.value === (value ?? "general"))?.label ?? "General";
+}
+
+function docStatusLabel(value?: HubNoteDocStatus) {
+  return noteDocStatusOptions.find((option) => option.value === (value ?? "active"))?.label ?? "Active";
+}
+
+function noteFilterLabel(value: NoteFilter) {
+  if (value === "favorites") return "Pinned Docs";
+  if (value === "review") return "Needs Review";
+  if (value === "archived") return "Archived Docs";
+  if (value === "inbox") return "Unfiled Docs";
+  return "All Docs";
+}
 
 function normalizeResourceUrl(url?: string) {
   const trimmed = url?.trim();
@@ -176,6 +252,8 @@ function normalizeNoteFormForSave(form: NoteFormState) {
     collection: form.collection.trim(),
     tags: form.tags.trim() || "",
     clientVisible: Boolean(form.clientVisible),
+    docType: form.docType,
+    docStatus: form.docStatus,
     projectIds: form.projectIds,
     relatedNoteIds: normalizeRelatedNoteIds(form.relatedNoteIds),
   };
@@ -185,6 +263,12 @@ function normalizeRelatedNoteIds(noteIds: string[]) {
   return [...new Set(noteIds.filter(Boolean))];
 }
 
+function normalizeHexInput(value: string) {
+  const raw = value.trim();
+  const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+  return withHash.toUpperCase();
+}
+
 function getWordCount(body: string) {
   return body.trim() ? body.trim().split(/\s+/).length : 0;
 }
@@ -192,6 +276,28 @@ function getWordCount(body: string) {
 function getReadTimeLabel(body: string) {
   const minutes = Math.max(1, Math.ceil(getWordCount(body) / 220));
   return `${minutes} min read`;
+}
+
+function getDocumentTemplate(type: HubNoteDocType) {
+  if (type === "brief") return "# Project Brief\n\n## Goal\n\n## Audience\n\n## Scope\n\n## Success Criteria\n\n## Open Questions\n";
+  if (type === "strategy") return "# Strategy Plan\n\n## Objective\n\n## Positioning\n\n## Priorities\n\n## Risks\n\n## Next Moves\n";
+  if (type === "research") return "# Research Notes\n\n## Sources\n\n## Findings\n\n## Patterns\n\n## Decisions\n";
+  if (type === "palette") return "# Color Palette\n\n## Direction\n\n```align-palette\nPalette Name\nPrimary | #1C1C1C | Base\nText | #E5E5E5 | Foreground\nSubtle | #A1A1A1 | Muted\n```\n";
+  if (type === "meeting") return "# Meeting Notes\n\n## Agenda\n\n## Decisions\n\n## Actions\n\n- [ ] \n";
+  if (type === "prompt") return "# Prompt\n\n## Context\n\n## Prompt\n\n## Expected Output\n\n## Notes\n";
+  if (type === "checklist") return "# Checklist\n\n- [ ] First item\n- [ ] Second item\n";
+  if (type === "reference") return "# Reference\n\n## Link\n\n## Summary\n\n## Useful Details\n";
+  return "# Note\n\n";
+}
+
+function getMarkdownHeadings(body: string) {
+  return body
+    .split("\n")
+    .map((line, index) => {
+      const match = line.match(/^(#{1,3})\s+(.+)$/);
+      return match ? { level: match[1].length, title: match[2].trim(), line: index + 1 } : null;
+    })
+    .filter((heading): heading is { level: number; title: string; line: number } => Boolean(heading));
 }
 
 function toggleChecklistLineInMarkdown(body: string, lineIndex: number) {
@@ -221,19 +327,24 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     resources,
     notes,
     noteSpaces,
+    palettes,
     addResource,
     addNote,
+    addPalette,
     updateResource,
     updateNote,
     deleteResource,
     deleteNote,
+    deletePalette,
     replaceNotes,
     replaceNoteSpaces,
+    replacePalettes,
     addNoteSpace,
     deleteNoteSpace,
     addNoteToSpace,
     removeNoteFromSpace,
   } = useStudioStore();
+  const { snippets, addSnippet, updateSnippet, deleteSnippet } = useSnippetStore();
   const projects = useProjectStore((state) => state.projects);
   const deleteProject = useProjectStore((state) => state.deleteProject);
   const confirm = useConfirm();
@@ -243,7 +354,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const query = useSearchStore((state) => state.query);
   const clearQuery = useSearchStore((state) => state.clearQuery);
   const [type, setType] = useState<ResourceFilter>("all");
-  const [noteFilter, setNoteFilter] = useState<NoteFilter>("inbox");
+  const [noteFilter, setNoteFilter] = useState<NoteFilter>("all");
+  const [docTypeFilter, setDocTypeFilter] = useState<HubNoteDocType | "all">("all");
   const [selectedSpaceKey, setSelectedSpaceKey] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<"resource" | "note" | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
@@ -260,6 +372,11 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const [importMessage, setImportMessage] = useState("");
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [notePreviewOpen, setNotePreviewOpen] = useState(false);
+  const [paletteModalOpen, setPaletteModalOpen] = useState(false);
+  const [paletteForm, setPaletteForm] = useState<PaletteFormState>(emptyPaletteForm);
+  const [snippetModalOpen, setSnippetModalOpen] = useState(false);
+  const [snippetForm, setSnippetForm] = useState<SnippetFormState>(emptySnippetForm);
+  const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -300,20 +417,28 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     () =>
       notes
         .filter((note) => {
-          const matchesQuery = `${note.title} ${note.collection ?? ""} ${note.tags ?? ""} ${note.body}`.toLowerCase().includes(query.toLowerCase());
+          const matchesQuery = `${note.title} ${note.collection ?? ""} ${note.tags ?? ""} ${note.body} ${note.docType ?? ""} ${note.docStatus ?? ""}`.toLowerCase().includes(query.toLowerCase());
           const matchesSpace = !selectedSpace || selectedSpaceNoteIds.has(note.id);
-          const matchesFilter = selectedSpace
-            ? noteFilter !== "favorites" || Boolean(note.favorite)
-            : noteFilter === "favorites"
-              ? Boolean(note.favorite)
-              : !isFiledInSavedSpaces(note, noteSpaces, projects);
-          return matchesQuery && matchesSpace && matchesFilter;
+          const matchesType = docTypeFilter === "all" || (note.docType ?? "general") === docTypeFilter;
+          const matchesFilter =
+            noteFilter === "all"
+              ? true
+              : noteFilter === "favorites"
+                ? Boolean(note.favorite)
+                : noteFilter === "review"
+                  ? (note.docStatus ?? "active") === "review"
+                  : noteFilter === "archived"
+                    ? (note.docStatus ?? "active") === "archived"
+                    : selectedSpace
+                      ? true
+                      : !isFiledInSavedSpaces(note, noteSpaces, projects);
+          return matchesQuery && matchesSpace && matchesType && matchesFilter;
         })
         .sort((left, right) => {
           if (Boolean(left.favorite) !== Boolean(right.favorite)) return left.favorite ? -1 : 1;
           return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
         }),
-    [noteSpaces, notes, noteFilter, projects, query, selectedSpace, selectedSpaceNoteIds],
+    [docTypeFilter, noteSpaces, notes, noteFilter, projects, query, selectedSpace, selectedSpaceNoteIds],
   );
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0] ?? null;
@@ -383,7 +508,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       projectIds: [],
       manualNoteIds: [],
     });
-    setNoteFilter("inbox");
+    setNoteFilter("all");
     setSelectedSpaceKey(spaceKey("space", space.id));
     setSpaceModalOpen(false);
     setSpaceForm({ name: "", description: "" });
@@ -402,7 +527,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     deleteNoteSpace(space.id);
     if (selectedSpaceKey === space.key) {
       setSelectedSpaceKey(null);
-      setNoteFilter("inbox");
+      setNoteFilter("all");
     }
   };
 
@@ -419,7 +544,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     deleteProject(space.id);
     if (selectedSpaceKey === space.key) {
       setSelectedSpaceKey(null);
-      setNoteFilter("inbox");
+      setNoteFilter("all");
     }
   };
 
@@ -527,6 +652,8 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       collection: note.collection ?? "",
       tags: note.tags ?? "",
       clientVisible: Boolean(note.clientVisible),
+      docType: note.docType ?? "general",
+      docStatus: note.docStatus ?? "active",
       projectIds: note.projectIds ?? [],
       relatedNoteIds: getExplicitRelatedNoteIds(note, notes),
       manualSpaceIds: noteSpaces.filter((space) => space.manualNoteIds.includes(note.id)).map((space) => space.id),
@@ -558,12 +685,14 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         : "align-notes";
 
     if (format === "json") {
-      downloadTextFile(`${filenameBase}-${stamp}.json`, exportHubNotesJson(exportNotes, scope === "current" ? [] : noteSpaces), "application/json");
+      const exportPalettes = scope === "current" && selectedNote ? palettes.filter((palette) => palette.noteIds.includes(selectedNote.id)) : palettes;
+      downloadTextFile(`${filenameBase}-${stamp}.json`, exportHubNotesJson(exportNotes, scope === "current" ? [] : noteSpaces, exportPalettes), "application/json");
       setExportMenuOpen(false);
       return;
     }
 
-    downloadTextFile(`${filenameBase}-${stamp}.md`, exportHubNotesMarkdown(exportNotes, scope === "current" ? [] : noteSpaces), "text/markdown");
+    const exportPalettes = scope === "current" && selectedNote ? palettes.filter((palette) => palette.noteIds.includes(selectedNote.id)) : palettes;
+    downloadTextFile(`${filenameBase}-${stamp}.md`, exportHubNotesMarkdown(exportNotes, scope === "current" ? [] : noteSpaces, exportPalettes), "text/markdown");
     setExportMenuOpen(false);
   };
 
@@ -575,15 +704,92 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     try {
       const content = await file.text();
       const imported = parseHubNotesImport(content, file.name);
-      const { notes: mergedNotes, noteSpaces: mergedSpaces, summary } = mergeImportedHubNotes(notes, imported.notes, noteSpaces, imported.noteSpaces);
+      const { notes: mergedNotes, noteSpaces: mergedSpaces, palettes: mergedPalettes, summary } = mergeImportedHubNotes(notes, imported.notes, noteSpaces, imported.noteSpaces, palettes, imported.palettes);
       replaceNotes(mergedNotes);
       replaceNoteSpaces(mergedSpaces);
+      replacePalettes(mergedPalettes);
       setImportMessage(summary.message);
       setView("notes");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not import notes.";
       setImportMessage(message);
     }
+  };
+
+  const openPaletteManager = (note?: HubNote | null) => {
+    setPaletteForm({
+      ...emptyPaletteForm,
+      noteIds: note ? [note.id] : [],
+      projectIds: note?.projectIds ?? [],
+    });
+    setPaletteModalOpen(true);
+  };
+
+  const openSnippetManager = (snippet?: HubSnippet) => {
+    setEditingSnippetId(snippet?.id ?? null);
+    setSnippetForm(
+      snippet
+        ? { title: snippet.title, type: snippet.type, body: snippet.body, tags: snippet.tags ?? "" }
+        : emptySnippetForm,
+    );
+    setSnippetModalOpen(true);
+  };
+
+  const saveSnippet = (event: FormEvent) => {
+    event.preventDefault();
+    const title = snippetForm.title.trim();
+    const body = snippetForm.body.trim();
+    if (!title || !body) return;
+    const payload = {
+      title,
+      type: snippetForm.type,
+      body,
+      tags: snippetForm.tags.trim() || undefined,
+    };
+    if (editingSnippetId) updateSnippet(editingSnippetId, payload);
+    else addSnippet(payload);
+    setSnippetForm(emptySnippetForm);
+    setEditingSnippetId(null);
+  };
+
+  const insertSnippetIntoDraft = (snippet: HubSnippet) => {
+    const nextBody = `${noteForm.body.trimEnd()}\n\n${snippet.body}\n`.trimStart();
+    setNoteForm({ ...noteForm, body: nextBody });
+  };
+
+  const savePalette = (event: FormEvent) => {
+    event.preventDefault();
+    const colors = paletteForm.colors
+      .map((color) => ({
+        id: color.id,
+        name: color.name.trim() || "Color",
+        hex: normalizeHexInput(color.hex),
+        role: color.role.trim(),
+      }))
+      .filter((color) => /^#[0-9a-f]{6}$/i.test(color.hex));
+
+    if (!paletteForm.name.trim() || !colors.length) return;
+
+    addPalette({
+      name: paletteForm.name.trim(),
+      tags: paletteForm.tags.trim() || undefined,
+      projectIds: paletteForm.projectIds,
+      noteIds: paletteForm.noteIds,
+      colors,
+    });
+    setPaletteForm(emptyPaletteForm);
+    setPaletteModalOpen(false);
+  };
+
+  const removePalette = async (palette: HubPalette) => {
+    const confirmed = await confirm({
+      title: "Delete palette?",
+      description: `Delete "${palette.name}" from your palette library? Notes keep their written content.`,
+      confirmLabel: "Delete Palette",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    deletePalette(palette.id);
   };
 
   const startEditingResource = (resource: HubResource) => {
@@ -668,6 +874,16 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
                     </div>
                   ) : null}
                 </div>
+                <Button
+                  variant="secondary"
+                  icon={<Palette size={16} />}
+                  onClick={() => openPaletteManager(selectedNote)}
+                >
+                  New Palette
+                </Button>
+                <Button variant="secondary" icon={<Code2 size={16} />} onClick={() => openSnippetManager()}>
+                  Snippets
+                </Button>
                 <Button
                   variant="secondary"
                   icon={<StickyNote size={16} />}
@@ -759,6 +975,38 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
         </form>
       </Modal>
 
+      <PaletteManagerModal
+        open={paletteModalOpen}
+        form={paletteForm}
+        projects={projects}
+        notes={notes}
+        palettes={palettes}
+        onFormChange={setPaletteForm}
+        onSubmit={savePalette}
+        onClose={() => {
+          setPaletteModalOpen(false);
+          setPaletteForm(emptyPaletteForm);
+        }}
+        onDelete={removePalette}
+      />
+
+      <SnippetManagerModal
+        open={snippetModalOpen}
+        form={snippetForm}
+        snippets={snippets}
+        editingSnippetId={editingSnippetId}
+        onFormChange={setSnippetForm}
+        onEdit={openSnippetManager}
+        onDelete={deleteSnippet}
+        onInsert={insertSnippetIntoDraft}
+        onSubmit={saveSnippet}
+        onClose={() => {
+          setSnippetModalOpen(false);
+          setSnippetForm(emptySnippetForm);
+          setEditingSnippetId(null);
+        }}
+      />
+
       {view === "resources" ? (
         <Card className="p-2">
           <div className="flex flex-wrap gap-2">
@@ -789,12 +1037,14 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               projects={projects}
               selectedNote={selectedNote}
               filter={noteFilter}
+              docTypeFilter={docTypeFilter}
               onFilterChange={(filter) => {
                 setNoteFilter(filter);
                 setSelectedSpaceKey(null);
               }}
+              onDocTypeFilterChange={setDocTypeFilter}
               onSpaceSelect={(spaceKey) => {
-                setNoteFilter("inbox");
+                setNoteFilter("all");
                 setSelectedSpaceKey(spaceKey);
                 const space = [...personalSpaces, ...projectSpaces].find((item) => item.key === spaceKey);
                 const firstSpaceNote = space ? sortNotes(notes.filter((note) => getSpaceNoteIds(space, notes).has(note.id)))[0] : null;
@@ -867,6 +1117,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
           ) : (
             <NotesWorkspace
               projects={projects}
+              palettes={palettes}
               allNotes={notes}
               personalSpaces={personalSpaces}
               selectedSpace={selectedSpace}
@@ -884,6 +1135,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
               onUpdateNoteProjects={(noteId, projectIds) => updateNote(noteId, { projectIds })}
               onToggleChecklistLine={toggleSelectedNoteChecklistLine}
               onSelectNote={selectNote}
+              onOpenPaletteManager={() => openPaletteManager(selectedNote)}
               creatingNote={showForm === "note"}
               noteForm={noteForm}
               autosaveStatus={noteAutosaveStatus}
@@ -1221,19 +1473,33 @@ function SpacePicker({ spaces, selectedIds, onChange }: { spaces: NoteSpaceView[
 
 function RelatedNotesPicker({
   notes,
+  projects = [],
   currentNoteId,
   selectedIds,
   onChange,
 }: {
   notes: HubNote[];
+  projects?: Project[];
   currentNoteId?: string;
   selectedIds: string[];
   onChange: (noteIds: string[]) => void;
 }) {
+  const [search, setSearch] = useState("");
   const selectableNotes = notes.filter((note) => note.id !== currentNoteId);
   if (!selectableNotes.length) return null;
 
   const selectedSet = new Set(selectedIds);
+  const projectLookup = new Map(projects.map((project) => [project.id, project.name]));
+  const selectedNotes = selectableNotes.filter((note) => selectedSet.has(note.id));
+  const searchTerm = search.trim().toLowerCase();
+  const candidateNotes = selectableNotes
+    .filter((note) => !selectedSet.has(note.id))
+    .filter((note) => {
+      if (!searchTerm) return true;
+      const projectNames = (note.projectIds ?? []).map((projectId) => projectLookup.get(projectId)).filter(Boolean).join(" ");
+      return `${note.title} ${note.tags ?? ""} ${note.collection ?? ""} ${note.body} ${projectNames}`.toLowerCase().includes(searchTerm);
+    })
+    .slice(0, 40);
   const toggleNote = (noteId: string) => {
     onChange(selectedSet.has(noteId) ? selectedIds.filter((id) => id !== noteId) : [...selectedIds, noteId]);
   };
@@ -1244,25 +1510,54 @@ function RelatedNotesPicker({
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Related notes</p>
         <span className="text-xs font-semibold text-[var(--text-soft)]">{selectedIds.length} selected</span>
       </div>
-      <div className="mt-3 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1">
-        {selectableNotes.map((note) => {
+      <label className="mt-3 flex min-h-10 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] px-3 text-sm text-[var(--text-muted)]">
+        <Search size={15} />
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search notes, tags, projects..."
+          className="min-w-0 flex-1 bg-transparent text-[var(--text)] outline-none placeholder:text-[var(--text-soft)]"
+        />
+      </label>
+      {selectedNotes.length ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {selectedNotes.map((note) => (
+            <button
+              key={note.id}
+              type="button"
+              onClick={() => toggleNote(note.id)}
+              className="inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--brand-primary)] bg-[var(--button-primary-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--button-primary-text)] transition"
+            >
+              <Link2 size={13} />
+              <span className="truncate">{note.title}</span>
+              <X size={12} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-3 grid max-h-56 gap-1 overflow-y-auto pr-1">
+        {candidateNotes.map((note) => {
           const selected = selectedSet.has(note.id);
           return (
             <button
               key={note.id}
               type="button"
               onClick={() => toggleNote(note.id)}
-              className={`inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`flex max-w-full items-center justify-between gap-3 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs font-semibold transition ${
                 selected
                   ? "border-[var(--brand-primary)] bg-[var(--button-primary-bg)] text-[var(--button-primary-text)]"
                   : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
               }`}
             >
-              <Link2 size={13} />
-              <span className="truncate">{note.title}</span>
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <Link2 size={13} className="shrink-0" />
+                <span className="truncate">{note.title}</span>
+              </span>
+              <span className="shrink-0 text-[10px] uppercase tracking-[0.1em] text-[var(--text-soft)]">{docTypeLabel(note.docType)}</span>
             </button>
           );
         })}
+        {!candidateNotes.length ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-3 text-xs text-[var(--text-soft)]">No notes match this search.</p> : null}
       </div>
     </div>
   );
@@ -1294,20 +1589,201 @@ function ClientVisibilityToggle({ checked, onChange }: { checked: boolean; onCha
   );
 }
 
+function PaletteManagerModal({
+  open,
+  form,
+  projects,
+  notes,
+  palettes,
+  onFormChange,
+  onSubmit,
+  onClose,
+  onDelete,
+}: {
+  open: boolean;
+  form: PaletteFormState;
+  projects: Project[];
+  notes: HubNote[];
+  palettes: HubPalette[];
+  onFormChange: (form: PaletteFormState) => void;
+  onSubmit: (event: FormEvent) => void;
+  onClose: () => void;
+  onDelete: (palette: HubPalette) => void;
+}) {
+  const updateColor = (colorId: string, updates: Partial<PaletteFormState["colors"][number]>) => {
+    onFormChange({ ...form, colors: form.colors.map((color) => (color.id === colorId ? { ...color, ...updates } : color)) });
+  };
+
+  const addColor = () => {
+    onFormChange({ ...form, colors: [...form.colors, { id: `color-${Date.now()}`, name: "Color", hex: "#A1A1A1", role: "" }] });
+  };
+
+  const removeColor = (colorId: string) => {
+    onFormChange({ ...form, colors: form.colors.filter((color) => color.id !== colorId) });
+  };
+
+  return (
+    <Modal title="Palette Manager" description="Save reusable project color palettes and link them to notes." open={open} onClose={onClose} className="max-w-5xl">
+      <form onSubmit={onSubmit} className="grid gap-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <FieldBlock label="Palette Name">
+            <Input value={form.name} onChange={(event) => onFormChange({ ...form, name: event.target.value })} placeholder="Website brand palette" />
+          </FieldBlock>
+          <FieldBlock label="Tags">
+            <Input value={form.tags} onChange={(event) => onFormChange({ ...form, tags: event.target.value })} placeholder="brand, dark UI, client" />
+          </FieldBlock>
+        </div>
+        <div className="grid gap-3 xl:grid-cols-2">
+          <ProjectPicker projects={projects} selectedIds={form.projectIds} onChange={(projectIds) => onFormChange({ ...form, projectIds })} />
+          <RelatedNotesPicker notes={notes} projects={projects} selectedIds={form.noteIds} onChange={(noteIds) => onFormChange({ ...form, noteIds })} />
+        </div>
+        <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]"><Palette size={14} /> Colors</p>
+            <Button type="button" variant="secondary" icon={<Plus size={14} />} onClick={addColor}>Add Color</Button>
+          </div>
+          <div className="grid gap-2">
+            {form.colors.map((color) => (
+              <div key={color.id} className="grid gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2 lg:grid-cols-[44px_minmax(0,1fr)_130px_minmax(0,1fr)_auto] lg:items-center">
+                <span className="h-10 w-10 rounded-[var(--radius-xs)] border border-[var(--border)]" style={{ backgroundColor: normalizeHexInput(color.hex) }} />
+                <Input value={color.name} onChange={(event) => updateColor(color.id, { name: event.target.value })} placeholder="Primary" />
+                <Input value={color.hex} onChange={(event) => updateColor(color.id, { hex: event.target.value })} placeholder="#1C1C1C" />
+                <Input value={color.role} onChange={(event) => updateColor(color.id, { role: event.target.value })} placeholder="Base, CTA, Text..." />
+                <Button type="button" variant="danger" icon={<Trash2 size={14} />} onClick={() => removeColor(color.id)} aria-label="Remove color" />
+              </div>
+            ))}
+          </div>
+        </div>
+        {palettes.length ? (
+          <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Saved Palettes</p>
+            <div className="grid gap-2 md:grid-cols-2">
+              {palettes.map((palette) => (
+                <div key={palette.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-[var(--text)]">{palette.name}</p>
+                      <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{palette.colors.length} colors · {palette.noteIds.length} linked notes</p>
+                    </div>
+                    <Button type="button" variant="danger" icon={<Trash2 size={14} />} onClick={() => onDelete(palette)} aria-label={`Delete ${palette.name}`} />
+                  </div>
+                  <div className="mt-3 flex gap-1">
+                    {palette.colors.slice(0, 8).map((color) => (
+                      <span key={color.id} className="h-7 flex-1 rounded-[var(--radius-xs)] border border-[var(--border)]" style={{ backgroundColor: color.hex }} title={`${color.name} ${color.hex}`} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" icon={<Save size={15} />} disabled={!form.name.trim() || !form.colors.length}>Save Palette</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+const snippetTypeOptions: Array<{ value: HubSnippetType; label: string }> = [
+  { value: "general", label: "General" },
+  { value: "prompt", label: "Prompt" },
+  { value: "checklist", label: "Checklist" },
+  { value: "brief-section", label: "Brief Section" },
+  { value: "palette-note", label: "Palette Note" },
+];
+
+function SnippetManagerModal({
+  open,
+  form,
+  snippets,
+  editingSnippetId,
+  onFormChange,
+  onEdit,
+  onDelete,
+  onInsert,
+  onSubmit,
+  onClose,
+}: {
+  open: boolean;
+  form: SnippetFormState;
+  snippets: HubSnippet[];
+  editingSnippetId: string | null;
+  onFormChange: (form: SnippetFormState) => void;
+  onEdit: (snippet: HubSnippet) => void;
+  onDelete: (id: string) => void;
+  onInsert: (snippet: HubSnippet) => void;
+  onSubmit: (event: FormEvent) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title="Snippet Manager" description="Save reusable prompts, checklists, brief sections, and palette notes." open={open} onClose={onClose} className="max-w-5xl">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+            <Input value={form.title} onChange={(event) => onFormChange({ ...form, title: event.target.value })} placeholder="Snippet title" />
+            <Select value={form.type} onChange={(event) => onFormChange({ ...form, type: event.target.value as HubSnippetType })}>
+              {snippetTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </Select>
+          </div>
+          <Input value={form.tags} onChange={(event) => onFormChange({ ...form, tags: event.target.value })} placeholder="Tags" />
+          <StudioTextarea value={form.body} onChange={(event) => onFormChange({ ...form, body: event.target.value })} className="min-h-72 font-mono" placeholder="Reusable markdown..." />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
+            <Button type="submit" icon={<Save size={15} />} disabled={!form.title.trim() || !form.body.trim()}>
+              {editingSnippetId ? "Update Snippet" : "Save Snippet"}
+            </Button>
+          </div>
+        </form>
+        <div className="max-h-[560px] space-y-2 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2">
+          {snippets.length ? snippets.map((snippet) => (
+            <div key={snippet.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[var(--text)]">{snippet.title}</p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{snippet.type}{snippet.tags ? ` · ${snippet.tags}` : ""}</p>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" className="min-h-8 px-2 sm:min-h-8" icon={<Plus size={13} />} onClick={() => onInsert(snippet)} aria-label="Insert snippet" />
+                  <Button variant="ghost" className="min-h-8 px-2 sm:min-h-8" icon={<Edit3 size={13} />} onClick={() => onEdit(snippet)} aria-label="Edit snippet" />
+                  <Button variant="ghost" className="min-h-8 px-2 sm:min-h-8" icon={<Trash2 size={13} />} onClick={() => onDelete(snippet.id)} aria-label="Delete snippet" />
+                </div>
+              </div>
+              <p className="mt-2 line-clamp-3 text-xs font-medium leading-5 text-[var(--text-muted)]">{snippet.body}</p>
+            </div>
+          )) : (
+            <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-3 text-sm font-semibold text-[var(--text-muted)]">No snippets yet.</p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function MarkdownEditor({
   value,
   onChange,
   compact = false,
   previewOpen = false,
   onTogglePreview,
+  docType = "general",
+  notes = [],
+  palettes = [],
+  onOpenPaletteManager,
 }: {
   value: string;
   onChange: (value: string) => void;
   compact?: boolean;
   previewOpen?: boolean;
   onTogglePreview?: () => void;
+  docType?: HubNoteDocType;
+  notes?: HubNote[];
+  palettes?: HubPalette[];
+  onOpenPaletteManager?: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const headings = getMarkdownHeadings(value);
 
   const updateValue = (next: string, selectionStart: number, selectionEnd = selectionStart) => {
     onChange(next);
@@ -1381,6 +1857,24 @@ function MarkdownEditor({
 
   const insertTable = () => {
     insertSnippet("\n| Column | Column |\n| --- | --- |\n| Value | Value |\n", 2);
+  };
+
+  const insertTemplate = () => {
+    const template = getDocumentTemplate(docType);
+    insertSnippet(value.trim() ? `\n\n${template}` : template, template.length);
+  };
+
+  const insertNoteLink = (noteId: string) => {
+    const note = notes.find((item) => item.id === noteId);
+    if (!note) return;
+    insertSnippet(`[[${note.title}]]`);
+  };
+
+  const insertPalette = (paletteId: string) => {
+    const palette = palettes.find((item) => item.id === paletteId);
+    if (!palette) return;
+    const block = ["```align-palette", palette.name, ...palette.colors.map((color) => `${color.name} | ${color.hex} | ${color.role ?? ""}`), "```", ""].join("\n");
+    insertSnippet(`\n${block}`);
   };
 
   const runNativeEditCommand = (command: "undo" | "redo") => {
@@ -1499,6 +1993,37 @@ function MarkdownEditor({
         <EditorButton icon={<Link size={15} />} label="Link" title="Link" onClick={() => wrapSelection("[", "](https://example.com)", "Link title")} />
         <EditorButton icon={<Table2 size={15} />} label="Table" title="Table" onClick={insertTable} />
         <EditorButton icon={<Minus size={15} />} label="Divider" title="Divider" onClick={() => insertSnippet("\n---\n")} />
+        <span className="mx-1 h-7 w-px bg-[var(--border)]" />
+        <EditorButton icon={<FileText size={15} />} label="Template" title="Insert document template" onClick={insertTemplate} />
+        <select
+          className="h-9 max-w-[180px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-2 text-xs font-semibold text-[var(--button-secondary-text)] outline-none"
+          value=""
+          onChange={(event) => {
+            insertNoteLink(event.target.value);
+            event.currentTarget.value = "";
+          }}
+          aria-label="Insert note link"
+        >
+          <option value="">Link note...</option>
+          {notes.slice(0, 80).map((note) => (
+            <option key={note.id} value={note.id}>{note.title}</option>
+          ))}
+        </select>
+        <select
+          className="h-9 max-w-[180px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-2 text-xs font-semibold text-[var(--button-secondary-text)] outline-none"
+          value=""
+          onChange={(event) => {
+            insertPalette(event.target.value);
+            event.currentTarget.value = "";
+          }}
+          aria-label="Insert palette"
+        >
+          <option value="">Palette...</option>
+          {palettes.slice(0, 80).map((palette) => (
+            <option key={palette.id} value={palette.id}>{palette.name}</option>
+          ))}
+        </select>
+        {onOpenPaletteManager ? <EditorButton icon={<Palette size={15} />} label="New palette" title="Open palette manager" onClick={onOpenPaletteManager} /> : null}
         {!compact && onTogglePreview ? (
           <button
             type="button"
@@ -1515,10 +2040,13 @@ function MarkdownEditor({
         ) : null}
       </div>
       {previewOpen && !compact ? (
-        <div className="min-h-[680px] overflow-y-auto bg-[var(--surface)] p-6 lg:p-8">
+        <div className="grid min-h-[680px] bg-[var(--surface)] lg:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="overflow-y-auto p-6 lg:p-8">
           <div className="mx-auto max-w-[1180px]">
-            {value.trim() ? <NoteReader body={value} onToggleChecklistLine={toggleChecklistLine} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
+            {value.trim() ? <NoteReader body={value} palettes={palettes} onToggleChecklistLine={toggleChecklistLine} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
           </div>
+          </div>
+          <DocumentOutline headings={headings} />
         </div>
       ) : (
         <div className={`grid gap-3 ${compact ? "xl:grid-cols-2" : ""}`}>
@@ -1533,7 +2061,7 @@ function MarkdownEditor({
           />
           {compact ? (
             <div className="min-h-64 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-4">
-              {value.trim() ? <NoteReader body={value} onToggleChecklistLine={toggleChecklistLine} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
+              {value.trim() ? <NoteReader body={value} palettes={palettes} onToggleChecklistLine={toggleChecklistLine} /> : <p className="text-sm text-[var(--text-soft)]">Preview appears here while you write.</p>}
             </div>
           ) : null}
         </div>
@@ -1557,6 +2085,29 @@ function EditorButton({ icon, label, title, onClick }: { icon: ReactNode; label:
       {icon}
       <span className="hidden sm:inline">{label}</span>
     </button>
+  );
+}
+
+function DocumentOutline({ headings }: { headings: Array<{ level: number; title: string; line: number }> }) {
+  return (
+    <aside className="hidden border-l border-[var(--border)] bg-[var(--surface-raised)] p-4 lg:block">
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Outline</p>
+      {headings.length ? (
+        <div className="grid gap-1">
+          {headings.map((heading) => (
+            <div
+              key={`${heading.line}-${heading.title}`}
+              className="rounded-[var(--radius-sm)] px-2 py-1.5 text-xs font-semibold leading-5 text-[var(--text-muted)]"
+              style={{ paddingLeft: `${8 + (heading.level - 1) * 10}px` }}
+            >
+              {heading.title}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs leading-5 text-[var(--text-soft)]">Headings will appear here while you write.</p>
+      )}
+    </aside>
   );
 }
 
@@ -1705,7 +2256,9 @@ function NoteListPanel({
   projects,
   selectedNote,
   filter,
+  docTypeFilter,
   onFilterChange,
+  onDocTypeFilterChange,
   onSpaceSelect,
   onSelectNote,
   onCreateSpace,
@@ -1722,7 +2275,9 @@ function NoteListPanel({
   projects: Project[];
   selectedNote: HubNote | null;
   filter: NoteFilter;
+  docTypeFilter: HubNoteDocType | "all";
   onFilterChange: (filter: NoteFilter) => void;
+  onDocTypeFilterChange: (filter: HubNoteDocType | "all") => void;
   onSpaceSelect: (spaceKey: string) => void;
   onSelectNote: (note: HubNote) => void;
   onCreateSpace: () => void;
@@ -1734,6 +2289,8 @@ function NoteListPanel({
   const projectLookup = new Map(projects.map((project) => [project.id, project]));
   const favoriteCount = allNotes.filter((note) => note.favorite).length;
   const unfiledCount = allNotes.filter((note) => !isFiledInSpaceViews(note, personalSpaces, projectSpaces)).length;
+  const reviewCount = allNotes.filter((note) => (note.docStatus ?? "active") === "review").length;
+  const archivedCount = allNotes.filter((note) => (note.docStatus ?? "active") === "archived").length;
   const selectedManualSpace = selectedSpaceKey?.startsWith("space:") ? personalSpaces.find((space) => space.key === selectedSpaceKey) : null;
   const visibleProjectSpaces = projectSpaces.filter((space) => space.count > 0 || space.key === selectedSpaceKey).slice(0, 6);
 
@@ -1749,8 +2306,37 @@ function NoteListPanel({
         <div className="mt-3">
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Views</p>
           <div className="grid gap-0.5">
-            <NoteTreeButton active={!selectedSpaceKey && filter === "inbox"} icon={<FolderOpen size={15} />} label="Inbox" count={unfiledCount} onClick={() => onFilterChange("inbox")} />
+            <NoteTreeButton active={!selectedSpaceKey && filter === "all"} icon={<FileText size={15} />} label="All Docs" count={allNotes.length} onClick={() => onFilterChange("all")} />
             <NoteTreeButton active={!selectedSpaceKey && filter === "favorites"} icon={<Star size={15} />} label="Favorites" count={favoriteCount} onClick={() => onFilterChange("favorites")} />
+            <NoteTreeButton active={!selectedSpaceKey && filter === "review"} icon={<Eye size={15} />} label="Needs Review" count={reviewCount} onClick={() => onFilterChange("review")} />
+            <NoteTreeButton active={!selectedSpaceKey && filter === "archived"} icon={<Folder size={15} />} label="Archived" count={archivedCount} onClick={() => onFilterChange("archived")} />
+            <NoteTreeButton active={!selectedSpaceKey && filter === "inbox"} icon={<FolderOpen size={15} />} label="Unfiled" count={unfiledCount} onClick={() => onFilterChange("inbox")} />
+          </div>
+        </div>
+        <div className="mt-4 border-t border-[var(--border)] pt-3">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">Document Types</p>
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              type="button"
+              onClick={() => onDocTypeFilterChange("all")}
+              className={`rounded-[var(--radius-sm)] border px-2 py-1.5 text-left text-xs font-bold transition ${
+                docTypeFilter === "all" ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)] text-[var(--text)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)]"
+              }`}
+            >
+              All types
+            </button>
+            {noteDocTypeOptions.filter((option) => option.value !== "general").map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onDocTypeFilterChange(option.value)}
+                className={`rounded-[var(--radius-sm)] border px-2 py-1.5 text-left text-xs font-bold transition ${
+                  docTypeFilter === option.value ? "border-[var(--brand-primary)] bg-[var(--button-secondary-hover)] text-[var(--text)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border-strong)]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="mt-4 border-t border-[var(--border)] pt-3">
@@ -1802,7 +2388,7 @@ function NoteListPanel({
       </div>
       <div className="border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">{selectedSpaceKey ? "Space Notes" : filter === "favorites" ? "Favorites" : "Inbox"}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">{selectedSpaceKey ? "Project / Space Docs" : noteFilterLabel(filter)}</p>
           <span className="text-xs font-semibold text-[var(--text-soft)]">{notes.length}</span>
         </div>
       </div>
@@ -1841,6 +2427,8 @@ function NoteListPanel({
                   <Badge key={tag.trim()}>{tag.trim()}</Badge>
                 ))}
               {note.collection ? <Badge tone="slate">{note.collection}</Badge> : null}
+              <Badge tone="purple">{docTypeLabel(note.docType)}</Badge>
+              {(note.docStatus ?? "active") !== "active" ? <Badge tone={(note.docStatus ?? "active") === "review" ? "amber" : "slate"}>{docStatusLabel(note.docStatus)}</Badge> : null}
             </div>
             {selectedManualSpace ? (
               <div className="mt-3 border-t border-[var(--border)] pt-2">
@@ -1954,6 +2542,7 @@ function NoteTreeButton({ active, icon, label, count, onClick }: { active: boole
 
 function NotesWorkspace({
   projects,
+  palettes,
   allNotes,
   personalSpaces,
   selectedSpace,
@@ -1979,8 +2568,10 @@ function NotesWorkspace({
   onUpdateNoteProjects,
   onToggleChecklistLine,
   onSelectNote,
+  onOpenPaletteManager,
 }: {
   projects: Project[];
+  palettes: HubPalette[];
   allNotes: HubNote[];
   personalSpaces: NoteSpaceView[];
   selectedSpace: NoteSpaceView | null;
@@ -2006,6 +2597,7 @@ function NotesWorkspace({
   onUpdateNoteProjects: (noteId: string, projectIds: string[]) => void;
   onToggleChecklistLine: (note: HubNote, lineIndex: number) => void;
   onSelectNote: (noteId: string) => void;
+  onOpenPaletteManager: () => void;
 }) {
   const isEditing = selectedNote ? editingNoteId === selectedNote.id : false;
   const projectLookup = new Map(projects.map((project) => [project.id, project]));
@@ -2055,9 +2647,23 @@ function NotesWorkspace({
               }
             />
             <div className="grid flex-1 gap-5 p-5 lg:p-6">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_280px]">
                 <FieldBlock label="Title">
                   <Input value={noteForm.title} onChange={(event) => onNoteFormChange({ ...noteForm, title: event.target.value })} placeholder="Note title" />
+                </FieldBlock>
+                <FieldBlock label="Type">
+                  <Select value={noteForm.docType} onChange={(event) => onNoteFormChange({ ...noteForm, docType: event.target.value as HubNoteDocType })}>
+                    {noteDocTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                </FieldBlock>
+                <FieldBlock label="Status">
+                  <Select value={noteForm.docStatus} onChange={(event) => onNoteFormChange({ ...noteForm, docStatus: event.target.value as HubNoteDocStatus })}>
+                    {noteDocStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
                 </FieldBlock>
                 <FieldBlock label="Tags">
                   <Input value={noteForm.tags} onChange={(event) => onNoteFormChange({ ...noteForm, tags: event.target.value })} placeholder="Services, UX, handoff" />
@@ -2080,10 +2686,19 @@ function NotesWorkspace({
                 </div>
                 <div className="mt-3 grid gap-3 xl:grid-cols-2">
                   <ProjectPicker projects={projects} selectedIds={noteForm.projectIds} onChange={(projectIds) => onNoteFormChange({ ...noteForm, projectIds })} />
-                  <RelatedNotesPicker notes={allNotes} selectedIds={noteForm.relatedNoteIds} onChange={(relatedNoteIds) => onNoteFormChange({ ...noteForm, relatedNoteIds })} />
+                  <RelatedNotesPicker notes={allNotes} projects={projects} selectedIds={noteForm.relatedNoteIds} onChange={(relatedNoteIds) => onNoteFormChange({ ...noteForm, relatedNoteIds })} />
                 </div>
               </div>
-              <MarkdownEditor value={noteForm.body} onChange={(body) => onNoteFormChange({ ...noteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
+              <MarkdownEditor
+                value={noteForm.body}
+                onChange={(body) => onNoteFormChange({ ...noteForm, body })}
+                previewOpen={previewOpen}
+                onTogglePreview={onTogglePreview}
+                docType={noteForm.docType}
+                notes={allNotes}
+                palettes={palettes}
+                onOpenPaletteManager={onOpenPaletteManager}
+              />
             </div>
           </div>
         ) : selectedNote ? (
@@ -2098,6 +2713,8 @@ function NotesWorkspace({
                   </div>
                   <h2 className="mt-3 max-w-4xl font-display text-2xl font-bold leading-tight text-[var(--text)]">{selectedNote.title}</h2>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge tone="purple">{docTypeLabel(selectedNote.docType)}</Badge>
+                    <Badge tone={(selectedNote.docStatus ?? "active") === "review" ? "amber" : (selectedNote.docStatus ?? "active") === "archived" ? "slate" : "emerald"}>{docStatusLabel(selectedNote.docStatus)}</Badge>
                     {selectedProjects?.map((project) => (
                       <Badge key={project.id} tone="blue">{project.name}</Badge>
                     ))}
@@ -2157,9 +2774,23 @@ function NotesWorkspace({
 
             {isEditing ? (
               <div className="grid flex-1 gap-5 p-5 lg:p-6">
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_280px]">
                   <FieldBlock label="Title">
                     <Input value={editNoteForm.title} onChange={(event) => onEditFormChange({ ...editNoteForm, title: event.target.value })} placeholder="Note title" />
+                  </FieldBlock>
+                  <FieldBlock label="Type">
+                    <Select value={editNoteForm.docType} onChange={(event) => onEditFormChange({ ...editNoteForm, docType: event.target.value as HubNoteDocType })}>
+                      {noteDocTypeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </Select>
+                  </FieldBlock>
+                  <FieldBlock label="Status">
+                    <Select value={editNoteForm.docStatus} onChange={(event) => onEditFormChange({ ...editNoteForm, docStatus: event.target.value as HubNoteDocStatus })}>
+                      {noteDocStatusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </Select>
                   </FieldBlock>
                   <FieldBlock label="Tags">
                     <Input value={editNoteForm.tags} onChange={(event) => onEditFormChange({ ...editNoteForm, tags: event.target.value })} placeholder="Services, UX, handoff" />
@@ -2182,15 +2813,24 @@ function NotesWorkspace({
                   </div>
                   <div className="mt-3 grid gap-3 xl:grid-cols-2">
                     <ProjectPicker projects={projects} selectedIds={editNoteForm.projectIds} onChange={(projectIds) => onEditFormChange({ ...editNoteForm, projectIds })} />
-                    <RelatedNotesPicker notes={allNotes} currentNoteId={selectedNote.id} selectedIds={editNoteForm.relatedNoteIds} onChange={(relatedNoteIds) => onEditFormChange({ ...editNoteForm, relatedNoteIds })} />
+                    <RelatedNotesPicker notes={allNotes} projects={projects} currentNoteId={selectedNote.id} selectedIds={editNoteForm.relatedNoteIds} onChange={(relatedNoteIds) => onEditFormChange({ ...editNoteForm, relatedNoteIds })} />
                   </div>
                 </div>
-                <MarkdownEditor value={editNoteForm.body} onChange={(body) => onEditFormChange({ ...editNoteForm, body })} previewOpen={previewOpen} onTogglePreview={onTogglePreview} />
+                <MarkdownEditor
+                  value={editNoteForm.body}
+                  onChange={(body) => onEditFormChange({ ...editNoteForm, body })}
+                  previewOpen={previewOpen}
+                  onTogglePreview={onTogglePreview}
+                  docType={editNoteForm.docType}
+                  notes={allNotes.filter((note) => note.id !== selectedNote.id)}
+                  palettes={palettes}
+                  onOpenPaletteManager={onOpenPaletteManager}
+                />
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto bg-[var(--surface)] p-5 lg:p-8">
                 <div className="min-h-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow-sm)] lg:px-12 lg:py-10">
-                  <NoteReader body={selectedNote.body} allNotes={allNotes} onOpenNote={onSelectNote} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
+                  <NoteReader body={selectedNote.body} allNotes={allNotes} palettes={palettes} onOpenNote={onSelectNote} onToggleChecklistLine={(lineIndex) => onToggleChecklistLine(selectedNote, lineIndex)} />
                   <CompactLinkedNotes notes={[...linkedContext.related, ...linkedContext.wikiLinks, ...linkedContext.backlinks]} onSelectNote={onSelectNote} />
                   <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4 text-xs font-semibold text-[var(--text-soft)]">
                     <span>{selectedNote.body.trim() ? selectedNote.body.trim().split(/\s+/).length : 0} words</span>
@@ -2464,11 +3104,13 @@ function CompactLinkedNotes({ notes, onSelectNote }: { notes: HubNote[]; onSelec
 function NoteReader({
   body,
   allNotes = [],
+  palettes = [],
   onOpenNote,
   onToggleChecklistLine,
 }: {
   body: string;
   allNotes?: HubNote[];
+  palettes?: HubPalette[];
   onOpenNote?: (noteId: string) => void;
   onToggleChecklistLine?: (lineIndex: number) => void;
 }) {
@@ -2476,9 +3118,24 @@ function NoteReader({
   const nodes: ReactNode[] = [];
   let codeLines: string[] = [];
   let inCodeBlock = false;
+  let codeLanguage = "";
   const inlineOptions = { notes: allNotes, onOpenNote };
 
   const pushCodeBlock = (key: string) => {
+    if (codeLanguage === "align-palette") {
+      const savedPalette = palettes.find((palette) => palette.name.toLowerCase() === (codeLines[0] || "").trim().toLowerCase());
+      nodes.push(
+        <PaletteBlock
+          key={key}
+          title={savedPalette?.name || codeLines[0] || "Palette"}
+          lines={savedPalette ? savedPalette.colors.map((color) => `${color.name} | ${color.hex} | ${color.role ?? ""}`) : codeLines.slice(1)}
+        />,
+      );
+      codeLines = [];
+      inCodeBlock = false;
+      codeLanguage = "";
+      return;
+    }
     nodes.push(
       <pre key={key} className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm leading-6 text-[var(--text)]">
         <code>{codeLines.join("\n")}</code>
@@ -2486,6 +3143,7 @@ function NoteReader({
     );
     codeLines = [];
     inCodeBlock = false;
+    codeLanguage = "";
   };
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -2497,6 +3155,7 @@ function NoteReader({
         pushCodeBlock(`code-${index}`);
       } else {
         inCodeBlock = true;
+        codeLanguage = line.replace(/^```/, "").trim();
       }
       continue;
     }
@@ -2685,7 +3344,52 @@ function NoteReader({
     pushCodeBlock("code-open");
   }
 
-  return <article className="space-y-4 text-base leading-8 text-[var(--text-muted)]">{nodes}</article>;
+  return <article className="align-note-reader space-y-4 text-base leading-8 text-[var(--note-text,var(--text-muted))]">{nodes}</article>;
+}
+
+function PaletteBlock({ title, lines }: { title: string; lines: string[] }) {
+  const colors = lines
+    .map((line) => {
+      const [name, hex, role] = line.split("|").map((part) => part.trim());
+      const normalizedHex = normalizeHexInput(hex ?? "");
+      if (!/^#[0-9A-F]{6}$/.test(normalizedHex)) return null;
+      return { name: name || "Color", hex: normalizedHex, role: role || "" };
+    })
+    .filter((color): color is { name: string; hex: string; role: string } => Boolean(color));
+
+  if (!colors.length) {
+    return (
+      <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--text-muted)]">
+        Palette block has no valid hex colors.
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="flex items-center gap-2 text-sm font-bold text-[var(--text)]"><Palette size={16} />{title}</p>
+        <Badge tone="slate">{colors.length} colors</Badge>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {colors.map((color) => (
+          <button
+            key={`${color.name}-${color.hex}`}
+            type="button"
+            onClick={() => void navigator.clipboard?.writeText(color.hex)}
+            className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+            title={`Copy ${color.hex}`}
+          >
+            <span className="h-10 w-10 shrink-0 rounded-[var(--radius-xs)] border border-[var(--border)]" style={{ backgroundColor: color.hex }} />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-bold text-[var(--text)]">{color.name}</span>
+              <span className="block truncate text-xs font-semibold text-[var(--text-soft)]">{color.role ? `${color.role} · ` : ""}{color.hex}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 type InlineMarkdownOptions = {

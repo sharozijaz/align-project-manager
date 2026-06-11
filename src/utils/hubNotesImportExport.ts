@@ -1,4 +1,4 @@
-import type { HubNote, HubNoteSpace } from "../types/studio";
+import type { HubNote, HubNoteDocStatus, HubNoteDocType, HubNoteSpace, HubPalette, HubPaletteColor } from "../types/studio";
 
 type HubNotesImportSummary = {
   added: number;
@@ -9,79 +9,39 @@ type HubNotesImportSummary = {
 };
 
 type HubNotesExportFile = {
-  version: "align-hub-notes-v2";
+  version: "align-hub-notes-v3";
   exportedAt: string;
   notes: HubNote[];
   noteSpaces: HubNoteSpace[];
+  palettes: HubPalette[];
 };
 
 type HubNotesImportResult = {
   notes: HubNote[];
   noteSpaces: HubNoteSpace[];
+  palettes: HubPalette[];
 };
 
-const EXPORT_VERSION = "align-hub-notes-v2";
+const EXPORT_VERSION = "align-hub-notes-v3";
+const docTypes: HubNoteDocType[] = ["brief", "strategy", "research", "palette", "meeting", "prompt", "checklist", "reference", "general"];
+const docStatuses: HubNoteDocStatus[] = ["draft", "active", "review", "archived"];
 
-export function exportHubNotesJson(notes: HubNote[], noteSpaces: HubNoteSpace[] = []) {
+export function exportHubNotesJson(notes: HubNote[], noteSpaces: HubNoteSpace[] = [], palettes: HubPalette[] = []) {
   const payload: HubNotesExportFile = {
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
     notes: notes.map(normalizeNote),
     noteSpaces: noteSpaces.map(normalizeNoteSpace),
+    palettes: palettes.map(normalizePalette),
   };
 
   return JSON.stringify(payload, null, 2);
 }
 
-export function exportHubNotesMarkdown(notes: HubNote[], noteSpaces: HubNoteSpace[] = []) {
-  const header = [
-    "# Align Notes",
-    "",
-    `Exported: ${new Date().toLocaleString()}`,
-    "",
-    "This Markdown file is meant to be readable. Align note IDs are stored in comments so the file can still be imported safely.",
-    "",
-    ...noteSpaces.map((space) => `<!-- align-note-space: ${escapeMetadata(JSON.stringify(normalizeNoteSpace(space)))} -->`),
-    noteSpaces.length ? "" : "",
-  ].join("\n");
-
-  const body = notes
-    .map((note, index) => {
-      const normalized = normalizeNote(note);
-      const metadata = [
-        normalized.tags ? `Tags: ${normalized.tags}` : "",
-        normalized.collection ? `Collection: ${normalized.collection}` : "",
-        normalized.favorite ? "Favorite: yes" : "",
-        normalized.clientVisible ? "Client-visible: yes" : "",
-        normalized.projectIds.length ? `Linked project IDs: ${normalized.projectIds.join(", ")}` : "",
-        normalized.relatedNoteIds.length ? `Related note IDs: ${normalized.relatedNoteIds.join(", ")}` : "",
-        `Created: ${normalized.createdAt}`,
-        `Updated: ${normalized.updatedAt}`,
-      ].filter(Boolean);
-
-      return [
-        "<!-- align-note-start -->",
-        `<!-- align-note-id: ${normalized.id} -->`,
-        `<!-- align-note-collection: ${escapeMetadata(normalized.collection ?? "")} -->`,
-        `<!-- align-note-tags: ${escapeMetadata(normalized.tags ?? "")} -->`,
-        `<!-- align-note-favorite: ${normalized.favorite ? "true" : "false"} -->`,
-        `<!-- align-note-client-visible: ${normalized.clientVisible ? "true" : "false"} -->`,
-        `<!-- align-note-project-ids: ${normalized.projectIds.join(",")} -->`,
-        `<!-- align-note-related-note-ids: ${normalized.relatedNoteIds.join(",")} -->`,
-        `<!-- align-note-created-at: ${normalized.createdAt} -->`,
-        `<!-- align-note-updated-at: ${normalized.updatedAt} -->`,
-        `## ${normalized.title}`,
-        "",
-        metadata.length ? metadata.map((item) => `> ${item}`).join("\n") : "> No metadata",
-        "",
-        normalized.body,
-        "",
-        index < notes.length - 1 ? "---" : "",
-      ].join("\n");
-    })
-    .join("\n\n");
-
-  return `${header}${body}`.trimEnd() + "\n";
+export function exportHubNotesMarkdown(notes: HubNote[], noteSpaces: HubNoteSpace[] = [], palettes: HubPalette[] = []) {
+  void noteSpaces;
+  void palettes;
+  return notes.map((note) => cleanMarkdownNote(normalizeNote(note))).join("\n\n---\n\n").trimEnd() + "\n";
 }
 
 export function downloadTextFile(filename: string, content: string, type: string) {
@@ -106,7 +66,14 @@ export function parseHubNotesImport(content: string, filename: string): HubNotes
   return parseMarkdownNotes(content);
 }
 
-export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[], existingSpaces: HubNoteSpace[] = [], incomingSpaces: HubNoteSpace[] = []) {
+export function mergeImportedHubNotes(
+  existing: HubNote[],
+  incoming: HubNote[],
+  existingSpaces: HubNoteSpace[] = [],
+  incomingSpaces: HubNoteSpace[] = [],
+  existingPalettes: HubPalette[] = [],
+  incomingPalettes: HubPalette[] = [],
+) {
   let added = 0;
   let updated = 0;
   let skipped = 0;
@@ -148,6 +115,7 @@ export function mergeImportedHubNotes(existing: HubNote[], incoming: HubNote[], 
   return {
     notes: next,
     noteSpaces: mergeImportedNoteSpaces(existingSpaces, incomingSpaces, next),
+    palettes: mergeImportedPalettes(existingPalettes, incomingPalettes, next),
     summary: {
       added,
       updated,
@@ -165,6 +133,7 @@ function parseJsonNotes(content: string): HubNotesImportResult {
   return {
     notes: notes.map((note) => normalizeImportedNote(note)),
     noteSpaces: Array.isArray(parsed) ? [] : Array.isArray(parsed.noteSpaces) ? parsed.noteSpaces.map((space) => normalizeImportedNoteSpace(space)) : [],
+    palettes: Array.isArray(parsed) ? [] : Array.isArray(parsed.palettes) ? parsed.palettes.map((palette) => normalizeImportedPalette(palette)) : [],
   };
 }
 
@@ -172,7 +141,7 @@ function parseMarkdownNotes(content: string): HubNotesImportResult {
   if (content.includes("<!-- align-note-start -->")) return parseReadableMarkdownNotes(content);
 
   const sections = content
-    .split(/\n(?=---\n)/g)
+    .split(/\n-{3,}\n/g)
     .map((section) => section.trim())
     .filter(Boolean);
 
@@ -201,6 +170,8 @@ function parseMarkdownNotes(content: string): HubNotesImportResult {
       tags: metadata.tags || undefined,
       favorite: metadata.favorite === "true",
       clientVisible: metadata["client-visible"] === "true",
+      docType: normalizeDocType(metadata["doc-type"]),
+      docStatus: normalizeDocStatus(metadata["doc-status"]),
       projectIds: splitCsv(metadata["project-ids"]),
       relatedNoteIds: splitCsv(metadata["related-note-ids"]),
       createdAt: metadata["created-at"],
@@ -208,11 +179,21 @@ function parseMarkdownNotes(content: string): HubNotesImportResult {
     });
     }),
     noteSpaces: [],
+    palettes: [],
   };
+}
+
+function cleanMarkdownNote(note: HubNote) {
+  const title = note.title.trim() || "Untitled note";
+  const body = note.body.trim();
+  const titlePattern = new RegExp(`^#{1,6}\\s+${escapeRegExp(title)}\\s*$`, "iu");
+  if (body.split("\n").find((line) => line.trim())?.match(titlePattern)) return body;
+  return [`# ${title}`, "", body].filter((part) => part.length > 0).join("\n");
 }
 
 function parseReadableMarkdownNotes(content: string): HubNotesImportResult {
   const noteSpaces = parseMarkdownNoteSpaces(content);
+  const palettes = parseMarkdownPalettes(content);
   const sections = content
     .split("<!-- align-note-start -->")
     .map((section) => section.trim())
@@ -241,6 +222,8 @@ function parseReadableMarkdownNotes(content: string): HubNotesImportResult {
       tags: comments["align-note-tags"] || undefined,
       favorite: comments["align-note-favorite"] === "true",
       clientVisible: comments["align-note-client-visible"] === "true",
+      docType: normalizeDocType(comments["align-note-doc-type"]),
+      docStatus: normalizeDocStatus(comments["align-note-doc-status"]),
       projectIds: splitCsv(comments["align-note-project-ids"]),
       relatedNoteIds: splitCsv(comments["align-note-related-note-ids"]),
       createdAt: comments["align-note-created-at"],
@@ -248,6 +231,7 @@ function parseReadableMarkdownNotes(content: string): HubNotesImportResult {
     });
     }),
     noteSpaces,
+    palettes,
   };
 }
 
@@ -261,6 +245,8 @@ function normalizeImportedNote(note: Partial<HubNote>): HubNote {
     tags: note.tags?.trim() || undefined,
     favorite: Boolean(note.favorite),
     clientVisible: Boolean(note.clientVisible),
+    docType: normalizeDocType(note.docType),
+    docStatus: normalizeDocStatus(note.docStatus),
     projectIds: Array.isArray(note.projectIds) ? note.projectIds.filter(Boolean) : [],
     relatedNoteIds: Array.isArray(note.relatedNoteIds) ? note.relatedNoteIds.filter(Boolean) : [],
     createdAt: validDate(note.createdAt) || now,
@@ -295,6 +281,33 @@ function normalizeNoteSpace(space: HubNoteSpace): HubNoteSpace {
   return normalizeImportedNoteSpace(space);
 }
 
+function normalizeImportedPalette(palette: Partial<HubPalette>): HubPalette {
+  const now = new Date().toISOString();
+  return {
+    id: palette.id || createNoteId().replace(/^note-/, "palette-"),
+    name: String(palette.name ?? "Imported palette").trim() || "Imported palette",
+    projectIds: Array.isArray(palette.projectIds) ? [...new Set(palette.projectIds.filter(Boolean))] : [],
+    noteIds: Array.isArray(palette.noteIds) ? [...new Set(palette.noteIds.filter(Boolean))] : [],
+    colors: Array.isArray(palette.colors) ? palette.colors.map(normalizeImportedPaletteColor) : [],
+    tags: palette.tags?.trim() || undefined,
+    createdAt: validDate(palette.createdAt) || now,
+    updatedAt: validDate(palette.updatedAt) || now,
+  };
+}
+
+function normalizeImportedPaletteColor(color: Partial<HubPaletteColor>): HubPaletteColor {
+  return {
+    id: color.id || createNoteId().replace(/^note-/, "color-"),
+    name: String(color.name ?? "Color").trim() || "Color",
+    hex: normalizeHex(color.hex),
+    role: color.role?.trim() || undefined,
+  };
+}
+
+function normalizePalette(palette: HubPalette): HubPalette {
+  return normalizeImportedPalette(palette);
+}
+
 function mergeImportedNoteSpaces(existingSpaces: HubNoteSpace[], incomingSpaces: HubNoteSpace[], notes: HubNote[]) {
   const validNoteIds = new Set(notes.map((note) => note.id));
   const spacesById = new Map(existingSpaces.map((space) => [space.id, normalizeNoteSpace(space)]));
@@ -313,6 +326,23 @@ function mergeImportedNoteSpaces(existingSpaces: HubNoteSpace[], incomingSpaces:
   return [...spacesById.values()];
 }
 
+function mergeImportedPalettes(existingPalettes: HubPalette[], incomingPalettes: HubPalette[], notes: HubNote[]) {
+  const validNoteIds = new Set(notes.map((note) => note.id));
+  const palettesById = new Map(existingPalettes.map((palette) => [palette.id, normalizePalette(palette)]));
+
+  incomingPalettes.map(normalizePalette).forEach((palette) => {
+    const existing = palettesById.get(palette.id);
+    palettesById.set(palette.id, {
+      ...(existing ?? palette),
+      ...palette,
+      noteIds: palette.noteIds.filter((noteId) => validNoteIds.has(noteId)),
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  return [...palettesById.values()];
+}
+
 function parseMarkdownNoteSpaces(content: string) {
   const spaces: HubNoteSpace[] = [];
   const pattern = /<!--\s*align-note-space:\s*([\s\S]*?)\s*-->/g;
@@ -326,6 +356,21 @@ function parseMarkdownNoteSpaces(content: string) {
     match = pattern.exec(content);
   }
   return spaces;
+}
+
+function parseMarkdownPalettes(content: string) {
+  const palettes: HubPalette[] = [];
+  const pattern = /<!--\s*align-palette:\s*([\s\S]*?)\s*-->/g;
+  let match = pattern.exec(content);
+  while (match) {
+    try {
+      palettes.push(normalizeImportedPalette(JSON.parse(match[1].replace(/\\n/g, "\n")) as Partial<HubPalette>));
+    } catch {
+      // Ignore malformed optional palette metadata; note content remains importable.
+    }
+    match = pattern.exec(content);
+  }
+  return palettes;
 }
 
 function parseMetadata(value: string) {
@@ -352,8 +397,8 @@ function parseHtmlComments(value: string) {
   return comments;
 }
 
-function escapeMetadata(value: string) {
-  return value.replace(/\n/g, "\\n");
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function splitCsv(value?: string) {
@@ -376,4 +421,18 @@ function createNoteId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `note-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeDocType(value?: string): HubNoteDocType {
+  return docTypes.includes(value as HubNoteDocType) ? (value as HubNoteDocType) : "general";
+}
+
+function normalizeDocStatus(value?: string): HubNoteDocStatus {
+  return docStatuses.includes(value as HubNoteDocStatus) ? (value as HubNoteDocStatus) : "active";
+}
+
+function normalizeHex(value?: string) {
+  const raw = String(value ?? "").trim();
+  const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+  return /^#[0-9a-f]{6}$/i.test(withHash) ? withHash.toUpperCase() : "#A1A1A1";
 }

@@ -1,18 +1,24 @@
 import type { CalendarEvent } from "../../types/calendar";
-import type { Project } from "../../types/project";
-import type { HubNote, HubNoteSpace, HubResource } from "../../types/studio";
+import type { Project, ProjectMilestone } from "../../types/project";
+import type { HubNote, HubNoteSpace, HubPalette, HubResource, HubSnippet } from "../../types/studio";
 import type { Task } from "../../types/task";
 import { supabase } from "./client";
 import {
   calendarEventToRow,
   hubNoteToRow,
   hubNoteSpaceToRow,
+  hubPaletteToRow,
+  hubSnippetToRow,
   hubResourceToRow,
+  projectMilestoneToRow,
   projectToRow,
   rowToCalendarEvent,
   rowToHubNote,
   rowToHubNoteSpace,
+  rowToHubPalette,
+  rowToHubSnippet,
   rowToHubResource,
+  rowToProjectMilestone,
   rowToProject,
   rowToTask,
   taskToRow,
@@ -26,7 +32,13 @@ export interface SyncedWorkspace {
   resources: HubResource[];
   notes: HubNote[];
   noteSpaces: HubNoteSpace[];
+  palettes: HubPalette[];
+  milestones: ProjectMilestone[];
+  snippets: HubSnippet[];
   noteSpacesUnavailable?: boolean;
+  palettesUnavailable?: boolean;
+  milestonesUnavailable?: boolean;
+  snippetsUnavailable?: boolean;
 }
 
 export interface TaskSyncResult {
@@ -73,6 +85,9 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     { data: resources, error: resourcesError },
     { data: notes, error: notesError },
     { data: noteSpaces, error: noteSpacesError },
+    { data: palettes, error: palettesError },
+    { data: milestones, error: milestonesError },
+    { data: snippets, error: snippetsError },
   ] =
     await Promise.all([
       client.from("projects").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
@@ -81,6 +96,9 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
       client.from("hub_resources").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       client.from("hub_notes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       client.from("hub_note_spaces").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
+      client.from("hub_palettes").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
+      client.from("project_milestones").select("*").eq("user_id", userId).order("sort_order", { ascending: true }),
+      client.from("hub_snippets").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
     ]);
 
   const error =
@@ -89,7 +107,10 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     eventsError ??
     (isMissingRelation(resourcesError) ? null : resourcesError) ??
     (isMissingRelation(notesError) ? null : notesError) ??
-    (isMissingRelation(noteSpacesError) ? null : noteSpacesError);
+    (isMissingRelation(noteSpacesError) ? null : noteSpacesError) ??
+    (isMissingRelation(palettesError) ? null : palettesError) ??
+    (isMissingRelation(milestonesError) ? null : milestonesError) ??
+    (isMissingRelation(snippetsError) ? null : snippetsError);
   if (error) throw new Error(errorMessage(error, "Could not download workspace from Supabase."));
 
   return {
@@ -99,7 +120,13 @@ export async function pullWorkspaceFromSupabase(): Promise<SyncedWorkspace> {
     resources: isMissingRelation(resourcesError) ? [] : (resources ?? []).map(rowToHubResource),
     notes: isMissingRelation(notesError) ? [] : (notes ?? []).map(rowToHubNote),
     noteSpaces: isMissingRelation(noteSpacesError) ? [] : (noteSpaces ?? []).map(rowToHubNoteSpace),
+    palettes: isMissingRelation(palettesError) ? [] : (palettes ?? []).map(rowToHubPalette),
+    milestones: isMissingRelation(milestonesError) ? [] : (milestones ?? []).map(rowToProjectMilestone),
+    snippets: isMissingRelation(snippetsError) ? [] : (snippets ?? []).map(rowToHubSnippet),
     noteSpacesUnavailable: isMissingRelation(noteSpacesError),
+    palettesUnavailable: isMissingRelation(palettesError),
+    milestonesUnavailable: isMissingRelation(milestonesError),
+    snippetsUnavailable: isMissingRelation(snippetsError),
   };
 }
 
@@ -115,6 +142,9 @@ export async function pushWorkspaceToSupabase(workspace: SyncedWorkspace): Promi
   await replaceHubResources(workspace.resources.map((resource) => hubResourceToRow(resource, userId)), userId);
   await replaceHubNotes(workspace.notes.map((note) => hubNoteToRow(note, userId)), userId);
   await replaceHubNoteSpaces(workspace.noteSpaces.map((space) => hubNoteSpaceToRow(space, userId)), userId);
+  await replaceHubPalettes(workspace.palettes.map((palette) => hubPaletteToRow(palette, userId)), userId);
+  await replaceProjectMilestones(workspace.milestones.map((milestone) => projectMilestoneToRow(milestone, userId)), userId);
+  await replaceHubSnippets(workspace.snippets.map((snippet) => hubSnippetToRow(snippet, userId)), userId);
 
   return {
     tasks: taskSync.tasks,
@@ -157,11 +187,14 @@ export async function clearWorkspaceInSupabase() {
     deleteOwnedRows("hub_resources", userId),
     deleteOwnedRows("hub_notes", userId),
     deleteOwnedRows("hub_note_spaces", userId),
+    deleteOwnedRows("hub_palettes", userId),
+    deleteOwnedRows("project_milestones", userId),
+    deleteOwnedRows("hub_snippets", userId),
     deleteOwnedRows("projects", userId),
   ]);
 }
 
-async function deleteOwnedRows(table: "projects" | "tasks" | "calendar_events" | "hub_resources" | "hub_notes" | "hub_note_spaces", userId: string) {
+async function deleteOwnedRows(table: "projects" | "tasks" | "calendar_events" | "hub_resources" | "hub_notes" | "hub_note_spaces" | "hub_palettes" | "project_milestones" | "hub_snippets", userId: string) {
   const client = requireClient();
   const { error } = await client.from(table).delete().eq("user_id", userId);
 
@@ -301,6 +334,8 @@ const optionalTaskColumns = [
   "due_time",
   "sort_order",
   "parent_task_id",
+  "linked_note_ids",
+  "milestone_id",
   "planned_month",
   "planned_week_start",
 ];
@@ -375,8 +410,10 @@ async function replaceHubNotes(rows: ReturnType<typeof hubNoteToRow>[], userId: 
   if (rows.length) {
     const { error: upsertError } = await client.from("hub_notes").upsert(rows);
     if (isMissingRelation(upsertError)) return;
-    if (upsertError && ["collection", "project_ids", "related_note_ids"].some((column) => isMissingColumn(upsertError, column))) {
-      const retryRows = rows.map(({ collection: _collection, project_ids: _projectIds, related_note_ids: _relatedNoteIds, ...row }) => row);
+    if (upsertError && ["collection", "project_ids", "related_note_ids", "doc_type", "doc_status", "milestone_id"].some((column) => isMissingColumn(upsertError, column))) {
+      const retryRows = rows.map(
+        ({ collection: _collection, project_ids: _projectIds, related_note_ids: _relatedNoteIds, doc_type: _docType, doc_status: _docStatus, milestone_id: _milestoneId, ...row }) => row,
+      );
       const { error: retryError } = await client.from("hub_notes").upsert(retryRows);
       if (!retryError) return;
       throw new Error(errorMessage(retryError, "Could not upload hub notes."));
@@ -404,5 +441,71 @@ async function replaceHubNoteSpaces(rows: ReturnType<typeof hubNoteSpaceToRow>[]
     const { error: upsertError } = await client.from("hub_note_spaces").upsert(rows);
     if (isMissingRelation(upsertError)) return;
     if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload note spaces."));
+  }
+}
+
+async function replaceHubPalettes(rows: ReturnType<typeof hubPaletteToRow>[], userId: string) {
+  const client = requireClient();
+  const { data: existing, error: existingError } = await client.from("hub_palettes").select("id").eq("user_id", userId);
+
+  if (isMissingRelation(existingError)) return;
+  if (existingError) throw new Error(errorMessage(existingError, "Could not read palettes."));
+
+  const nextIds = new Set(rows.map((row) => row.id));
+  const staleIds = (existing ?? []).map((row) => row.id).filter((itemId) => !nextIds.has(itemId));
+
+  if (staleIds.length) {
+    const { error: deleteError } = await client.from("hub_palettes").delete().eq("user_id", userId).in("id", staleIds);
+    if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale palettes."));
+  }
+
+  if (rows.length) {
+    const { error: upsertError } = await client.from("hub_palettes").upsert(rows);
+    if (isMissingRelation(upsertError)) return;
+    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload palettes."));
+  }
+}
+
+async function replaceProjectMilestones(rows: ReturnType<typeof projectMilestoneToRow>[], userId: string) {
+  const client = requireClient();
+  const { data: existing, error: existingError } = await client.from("project_milestones").select("id").eq("user_id", userId);
+
+  if (isMissingRelation(existingError)) return;
+  if (existingError) throw new Error(errorMessage(existingError, "Could not read milestones."));
+
+  const nextIds = new Set(rows.map((row) => row.id));
+  const staleIds = (existing ?? []).map((row) => row.id).filter((itemId) => !nextIds.has(itemId));
+
+  if (staleIds.length) {
+    const { error: deleteError } = await client.from("project_milestones").delete().eq("user_id", userId).in("id", staleIds);
+    if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale milestones."));
+  }
+
+  if (rows.length) {
+    const { error: upsertError } = await client.from("project_milestones").upsert(rows);
+    if (isMissingRelation(upsertError)) return;
+    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload milestones."));
+  }
+}
+
+async function replaceHubSnippets(rows: ReturnType<typeof hubSnippetToRow>[], userId: string) {
+  const client = requireClient();
+  const { data: existing, error: existingError } = await client.from("hub_snippets").select("id").eq("user_id", userId);
+
+  if (isMissingRelation(existingError)) return;
+  if (existingError) throw new Error(errorMessage(existingError, "Could not read snippets."));
+
+  const nextIds = new Set(rows.map((row) => row.id));
+  const staleIds = (existing ?? []).map((row) => row.id).filter((itemId) => !nextIds.has(itemId));
+
+  if (staleIds.length) {
+    const { error: deleteError } = await client.from("hub_snippets").delete().eq("user_id", userId).in("id", staleIds);
+    if (deleteError) throw new Error(errorMessage(deleteError, "Could not delete stale snippets."));
+  }
+
+  if (rows.length) {
+    const { error: upsertError } = await client.from("hub_snippets").upsert(rows);
+    if (isMissingRelation(upsertError)) return;
+    if (upsertError) throw new Error(errorMessage(upsertError, "Could not upload snippets."));
   }
 }

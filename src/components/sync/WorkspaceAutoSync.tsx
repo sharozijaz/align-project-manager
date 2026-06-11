@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { pullWorkspaceFromSupabase, pushWorkspaceToSupabase, syncTasksWithSupabase } from "../../integrations/supabase/workspaceSync";
 import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSession";
 import { useCalendarStore } from "../../store/calendarStore";
+import { useMilestoneStore } from "../../store/milestoneStore";
 import { useProjectStore } from "../../store/projectStore";
+import { useSnippetStore } from "../../store/snippetStore";
 import { useStudioStore } from "../../store/studioStore";
 import { useSyncStore } from "../../store/syncStore";
 import { useTaskStore } from "../../store/taskStore";
@@ -10,8 +12,16 @@ import { errorMessage } from "../../utils/errors";
 import { saveWorkspaceSafetyBackup } from "../../utils/storage";
 import { clearWorkspaceOwnerId, getWorkspaceOwnerId, setWorkspaceOwnerId } from "../../utils/workspaceIdentity";
 
-const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[] }) =>
-  workspace.tasks.length > 0 || workspace.projects.length > 0 || workspace.events.length > 0 || workspace.resources.length > 0 || workspace.notes.length > 0 || Boolean(workspace.noteSpaces?.length);
+const hasWorkspaceData = (workspace: { tasks: unknown[]; projects: unknown[]; events: unknown[]; resources: unknown[]; notes: unknown[]; noteSpaces?: unknown[]; palettes?: unknown[]; milestones?: unknown[]; snippets?: unknown[] }) =>
+  workspace.tasks.length > 0 ||
+  workspace.projects.length > 0 ||
+  workspace.events.length > 0 ||
+  workspace.resources.length > 0 ||
+  workspace.notes.length > 0 ||
+  Boolean(workspace.noteSpaces?.length) ||
+  Boolean(workspace.palettes?.length) ||
+  Boolean(workspace.milestones?.length) ||
+  Boolean(workspace.snippets?.length);
 const TASK_PULL_INTERVAL_MS = 25_000;
 
 export function WorkspaceAutoSync() {
@@ -22,12 +32,18 @@ export function WorkspaceAutoSync() {
   const resources = useStudioStore((state) => state.resources);
   const notes = useStudioStore((state) => state.notes);
   const noteSpaces = useStudioStore((state) => state.noteSpaces);
+  const palettes = useStudioStore((state) => state.palettes);
+  const milestones = useMilestoneStore((state) => state.milestones);
+  const snippets = useSnippetStore((state) => state.snippets);
   const replaceTasks = useTaskStore((state) => state.replaceTasks);
   const replaceProjects = useProjectStore((state) => state.replaceProjects);
   const replaceEvents = useCalendarStore((state) => state.replaceEvents);
   const replaceResources = useStudioStore((state) => state.replaceResources);
   const replaceNotes = useStudioStore((state) => state.replaceNotes);
   const replaceNoteSpaces = useStudioStore((state) => state.replaceNoteSpaces);
+  const replacePalettes = useStudioStore((state) => state.replacePalettes);
+  const replaceMilestones = useMilestoneStore((state) => state.replaceMilestones);
+  const replaceSnippets = useSnippetStore((state) => state.replaceSnippets);
   const setSyncState = useSyncStore((state) => state.setSyncState);
   const setSynced = useSyncStore((state) => state.setSynced);
   const setTaskDiagnostics = useSyncStore((state) => state.setTaskDiagnostics);
@@ -39,19 +55,19 @@ export function WorkspaceAutoSync() {
   const clearedSignedOutRef = useRef(false);
   const isolatedAccountRef = useRef<string | undefined>(undefined);
   const workspaceSnapshot = useMemo(
-    () => JSON.stringify({ tasks, projects, events, resources, notes, noteSpaces }),
-    [events, noteSpaces, notes, projects, resources, tasks],
+    () => JSON.stringify({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets }),
+    [events, milestones, noteSpaces, notes, palettes, projects, resources, snippets, tasks],
   );
 
   const saveSafetyBackup = (reason: string) =>
-    saveWorkspaceSafetyBackup(reason, { tasks, projects, events, resources, notes, noteSpaces });
+    saveWorkspaceSafetyBackup(reason, { tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets });
 
   useEffect(() => {
     if (isConfigured && loading) {
       return;
     }
 
-    const currentWorkspace = { tasks, projects, events, resources, notes, noteSpaces };
+    const currentWorkspace = { tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets };
     const hasLocalData = hasWorkspaceData(currentWorkspace);
 
     if (isConfigured && !sessionId) {
@@ -66,6 +82,9 @@ export function WorkspaceAutoSync() {
         replaceResources([]);
         replaceNotes([]);
         replaceNoteSpaces([]);
+        replacePalettes([]);
+        replaceMilestones([]);
+        replaceSnippets([]);
         clearWorkspaceOwnerId();
         isolatedAccountRef.current = undefined;
         setSyncState("idle", "Signed out. Local workspace cleared after a safety backup was saved on this device.");
@@ -94,6 +113,9 @@ export function WorkspaceAutoSync() {
         replaceResources([]);
         replaceNotes([]);
         replaceNoteSpaces([]);
+        replacePalettes([]);
+        replaceMilestones([]);
+        replaceSnippets([]);
         setWorkspaceOwnerId(sessionId);
         isolatedAccountRef.current = sessionId;
         setSyncState("idle", "Account switched. Local workspace isolated after a safety backup was saved on this device.");
@@ -140,7 +162,7 @@ export function WorkspaceAutoSync() {
     readyToPushRef.current = false;
     clearedSignedOutRef.current = false;
 
-    const hadLocalDataAtPullStart = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces });
+    const hadLocalDataAtPullStart = hasWorkspaceData({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets });
     const wasIsolatedForThisSession = isolatedAccountRef.current === sessionId;
 
     setSyncState("pulling", "Downloading cloud workspace...");
@@ -159,6 +181,9 @@ export function WorkspaceAutoSync() {
           replaceResources(cloudWorkspace.resources);
           replaceNotes(cloudWorkspace.notes);
           if (!cloudWorkspace.noteSpacesUnavailable) replaceNoteSpaces(cloudWorkspace.noteSpaces);
+          if (!cloudWorkspace.palettesUnavailable) replacePalettes(cloudWorkspace.palettes);
+          if (!cloudWorkspace.milestonesUnavailable) replaceMilestones(cloudWorkspace.milestones);
+          if (!cloudWorkspace.snippetsUnavailable) replaceSnippets(cloudWorkspace.snippets);
           window.setTimeout(() => {
             applyingCloudRef.current = false;
             readyToPushRef.current = true;
@@ -194,12 +219,17 @@ export function WorkspaceAutoSync() {
     events,
     isConfigured,
     loading,
+    milestones,
     projects,
+    palettes,
     replaceEvents,
     replaceNotes,
     replaceNoteSpaces,
+    replacePalettes,
+    replaceMilestones,
     replaceProjects,
     replaceResources,
+    replaceSnippets,
     replaceTasks,
     resources,
     sessionId,
@@ -208,6 +238,7 @@ export function WorkspaceAutoSync() {
     setTaskDiagnostics,
     syncMode,
     tasks,
+    snippets,
     noteSpaces,
     notes,
   ]);
@@ -224,7 +255,7 @@ export function WorkspaceAutoSync() {
 
     setSyncState("pushing", "Saving workspace to cloud...");
     const timeout = window.setTimeout(() => {
-      void pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces })
+      void pushWorkspaceToSupabase({ tasks, projects, events, resources, notes, noteSpaces, palettes, milestones, snippets })
         .then((result) => {
           applyingCloudRef.current = true;
           replaceTasks(result.tasks);
@@ -238,7 +269,7 @@ export function WorkspaceAutoSync() {
     }, 1200);
 
     return () => window.clearTimeout(timeout);
-  }, [events, isConfigured, noteSpaces, notes, projects, replaceTasks, resources, sessionId, setSyncState, setSynced, setTaskDiagnostics, syncMode, tasks, workspaceSnapshot]);
+  }, [events, isConfigured, milestones, noteSpaces, notes, palettes, projects, replaceTasks, resources, sessionId, setSyncState, setSynced, setTaskDiagnostics, snippets, syncMode, tasks, workspaceSnapshot]);
 
   useEffect(() => {
     if (syncMode !== "cloud" || !isConfigured || !sessionId) return;

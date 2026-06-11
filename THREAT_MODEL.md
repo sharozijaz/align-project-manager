@@ -1,5 +1,9 @@
 # Align Threat Model
 
+Updated detailed threat model: `align-app-code-threat-model.md`.
+
+Last updated: 2026-06-05 after the public-repo secret and Android hardening audit.
+
 ## Scope
 
 This model covers the public Align repository: the Vite/React frontend in `src/`, Tauri desktop shell in `src-tauri/`, Vercel-style API routes in `api/`, Supabase SQL in `supabase/`, and release/docs tooling.

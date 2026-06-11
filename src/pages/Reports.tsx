@@ -47,7 +47,7 @@ export function Reports() {
     .filter((task) => task.recurrence && task.recurrence !== "none")
     .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"))
     .slice(0, 6);
-  const atRiskProjects = projectRows
+  const attentionProjects = projectRows
     .filter((row) => row.overdue || row.waitingReview || row.openHighPriority > 0)
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.openHighPriority - a.openHighPriority)
     .slice(0, 5);
@@ -58,14 +58,14 @@ export function Reports() {
         `${openTasks.length} open current tasks, ${completedTasks.length} completed current tasks, ${overdueTasks.length} overdue.`,
         `${currentProjects.length} active/paused projects. ${completedProjects.length} completed and ${archivedProjects.length} archived projects are excluded from active progress.`,
         `Current completion rate: ${completionRate}%.`,
-        atRiskProjects.length
-          ? `Needs attention: ${atRiskProjects.map((row) => row.project.name).join(", ")}.`
+        attentionProjects.length
+          ? `Needs attention: ${attentionProjects.map((row) => row.project.name).join(", ")}.`
           : "No projects currently need attention.",
         upcomingTasks.length
           ? `Upcoming: ${upcomingTasks.map((task) => `${task.title} (${dateLabel(task.dueDate)})`).join(", ")}.`
           : "No upcoming dated tasks in the next 14 days.",
       ].join("\n"),
-    [archivedProjects.length, atRiskProjects, completedProjects.length, completedTasks.length, completionRate, currentProjects.length, openTasks.length, overdueTasks.length, upcomingTasks],
+    [archivedProjects.length, attentionProjects, completedProjects.length, completedTasks.length, completionRate, currentProjects.length, openTasks.length, overdueTasks.length, upcomingTasks],
   );
 
   const copySummary = async () => {
@@ -158,7 +158,7 @@ export function Reports() {
         </h2>
         <p className="mt-1 text-sm text-[var(--text-muted)]">Current projects with overdue, waiting/review, high, or urgent open work.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {atRiskProjects.map((row) => (
+          {attentionProjects.map((row) => (
             <div key={row.project.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -173,7 +173,7 @@ export function Reports() {
               </div>
             </div>
           ))}
-          {!atRiskProjects.length ? <EmptyReport message="No overdue, waiting/review, or urgent project work right now." /> : null}
+          {!attentionProjects.length ? <EmptyReport message="No overdue, waiting/review, or urgent project work right now." /> : null}
         </div>
       </Card>
 

@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, CheckCircle2, Command, FileText, Folder, Home, LibraryBig, Search, StickyNote } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Command, FileText, Folder, Home, LibraryBig, Plus, Search, StickyNote } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -168,6 +168,7 @@ export function CommandPalette() {
 }
 
 function ResultIcon({ kind }: { kind: WorkspaceSearchKind }) {
+  if (kind === "action") return <Plus size={16} />;
   if (kind === "command") return <Command size={16} />;
   if (kind === "project") return <Folder size={16} />;
   if (kind === "task") return <CheckCircle2 size={16} />;

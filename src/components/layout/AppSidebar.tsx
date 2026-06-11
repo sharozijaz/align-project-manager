@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarDays,
+  ChevronDown,
   CheckCircle2,
   CircleHelp,
   Folder,
@@ -9,13 +10,13 @@ import {
   ListTodo,
   LogOut,
   Menu,
-  Pin,
-  StickyNote,
+  NotebookText,
   Settings,
   Shield,
   Trash2,
   UserRound,
   X,
+  Target,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -49,17 +50,17 @@ interface NavItem {
 
 const primaryLinks: NavItem[] = [
   { to: "/", label: "Home", hint: "G H", icon: Home, feature: "project_management" },
+  { to: "/today", label: "Today", hint: "G F", icon: Target, feature: "project_management" },
   { to: "/projects", label: "Projects", hint: "G P", icon: Folder, feature: "project_management" },
   { to: "/tasks", label: "Tasks", hint: "G T", icon: CheckCircle2, feature: "project_management" },
   { to: "/todos", label: "Todos", hint: "G D", icon: ListTodo, feature: "project_management" },
   { to: "/calendar", label: "Calendar", hint: "G C", icon: CalendarDays, feature: "project_management" },
   { to: "/reports", label: "Reports", hint: "G R", icon: BarChart3, feature: "project_management" },
-];
-
-const workspaceLinks: NavItem[] = [
-  { to: "/notes", label: "Notes", hint: "G N", icon: StickyNote, feature: "personal_hub" },
+  { to: "/notes", label: "Notes", hint: "G N", icon: NotebookText, feature: "personal_hub" },
   { to: "/resources", label: "Resources", hint: "G U", icon: LibraryBig, feature: "personal_hub" },
 ];
+
+const workspaceLinks: NavItem[] = [];
 
 const profileLinks: NavItem[] = [
   { to: "/settings", label: "Settings", hint: "", icon: Settings },
@@ -70,10 +71,10 @@ const profileLinks: NavItem[] = [
 
 const sidebarSpring = { type: "spring", stiffness: 340, damping: 36, mass: 0.82 } as const;
 const sidebarTextMotion = {
-  initial: { opacity: 0, x: -8 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -6 },
-  transition: { duration: 0.16, ease: "easeOut" },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.1, ease: "easeOut" },
 } as const;
 
 export function AppSidebar() {
@@ -87,9 +88,11 @@ export function AppSidebar() {
   const resources = useStudioStore((state) => state.resources);
   const notes = useStudioStore((state) => state.notes);
   const noteSpaces = useStudioStore((state) => state.noteSpaces);
+  const palettes = useStudioStore((state) => state.palettes);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<"profile" | null>(null);
+  const [pinnedProjectsOpen, setPinnedProjectsOpen] = useState(true);
   const desktopSidebarRef = useRef<HTMLElement | null>(null);
   const profileName = access?.profile.displayName || access?.profile.email?.split("@")[0] || "Profile";
   const profileEmail = access?.profile.email;
@@ -109,7 +112,7 @@ export function AppSidebar() {
     });
     if (!shouldSignOut) return;
 
-    saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes, noteSpaces });
+    saveWorkspaceSafetyBackup("profile-menu-sign-out", { tasks, projects, events, resources, notes, noteSpaces, palettes });
     await supabase.auth.signOut();
     setOpenMenu(null);
     setDesktopOpen(false);
@@ -165,7 +168,7 @@ export function AppSidebar() {
 
       <motion.aside
         ref={desktopSidebarRef}
-        className="relative z-30 hidden h-full min-h-0 shrink-0 overflow-visible bg-[#171717] lg:block"
+        className="relative z-30 hidden h-full min-h-0 shrink-0 overflow-visible bg-[var(--sidebar-bg)] lg:block"
         animate={{ width: desktopExpanded ? 248 : 88 }}
         transition={sidebarSpring}
         onPointerDown={() => setDesktopOpen(true)}
@@ -178,6 +181,8 @@ export function AppSidebar() {
             profileAvatarUrl={profileAvatarUrl}
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
+            pinnedProjectsOpen={pinnedProjectsOpen}
+            setPinnedProjectsOpen={setPinnedProjectsOpen}
             collapsed={!desktopExpanded}
             pinnedProjects={pinnedProjects}
             canSignOut={Boolean(session && supabase)}
@@ -219,6 +224,8 @@ export function AppSidebar() {
                 profileAvatarUrl={profileAvatarUrl}
                 openMenu={openMenu}
                 setOpenMenu={setOpenMenu}
+                pinnedProjectsOpen={pinnedProjectsOpen}
+                setPinnedProjectsOpen={setPinnedProjectsOpen}
                 collapsed={false}
                 pinnedProjects={pinnedProjects}
                 onNavigate={() => setMobileOpen(false)}
@@ -240,6 +247,8 @@ function SidebarContent({
   profileAvatarUrl,
   openMenu,
   setOpenMenu,
+  pinnedProjectsOpen,
+  setPinnedProjectsOpen,
   collapsed,
   pinnedProjects,
   onNavigate,
@@ -252,6 +261,8 @@ function SidebarContent({
   profileAvatarUrl?: string;
   openMenu: "profile" | null;
   setOpenMenu: (value: "profile" | null) => void;
+  pinnedProjectsOpen: boolean;
+  setPinnedProjectsOpen: (value: boolean | ((open: boolean) => boolean)) => void;
   collapsed: boolean;
   pinnedProjects: Project[];
   onNavigate?: () => void;
@@ -275,8 +286,8 @@ function SidebarContent({
   }, [isProfileMenuOpen, setOpenMenu]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-[#171717] text-white shadow-[var(--shadow-sm)]">
-      <div className="pb-4">
+    <div className="relative flex h-full min-h-0 flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] shadow-[var(--shadow-sm)]">
+      <div className="pb-3">
         <div className="relative">
           <NavLink
             to="/"
@@ -289,7 +300,7 @@ function SidebarContent({
             </span>
             <AnimatePresence initial={false}>
               {!collapsed ? (
-                <motion.span {...sidebarTextMotion} className="min-w-0 truncate text-xl font-black tracking-normal text-white">
+                <motion.span {...sidebarTextMotion} className="min-w-0 truncate text-xl font-black tracking-normal text-[var(--sidebar-text)]">
                   Align
                 </motion.span>
               ) : null}
@@ -298,17 +309,24 @@ function SidebarContent({
         </div>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto py-1">
-        <NavSection items={links.primary} collapsed={collapsed} pinnedProjects={pinnedProjects} onNavigate={onNavigate} />
+      <nav className="min-h-0 flex-1 overflow-y-auto px-0 py-1">
+        <NavSection items={links.primary} collapsed={collapsed} onNavigate={onNavigate} />
+        <PinnedProjectsSection
+          projects={pinnedProjects}
+          collapsed={collapsed}
+          open={pinnedProjectsOpen}
+          onToggle={() => setPinnedProjectsOpen((open) => !open)}
+          onNavigate={onNavigate}
+        />
         {links.workspace.length ? <NavSection items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} separated /> : null}
       </nav>
 
-      <div className="space-y-4 border-t border-white/20 pb-4 pt-4">
+      <div className="space-y-4 border-t border-[var(--sidebar-border)] pb-4 pt-4">
         <div ref={profileMenuRef} className="relative">
           <button
             type="button"
             onClick={() => setOpenMenu(isProfileMenuOpen ? null : "profile")}
-            className="grid h-12 w-full cursor-pointer grid-cols-[88px_minmax(0,1fr)] items-center rounded-[var(--radius-sm)] text-left transition hover:bg-white/10"
+            className="grid h-12 w-full cursor-pointer grid-cols-[88px_minmax(0,1fr)] items-center rounded-[var(--radius-sm)] text-left transition hover:bg-[var(--sidebar-hover)]"
             aria-expanded={isProfileMenuOpen}
             aria-haspopup="menu"
             title={profileName}
@@ -325,8 +343,8 @@ function SidebarContent({
             <AnimatePresence initial={false}>
               {!collapsed ? (
                 <motion.span {...sidebarTextMotion} className="min-w-0 overflow-hidden">
-                  <span className="block truncate text-sm font-bold text-white">{profileName}</span>
-                  <span className="block truncate text-xs text-white/60">{profileEmail ?? "Workspace profile"}</span>
+                  <span className="block truncate text-sm font-bold text-[var(--sidebar-text)]">{profileName}</span>
+                  <span className="block truncate text-xs text-[var(--sidebar-muted)]">{profileEmail ?? "Workspace profile"}</span>
                 </motion.span>
               ) : null}
             </AnimatePresence>
@@ -396,20 +414,18 @@ function SidebarContent({
 function NavSection({
   items,
   collapsed,
-  pinnedProjects = [],
   onNavigate,
   separated = false,
 }: {
   items: NavItem[];
   collapsed: boolean;
-  pinnedProjects?: Project[];
   onNavigate?: () => void;
   separated?: boolean;
 }) {
   return (
     <section className={`${separated ? "mt-3 pt-3" : ""}`}>
-      {separated ? <div className={`${collapsed ? "mx-auto w-16" : "mx-4"} mb-3 h-px bg-white/20`} /> : null}
-      <div className="grid gap-1.5">
+      {separated ? <div className={`${collapsed ? "mx-auto w-16" : "mx-4"} mb-3 h-px bg-[var(--sidebar-border)]`} /> : null}
+      <div className="grid gap-1">
         {items.map(({ to, label, icon: Icon }) => (
           <div key={to} className="grid gap-1">
             <NavLink
@@ -418,63 +434,121 @@ function NavSection({
               onClick={onNavigate}
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `align-sidebar-link group relative isolate grid h-10 min-w-0 grid-cols-[88px_minmax(0,1fr)] items-center text-sm font-bold transition ${
+                `align-sidebar-link group relative isolate grid h-10 min-w-0 overflow-hidden ${collapsed ? "grid-cols-[88px]" : "mx-4 grid-cols-[40px_minmax(0,1fr)] rounded-[var(--radius-sm)] pr-3"} items-center text-sm font-bold transition ${
                   isActive
                     ? collapsed
                       ? "align-sidebar-link-active text-white"
                       : "align-sidebar-link-active text-white"
-                    : "text-[#c7c7c7] hover:text-white"
+                    : "text-[var(--sidebar-muted)] hover:text-[var(--sidebar-text)]"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <AnimatePresence initial={false}>
-                    {!collapsed ? (
-                      <motion.span
-                        initial={{ opacity: 0, scaleX: 0.94 }}
-                        animate={{ opacity: 1, scaleX: 1 }}
-                        exit={{ opacity: 0, scaleX: 0.94 }}
-                        transition={{ duration: 0.16, ease: "easeOut" }}
-                      className={`pointer-events-none absolute inset-y-0 left-4 right-4 z-0 rounded-[var(--radius-sm)] transition ${
-                        isActive ? "bg-[var(--brand-primary)] shadow-[var(--shadow-sm)]" : "group-hover:bg-white/10"
+                  {!collapsed ? (
+                    <motion.span
+                      initial={{ opacity: 0, scaleX: 0.94 }}
+                      animate={{ opacity: 1, scaleX: 1 }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
+                      className={`pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-sm)] transition ${
+                        isActive ? "bg-[var(--brand-primary)] shadow-[var(--shadow-sm)]" : "group-hover:bg-[var(--sidebar-hover)]"
                       }`}
-                      />
-                    ) : null}
-                  </AnimatePresence>
-                  <span className="relative z-10 grid h-10 w-[88px] shrink-0 place-items-center">
+                    />
+                  ) : null}
+                  <span className={`relative z-10 grid h-10 shrink-0 place-items-center ${collapsed ? "w-[88px]" : "w-10"}`}>
                     <span
                       className={`grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] ${
                         collapsed && isActive
                           ? "bg-[var(--brand-primary)] text-white shadow-[var(--shadow-sm)]"
                           : collapsed && !isActive
-                            ? "group-hover:bg-white/10"
+                            ? "group-hover:bg-[var(--sidebar-hover)]"
                             : ""
                       }`}
                     >
                       <Icon size={17} className="shrink-0" />
                     </span>
                   </span>
-                  <AnimatePresence initial={false}>
-                    {!collapsed ? (
-                      <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 truncate text-left">
-                        {label}
-                      </motion.span>
-                    ) : null}
-                  </AnimatePresence>
+                  {!collapsed ? (
+                    <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 overflow-hidden truncate text-left">
+                      {label}
+                    </motion.span>
+                  ) : null}
                 </>
               )}
             </NavLink>
-            {to === "/projects" && pinnedProjects.length ? (
-              <div className="grid gap-1 pt-1">
-                {pinnedProjects.map((project) => (
-                  <PinnedProjectLink key={project.id} project={project} collapsed={collapsed} onNavigate={onNavigate} />
-                ))}
-              </div>
-            ) : null}
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function PinnedProjectsSection({
+  projects,
+  collapsed,
+  open,
+  onToggle,
+  onNavigate,
+}: {
+  projects: Project[];
+  collapsed: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onNavigate?: () => void;
+}) {
+  const visibleProjects = projects.slice(0, 6);
+
+  return (
+    <section className="mt-4 pt-4">
+      <div className={`${collapsed ? "mx-auto w-14" : "mx-5"} mb-3 h-px bg-[var(--sidebar-border)]`} />
+      {collapsed ? (
+        <div className="grid gap-1">
+          {visibleProjects.map((project) => (
+            <PinnedProjectLink key={project.id} project={project} collapsed onNavigate={onNavigate} />
+          ))}
+        </div>
+      ) : (
+        <div>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="align-sidebar-link group relative isolate mx-4 mb-2 grid h-9 min-w-0 grid-cols-[40px_minmax(0,1fr)_28px] items-center overflow-hidden rounded-[var(--radius-sm)] pr-1 text-left text-[13px] font-bold text-[var(--sidebar-text)] transition hover:text-[var(--sidebar-text)]"
+            aria-expanded={open}
+          >
+            <span className="pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-sm)] bg-white/[0.035] transition group-hover:bg-[var(--sidebar-hover)]" />
+            <span className="relative z-10 grid h-9 w-10 shrink-0 place-items-center">
+              <span className="grid h-7 w-7 place-items-center rounded-[var(--radius-xs)] text-[var(--sidebar-muted)] transition group-hover:text-[var(--sidebar-text)]">
+                <Folder size={16} className="shrink-0" />
+              </span>
+            </span>
+            <span className="relative z-10 min-w-0 overflow-hidden truncate">Pinned Projects</span>
+            <span className="relative z-10 grid h-9 w-7 place-items-center">
+              <ChevronDown size={14} className={`shrink-0 text-[var(--sidebar-muted)] transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+            </span>
+          </button>
+          <AnimatePresence initial={false}>
+            {open ? (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <div className="grid gap-1 pt-0.5">
+                  {visibleProjects.length ? (
+                    visibleProjects.map((project) => <PinnedProjectLink key={project.id} project={project} collapsed={false} onNavigate={onNavigate} />)
+                  ) : (
+                    <p className="mx-5 rounded-[var(--radius-sm)] bg-white/[0.035] px-3 py-3 text-xs font-semibold leading-5 text-[var(--sidebar-muted)]">
+                      Pin active projects to keep them close.
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      )}
     </section>
   );
 }
@@ -486,47 +560,47 @@ function PinnedProjectLink({ project, collapsed, onNavigate }: { project: Projec
       onClick={onNavigate}
       title={project.name}
       className={({ isActive }) =>
-        `group relative isolate grid h-9 min-w-0 grid-cols-[88px_minmax(0,1fr)] items-center text-xs font-bold transition ${
+        `group relative isolate min-w-0 overflow-hidden text-xs font-bold transition ${
+          collapsed ? "grid h-10 place-items-center" : "mx-4 grid h-9 grid-cols-[40px_minmax(0,1fr)] items-center rounded-[var(--radius-sm)] pr-3"
+        } ${
           isActive
             ? collapsed
               ? "text-white"
               : "text-white"
-            : "text-[#c7c7c7] hover:text-white"
+            : "text-[var(--sidebar-muted)] hover:text-[var(--sidebar-text)]"
         }`
       }
     >
       {({ isActive }) => (
         <>
-          <AnimatePresence initial={false}>
-            {!collapsed ? (
-              <motion.span
-                initial={{ opacity: 0, scaleX: 0.94 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                exit={{ opacity: 0, scaleX: 0.94 }}
-                transition={{ duration: 0.16, ease: "easeOut" }}
-              className={`pointer-events-none absolute inset-y-0 left-4 right-4 z-0 rounded-[var(--radius-sm)] transition ${
-                isActive ? "bg-white/10 ring-1 ring-white/20" : "group-hover:bg-white/10"
+          {!collapsed ? (
+            <motion.span
+              initial={{ opacity: 0, scaleX: 0.94 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className={`pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-sm)] transition ${
+                isActive ? "bg-white/[0.13]" : "group-hover:bg-white/[0.075]"
               }`}
-              />
-            ) : null}
-          </AnimatePresence>
-          <span className="relative z-10 grid h-9 w-[88px] shrink-0 place-items-center">
+            />
+          ) : null}
+          <span className={`relative z-10 grid shrink-0 place-items-center ${collapsed ? "h-10 w-[88px]" : "h-9 w-10"}`}>
             <span
-              className={`grid h-6 min-w-6 place-items-center rounded-[var(--radius-xs)] px-1.5 text-[10px] font-black text-white ring-1 ring-white/10 ${
-                collapsed && isActive ? "bg-[var(--brand-primary)]" : collapsed ? "bg-[#2a2a2a] group-hover:bg-white/15" : "bg-[#2a2a2a]"
+              className={`grid h-7 min-w-7 place-items-center rounded-[var(--radius-xs)] px-1.5 text-[10px] font-black transition ${
+                collapsed && isActive
+                  ? "bg-[var(--brand-primary)] text-white"
+                  : isActive
+                    ? "bg-white/[0.16] text-[var(--sidebar-text)]"
+                    : "bg-white/[0.055] text-[var(--sidebar-muted)] group-hover:bg-white/[0.1] group-hover:text-[var(--sidebar-text)]"
               }`}
             >
               {projectInitials(project.name)}
             </span>
           </span>
-          <AnimatePresence initial={false}>
-            {!collapsed ? (
-              <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 truncate">
-                {project.name}
-              </motion.span>
-            ) : null}
-          </AnimatePresence>
-          {!collapsed ? <Pin size={12} className="absolute right-6 opacity-0 transition group-hover:opacity-60" /> : null}
+          {!collapsed ? (
+            <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 overflow-hidden truncate text-left text-[12px] font-semibold tracking-normal">
+              {project.name}
+            </motion.span>
+          ) : null}
         </>
       )}
     </NavLink>

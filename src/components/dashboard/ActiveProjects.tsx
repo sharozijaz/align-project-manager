@@ -12,7 +12,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
 
   return (
     <Card className="overflow-hidden p-0">
-      <SectionHeader title="Active Projects" helper={`${active.length} moving now`} to="/projects" />
+      <SectionHeader title="Active Projects" helper={`${active.length} currently moving`} to="/projects" />
       <div className="grid min-w-0 gap-3 p-4 sm:p-5 lg:grid-cols-2">
         {active.length ? (
           active.map((project) => {
@@ -48,7 +48,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
                       <div className="h-full rounded-full bg-[var(--brand-primary)] transition-all duration-300" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
-                  <ProgressRing value={progress} />
+                  <ProgressStrip value={progress} />
                 </div>
               </Link>
             );
@@ -78,12 +78,16 @@ function SectionHeader({ title, helper, to }: { title: string; helper: string; t
   );
 }
 
-function ProgressRing({ value }: { value: number }) {
-  const background = `conic-gradient(var(--brand-primary) ${value * 3.6}deg, var(--ring-track) 0deg)`;
-
+function ProgressStrip({ value }: { value: number }) {
+  const filled = Math.round(value / 10);
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background }}>
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--panel-bg-soft)] text-[11px] font-black text-[var(--text)]">{value}%</span>
-    </span>
+    <div className="grid w-28 shrink-0 gap-2">
+      <strong className="text-right text-sm font-black text-[var(--text)]">{value}%</strong>
+      <div className="grid grid-cols-10 gap-0.5" aria-hidden="true">
+        {Array.from({ length: 10 }).map((_, index) => (
+          <span key={index} className={`h-2 rounded-full ${index < filled ? "bg-[var(--brand-primary)]" : "bg-[var(--ring-track)]"}`} />
+        ))}
+      </div>
+    </div>
   );
 }

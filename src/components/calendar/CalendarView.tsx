@@ -29,7 +29,7 @@ import { getTaskPriorityOption, getTaskStatusOption, isTerminalTaskStatus } from
 import type { CalendarEvent, CalendarEventInput } from "../../types/calendar";
 import type { Task } from "../../types/task";
 import { dateLabel, monthGrid, sameDay, todayKey } from "../../utils/date";
-import { getClampedDragPreviewPosition } from "../../utils/dragPreview";
+import { getClampedDragPreviewPosition, getDragPreviewAnchor } from "../../utils/dragPreview";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -39,7 +39,18 @@ import { CalendarEventModal } from "./CalendarEventModal";
 
 type CalendarMode = "month" | "week" | "agenda";
 type CalendarItem = { id: string; date: string; kind: "task"; task: Task } | { id: string; date: string; kind: "event"; event: CalendarEvent };
-type PlannerDragState = { kind: CalendarItem["kind"]; itemId: string; title: string; startX: number; startY: number; x: number; y: number; active: boolean };
+type PlannerDragState = {
+  kind: CalendarItem["kind"];
+  itemId: string;
+  title: string;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  previewOffsetX: number;
+  previewOffsetY: number;
+  active: boolean;
+};
 
 export function CalendarView({
   tasks,
@@ -238,12 +249,25 @@ export function CalendarView({
 
   const startTaskDrag = (task: Task, event: ReactPointerEvent<HTMLElement>) => {
     event.preventDefault();
-    setPlannerDrag({ kind: "task", itemId: task.id, title: task.title, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false });
+    const anchor = getDragPreviewAnchor(event.currentTarget, event.clientX, event.clientY, 320, 120);
+    setPlannerDrag({
+      kind: "task",
+      itemId: task.id,
+      title: task.title,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: event.clientX,
+      y: event.clientY,
+      previewOffsetX: anchor.offsetX,
+      previewOffsetY: anchor.offsetY,
+      active: false,
+    });
   };
 
   const startEventDrag = (calendarEvent: CalendarEvent, event: ReactPointerEvent<HTMLElement>) => {
     if (calendarEvent.source === "google") return;
     event.preventDefault();
+    const anchor = getDragPreviewAnchor(event.currentTarget, event.clientX, event.clientY, 320, 120);
     setPlannerDrag({
       kind: "event",
       itemId: calendarEvent.id,
@@ -252,6 +276,8 @@ export function CalendarView({
       startY: event.clientY,
       x: event.clientX,
       y: event.clientY,
+      previewOffsetX: anchor.offsetX,
+      previewOffsetY: anchor.offsetY,
       active: false,
     });
   };
@@ -337,7 +363,9 @@ export function CalendarView({
           }
         }}
       />
-      {plannerDrag?.active ? <PlannerTaskPreview title={plannerDrag.title} kind={plannerDrag.kind} x={plannerDrag.x} y={plannerDrag.y} /> : null}
+      {plannerDrag?.active ? (
+        <PlannerTaskPreview title={plannerDrag.title} kind={plannerDrag.kind} x={plannerDrag.x} y={plannerDrag.y} offsetX={plannerDrag.previewOffsetX} offsetY={plannerDrag.previewOffsetY} />
+      ) : null}
     </div>
   );
 }
@@ -979,8 +1007,8 @@ function PlannerTaskCard({
   );
 }
 
-function PlannerTaskPreview({ title, kind, x, y }: { title: string; kind: CalendarItem["kind"]; x: number; y: number }) {
-  const position = getClampedDragPreviewPosition(x, y, 320, 120);
+function PlannerTaskPreview({ title, kind, x, y, offsetX, offsetY }: { title: string; kind: CalendarItem["kind"]; x: number; y: number; offsetX: number; offsetY: number }) {
+  const position = getClampedDragPreviewPosition(x, y, 320, 120, { offsetX, offsetY });
 
   return (
     <motion.div
