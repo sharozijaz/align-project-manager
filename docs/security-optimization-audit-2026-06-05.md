@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The GitHub repository `sharozijaz/align-project-manager` is public. A repo and history scan did not find committed Android signing passwords, private keys, service-role secrets, API keys, or common token formats. The highest-risk findings were local-only: `private-backups/` contained Android release APK/ZIP artifacts plus signing material, and `android-app/` contained ignored signing files. These were moved out of the repo to `C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\private-backups-20260605-195017` and `C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\android-signing-20260605-200000`. `.gitignore` was expanded to block backup folders, Android signing keys, APKs, AABs, keystores, and build outputs.
+The GitHub repository `sharozijaz/align-project-manager` is public. A repo and history scan did not find committed Android signing passwords, private keys, service-role secrets, API keys, or common token formats. The highest-risk findings were local-only: `private-backups/` contained Android release APK/ZIP artifacts plus signing material, and `android-app/` contained ignored signing files. These were moved out of the repo to private quarantine folders outside the public repo. `.gitignore` was expanded to block backup folders, Android signing keys, APKs, AABs, keystores, and build outputs.
 
 Security hardening was applied to Android: task-changing widget actions now use a non-exported receiver, auth callback URLs are allowlisted before a session is saved, app backup is disabled, cleartext traffic is explicitly disabled, and release builds now enable R8 minification/resource shrinking.
 

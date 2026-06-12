@@ -20,8 +20,8 @@ The app is not a full enterprise SaaS security product, but the main public-rele
 ## Implemented Controls
 
 - Public GitHub visibility was confirmed, and tracked/head/history scans did not find live secrets.
-- Local `private-backups/` was moved to `C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\private-backups-20260605-195017`.
-- Local Android signing files were moved to `C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\android-signing-20260605-200000`.
+- Local `private-backups/` was moved to a private quarantine folder outside the public repo.
+- Local Android signing files were moved to a private quarantine folder outside the public repo.
 - Generated Android build outputs were removed after verification to avoid keeping signed artifacts in the repo tree.
 - `.gitignore` now blocks private backups, Android signing keys, APK/AAB artifacts, keystore formats, and Android build outputs.
 - `.gitignore` also blocks the private `android-app/` source tree from accidental public staging.

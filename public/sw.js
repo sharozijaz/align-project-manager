@@ -1,11 +1,10 @@
-const CACHE_NAME = "align-static-v6";
+const CACHE_NAME = "align-static-v7";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
   "/align-icon.png",
   "/align-logo.png",
   "/align-logo-light.png",
-  "/hero-mountain.webp",
   "/heroes/align-gradient-emerald.png",
   "/heroes/align-gradient-mist.png",
   "/heroes/align-gradient-amber.png",

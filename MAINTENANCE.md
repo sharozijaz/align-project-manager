@@ -34,8 +34,8 @@ Important recovery note: if an installed desktop app opens empty after an update
 A public-repo secret audit was completed because of a vague email warning. GitHub reports `sharozijaz/align-project-manager` is public. Tracked files and local git history did not show committed live secrets or Android signing credentials. Local untracked/ignored Android signing material and APK/ZIP artifacts were moved outside the repo to:
 
 ```text
-C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\private-backups-20260605-195017
-C:\Users\sharo\Documents\Codex\align-sensitive-quarantine\android-signing-20260605-200000
+<private-quarantine>/private-backups-20260605-195017
+<private-quarantine>/android-signing-20260605-200000
 ```
 
 Keep those quarantine folders private. If those signing files were ever uploaded, emailed, cloud-synced, or shared, create a new Android release keystore and treat the old key as exposed. Keep the Android project itself private as well; do not stage or push `android-app/` to the public repo.
