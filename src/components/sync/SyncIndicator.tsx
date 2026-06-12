@@ -5,10 +5,10 @@ import { useSupabaseSession } from "../../integrations/supabase/useSupabaseSessi
 import { useSyncStore } from "../../store/syncStore";
 
 const statusCopy = {
-  idle: "Cloud ready",
-  pulling: "Cloud downloading",
-  pushing: "Cloud saving",
-  synced: "Cloud synced",
+  idle: "Synced",
+  pulling: "Checking cloud...",
+  pushing: "Syncing...",
+  synced: "Synced",
   error: "Sync issue",
 };
 
@@ -23,10 +23,10 @@ export function SyncIndicator({ className = "" }: { className?: string }) {
       <Link
         to="/settings"
         className={`inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] ${className}`}
-        title="Local-only mode. Cloud sync is not configured."
+        title="Offline/local-only mode. Cloud sync is not configured."
       >
         <CloudOff size={14} />
-        Local only
+        Offline
       </Link>
     );
   }
@@ -39,7 +39,7 @@ export function SyncIndicator({ className = "" }: { className?: string }) {
         title="Cloud auto-sync is paused. Manual sync is still available."
       >
         <CloudOff size={14} />
-        Sync paused
+        Pending changes
       </Link>
     );
   }

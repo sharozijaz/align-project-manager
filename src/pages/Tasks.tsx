@@ -41,7 +41,7 @@ export function Tasks() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Tasks" description="Search, filter, and sort project work across your workspace." />
+      <PageHeader title="Tasks" description="Project and workspace tasks. Personal captures stay in Inbox until organized." />
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-stretch">
         <TaskFilters filter={filter} sort={sort} onFilterChange={setFilter} onSortChange={setSort} />
         <TaskViewToggle value={view} onChange={setView} />

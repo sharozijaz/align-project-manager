@@ -48,7 +48,7 @@ export async function getGoogleSyncStatus(options: { includeLists?: boolean; max
   const data = (await response.json()) as Partial<GoogleSyncStatus> & { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not read Google sync status.");
+    throw new Error(data.error || "Could not read Google Calendar status.");
   }
 
   const status = normalizeStatus(data);
@@ -73,7 +73,7 @@ export async function syncGoogleWorkspace(payload: GoogleWorkspaceSyncPayload): 
   const data = (await response.json()) as Partial<GoogleWorkspaceSyncResult> & { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not sync Google workspace.");
+    throw new Error(data.error || "Could not sync Google Calendar.");
   }
 
   clearGoogleSyncStatusCache();
@@ -111,7 +111,7 @@ function apiEndpoint(path: string) {
   if (!isTauriRuntime()) return path;
 
   if (!appUrl) {
-    throw new Error("Hosted API URL is not configured. Add VITE_APP_URL before using Google sync from desktop.");
+    throw new Error("Hosted API URL is not configured. Add VITE_APP_URL before using Google Calendar sync from desktop.");
   }
 
   const baseUrl = appUrl;
@@ -119,7 +119,7 @@ function apiEndpoint(path: string) {
 }
 
 async function getAccessToken() {
-  if (!supabase) throw new Error("Sign in before using Google sync.");
+  if (!supabase) throw new Error("Sign in before using Google Calendar sync.");
 
   const {
     data: { session },
@@ -127,7 +127,7 @@ async function getAccessToken() {
   } = await supabase.auth.getSession();
 
   if (error) throw error;
-  if (!session?.access_token) throw new Error("Sign in before using Google sync.");
+  if (!session?.access_token) throw new Error("Sign in before using Google Calendar sync.");
 
   return session.access_token;
 }

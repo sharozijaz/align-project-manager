@@ -53,7 +53,7 @@ const primaryLinks: NavItem[] = [
   { to: "/today", label: "Today", hint: "G F", icon: Target, feature: "project_management" },
   { to: "/projects", label: "Projects", hint: "G P", icon: Folder, feature: "project_management" },
   { to: "/tasks", label: "Tasks", hint: "G T", icon: CheckCircle2, feature: "project_management" },
-  { to: "/todos", label: "Todos", hint: "G D", icon: ListTodo, feature: "project_management" },
+  { to: "/todos", label: "Inbox", hint: "G D", icon: ListTodo, feature: "project_management" },
   { to: "/calendar", label: "Calendar", hint: "G C", icon: CalendarDays, feature: "project_management" },
   { to: "/reports", label: "Reports", hint: "G R", icon: BarChart3, feature: "project_management" },
   { to: "/notes", label: "Notes", hint: "G N", icon: NotebookText, feature: "personal_hub" },

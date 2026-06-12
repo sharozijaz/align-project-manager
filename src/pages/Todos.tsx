@@ -35,7 +35,10 @@ export function Todos() {
       .filter((task) => task.title.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
         if (filter === "completed") return b.updatedAt.localeCompare(a.updatedAt);
-        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31");
+        if (filter === "today" || filter === "upcoming") {
+          return (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31") || b.createdAt.localeCompare(a.createdAt);
+        }
+        return b.createdAt.localeCompare(a.createdAt) || b.updatedAt.localeCompare(a.updatedAt);
       });
   }, [filter, search, tasks]);
 
@@ -80,7 +83,7 @@ export function Todos() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Todos" description="Personal checklist items for quick capture and completion." />
+      <PageHeader title="Inbox" description="Personal captures and quick todos before they belong to a project." />
       <ScopedSearchNotice query={search} scope="todos" resultCount={todos.length} onClear={clearSearch} />
 
       <section className="rounded-[var(--radius-md)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-2 shadow-[var(--shadow-sm)] sm:p-3">
@@ -94,11 +97,11 @@ export function Todos() {
                 if (event.key === "Enter") addTodo();
               }}
               className="min-h-11 min-w-0 bg-transparent text-sm font-semibold text-[var(--text)] outline-none placeholder:text-[var(--input-placeholder)] focus-visible:shadow-none"
-              placeholder="Add a todo"
+              placeholder="Add an inbox task"
             />
           </label>
           <Button onClick={addTodo} disabled={!title.trim()} className="md:min-w-28">
-            Add Todo
+            Add Inbox Task
           </Button>
         </div>
       </section>

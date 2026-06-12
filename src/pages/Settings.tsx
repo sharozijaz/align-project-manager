@@ -185,7 +185,7 @@ export function Settings() {
   const allSettingsSections: Array<{ id: SettingsSection; label: string; description: string }> = [
     { id: "account", label: "Account", description: "Profile and sign-in" },
     { id: "appearance", label: "Appearance", description: "Theme and accent color" },
-    { id: "google", label: "Calendar Sync", description: "Google Calendar only" },
+    { id: "google", label: "Google Calendar", description: "Calendar only" },
     { id: "notifications", label: "Notifications", description: "Email and desktop reminders" },
     { id: "data", label: "Data", description: "Backup, cloud sync, and cleanup" },
   ];
@@ -218,7 +218,7 @@ export function Settings() {
       })
       .catch((error) => {
         if (!cancelled) {
-          const message = errorMessage(error, "Could not check Google sync.");
+          const message = errorMessage(error, "Could not check Google Calendar.");
           setCalendarMessage(message);
         }
       })
@@ -810,6 +810,35 @@ export function Settings() {
     setter(enabled);
   };
 
+  const syncHealthLabel =
+    syncMode === "local" || !isSupabaseConfigured
+      ? "Offline"
+      : syncMode === "paused"
+        ? "Pending changes"
+        : syncState.state === "pulling"
+          ? "Checking cloud..."
+          : syncState.state === "pushing"
+            ? "Syncing..."
+            : syncState.state === "error"
+              ? "Sync issue"
+              : "Synced";
+  const taskHealth = syncState.taskDiagnostics
+    ? `${syncState.taskDiagnostics.localCount} local · ${syncState.taskDiagnostics.remoteCount} cloud · ${syncState.taskDiagnostics.mergedCount} merged`
+    : `${tasks.filter((task) => !task.deletedAt).length} local tasks`;
+  const lastSyncText = syncState.lastSyncedAt
+    ? new Date(syncState.lastSyncedAt).toLocaleString()
+    : syncState.taskDiagnostics?.lastSyncedAt
+      ? new Date(syncState.taskDiagnostics.lastSyncedAt).toLocaleString()
+      : "Not synced yet";
+  const calendarHealth = googleConnection?.connected
+    ? googleConnection.accountEmail
+      ? `Connected · ${googleConnection.accountEmail}`
+      : "Connected"
+    : googleReadiness.ready
+      ? "Ready to connect"
+      : "Setup incomplete";
+  const backupHealth = lastWorkspaceExport ? new Date(lastWorkspaceExport).toLocaleString() : "No recent export";
+
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" description="Organized controls for your workspace, sync, notifications, and app appearance." />
@@ -893,6 +922,28 @@ export function Settings() {
                 </p>
               </div>
             </div>
+          </div>
+        </Card>
+        <Card className="p-4 sm:p-5 lg:col-span-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><CheckCircle2 size={18} /> Workspace Health</h2>
+              <p className="mt-2 text-sm text-[var(--text-muted)]">A compact checkup for cloud sync, calendar, backups, and this device.</p>
+            </div>
+            <Badge tone={syncState.state === "error" ? "red" : syncHealthLabel === "Offline" ? "slate" : "emerald"}>{syncHealthLabel}</Badge>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <HealthPill label="Supabase" value={isSupabaseConfigured ? "Configured" : "Not configured"} tone={isSupabaseConfigured ? "good" : "muted"} />
+            <HealthPill label="Account" value={session?.user.email ?? "Local only"} tone={session ? "good" : "muted"} />
+            <HealthPill label="Last sync" value={lastSyncText} tone={syncState.state === "error" ? "bad" : "good"} />
+            <HealthPill label="Tasks" value={taskHealth} tone="good" />
+            <HealthPill label="Google Calendar" value={calendarHealth} tone={googleConnection?.connected ? "good" : "muted"} />
+            <HealthPill label="Backup" value={backupHealth} tone={lastWorkspaceExport ? "good" : "muted"} />
+            <HealthPill
+              label="Desktop notifications"
+              value={desktopNotificationsEnabled ? "Enabled" : canUseDesktopNotifications() ? "Available" : "Unavailable"}
+              tone={desktopNotificationsEnabled ? "good" : "muted"}
+            />
           </div>
         </Card>
         <Card className="p-4 sm:p-5 lg:col-span-2">
@@ -1480,6 +1531,22 @@ function desktopReminderHeartbeatTone(heartbeat: DesktopReminderHeartbeat | null
   if (heartbeat.status === "error") return "red";
   if (heartbeat.status === "disabled") return "amber";
   return "blue";
+}
+
+function HealthPill({ label, value, tone }: { label: string; value: string; tone: "good" | "bad" | "muted" }) {
+  const toneClass =
+    tone === "good"
+      ? "border-[var(--success)] bg-[var(--success-bg)]"
+      : tone === "bad"
+        ? "border-[var(--danger)] bg-[var(--danger-bg)]"
+        : "border-[var(--border)] bg-[var(--surface-raised)]";
+
+  return (
+    <div className={`rounded-[var(--radius-md)] border p-3 ${toneClass}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-soft)]">{label}</p>
+      <p className="mt-2 break-words text-sm font-semibold text-[var(--text)]">{value}</p>
+    </div>
+  );
 }
 
 function CleanupToggle({
