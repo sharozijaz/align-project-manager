@@ -2,6 +2,7 @@ import { isTauriRuntime } from "./runtime";
 
 const DESKTOP_NOTIFICATIONS_KEY = "align.desktopNotifications.enabled";
 const DESKTOP_REMINDER_HEARTBEAT_KEY = "align.desktopNotifications.reminderHeartbeat";
+const WINDOWS_NOTIFICATION_SOUND = "C:\\Windows\\Media\\notify.wav";
 
 type DesktopReminderHeartbeatStatus = "disabled" | "idle" | "sent" | "error";
 
@@ -73,11 +74,14 @@ export async function sendDesktopNotification(title: string, body: string) {
   if (!permissionGranted) return false;
 
   const { sendNotification } = await import("@tauri-apps/plugin-notification");
+  const isWindows = navigator.platform.toLowerCase().includes("win");
+
   sendNotification({
     title,
     body,
     group: "align-reminders",
     autoCancel: true,
+    ...(isWindows ? { sound: WINDOWS_NOTIFICATION_SOUND } : {}),
   });
 
   return true;
