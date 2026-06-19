@@ -6,4 +6,6 @@ Categories={{categories}}
 Exec={{exec}} %u
 Icon={{icon}}
 Terminal=false
+StartupNotify=true
+StartupWMClass=align
 MimeType=x-scheme-handler/align;
