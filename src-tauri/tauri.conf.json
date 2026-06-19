@@ -43,6 +43,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/align.desktop.template"
+      },
+      "rpm": {
+        "desktopTemplate": "linux/align.desktop.template"
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

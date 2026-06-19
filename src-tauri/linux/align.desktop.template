@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name={{name}}
+Comment={{comment}}
+Categories={{categories}}
+Exec={{exec}} %u
+Icon={{icon}}
+Terminal=false
+MimeType=x-scheme-handler/align;
