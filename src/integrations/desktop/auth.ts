@@ -45,7 +45,7 @@ export async function initDesktopAuthHandler() {
   await onOpenUrl((urls) => {
     void handleDesktopAuthUrls(urls);
   });
-  await listen<string[]>("align://auth-url", (event) => {
+  await listen<string[]>("align-auth-url", (event) => {
     void handleDesktopAuthUrls(event.payload);
   });
 }
