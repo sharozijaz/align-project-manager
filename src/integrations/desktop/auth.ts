@@ -31,6 +31,7 @@ export async function initDesktopAuthHandler() {
   desktopAuthInitialized = true;
 
   const { getCurrent, isRegistered, onOpenUrl, register } = await import("@tauri-apps/plugin-deep-link");
+  const { listen } = await import("@tauri-apps/api/event");
 
   try {
     if (!(await isRegistered("align"))) {
@@ -43,5 +44,8 @@ export async function initDesktopAuthHandler() {
   await handleDesktopAuthUrls(await getCurrent());
   await onOpenUrl((urls) => {
     void handleDesktopAuthUrls(urls);
+  });
+  await listen<string[]>("align://auth-url", (event) => {
+    void handleDesktopAuthUrls(event.payload);
   });
 }

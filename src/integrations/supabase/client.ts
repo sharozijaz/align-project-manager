@@ -9,9 +9,10 @@ const rawAppUrl = import.meta.env.VITE_APP_URL;
 const rawAuthMethod = import.meta.env.VITE_AUTH_METHOD;
 
 const normalizeSupabaseUrl = (value?: string) => {
-  if (!value) return "";
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
 
-  const withProtocol = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
+  const withProtocol = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
   return withProtocol.replace(/\/rest\/v1\/?$/u, "").replace(/\/$/u, "");
 };
 

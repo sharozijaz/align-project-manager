@@ -1,6 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Emitter,
     Manager, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
@@ -23,8 +24,15 @@ fn hide_main_window(app: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             show_main_window(app);
+            let urls: Vec<String> = args
+                .into_iter()
+                .filter(|arg| arg.starts_with("align://auth/callback"))
+                .collect();
+            if !urls.is_empty() {
+                let _ = app.emit("align://auth-url", urls);
+            }
         }))
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
