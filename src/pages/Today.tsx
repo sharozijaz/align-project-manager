@@ -71,8 +71,8 @@ export function Today() {
       <section className="rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--text-brand)]">Today</p>
-            <h1 className="mt-1 text-2xl font-black text-[var(--text)] sm:text-3xl">Focus Workspace</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--text-brand)]">Today</p>
+            <h1 className="mt-1 text-2xl font-bold text-[var(--text)] sm:text-3xl">Focus Workspace</h1>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--text-muted)]">Today is for commitments and next actions. Projects hold outcomes, tasks move work, docs hold decisions, and calendar items reserve time.</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-[160px_minmax(220px,1fr)_auto]">
@@ -107,12 +107,12 @@ export function Today() {
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--brand-primary)]"><Star size={16} /></span>
               <div className="min-w-0">
-                <h2 className="text-lg font-black text-[var(--text)]">Priority Project</h2>
+                <h2 className="text-lg font-bold text-[var(--text)]">Priority Project</h2>
                 {activeProject ? (
                   <>
                     <p className="mt-1 truncate text-sm font-bold text-[var(--text)]">{activeProject.name}</p>
                     <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{activeProject.description || "Pinned or most relevant active project."}</p>
-                    <Link to={`/projects/${activeProject.id}`} className="mt-3 inline-flex text-sm font-black text-[var(--text-brand)] hover:underline">Open project</Link>
+                    <Link to={`/projects/${activeProject.id}`} className="mt-3 inline-flex text-sm font-bold text-[var(--text-brand)] hover:underline">Open project</Link>
                   </>
                 ) : (
                   <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">Pin or create a project to anchor today’s focus.</p>
@@ -134,8 +134,8 @@ function TodayMetric({ icon, label, value }: { icon: React.ReactNode; label: str
     <Card className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</p>
-          <p className="mt-2 text-2xl font-black text-[var(--text)]">{value}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</p>
+          <p className="mt-2 text-2xl font-bold text-[var(--text)]">{value}</p>
         </div>
         <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">{icon}</span>
       </div>
@@ -149,7 +149,7 @@ function TodayPanel({ icon, title, helper, children }: { icon: React.ReactNode; 
       <div className="mb-3 flex items-start gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">{icon}</span>
         <div>
-          <h2 className="font-black text-[var(--text)]">{title}</h2>
+          <h2 className="font-bold text-[var(--text)]">{title}</h2>
           <p className="text-xs font-semibold text-[var(--text-muted)]">{helper}</p>
         </div>
       </div>

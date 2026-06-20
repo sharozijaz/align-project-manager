@@ -47,7 +47,7 @@ export function Modal({ title, open, onClose, children, className = "", descript
           >
             <div className="flex items-start justify-between gap-4 rounded-t-[var(--radius-lg)] border-b border-[var(--border)] bg-[var(--panel-inset)] px-5 py-4">
               <div className="min-w-0">
-                <h2 id={titleId} className="text-lg font-black text-[var(--text)]">{title}</h2>
+                <h2 id={titleId} className="text-lg font-bold text-[var(--text)]">{title}</h2>
                 {description ? <p id={descriptionId} className="mt-1 text-sm font-medium leading-5 text-[var(--text-muted)]">{description}</p> : null}
               </div>
               <Button aria-label="Close" type="button" variant="ghost" className="min-h-9 px-2" onClick={onClose}>

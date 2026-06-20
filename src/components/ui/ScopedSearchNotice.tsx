@@ -22,8 +22,8 @@ export function ScopedSearchNotice({
           <Search size={16} />
         </span>
         <p className="min-w-0 font-semibold text-[var(--text-muted)]">
-          Filtering <span className="font-black text-[var(--text)]">{scope}</span> for{" "}
-          <span className="font-black text-[var(--text)]">"{trimmed}"</span>
+          Filtering <span className="font-bold text-[var(--text)]">{scope}</span> for{" "}
+          <span className="font-bold text-[var(--text)]">"{trimmed}"</span>
           <span className="ml-2 text-[var(--text-soft)]">{resultCount} shown</span>
         </p>
       </div>

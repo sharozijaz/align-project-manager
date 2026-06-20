@@ -3117,7 +3117,7 @@ function ResourceCaptureBar({
       <form onSubmit={onSubmit}>
         <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_170px_170px_auto] lg:items-end">
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Capture resource</span>
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Capture resource</span>
             <div className="flex min-w-0 items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 transition hover:border-[var(--border-strong)] focus-within:border-[var(--border-strong)] focus-within:bg-[var(--surface)]">
               <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
                 {favicon ? <img src={favicon} alt="" className="h-5 w-5" /> : <ExternalLink size={15} className="text-[var(--text-soft)]" />}
@@ -3137,13 +3137,13 @@ function ResourceCaptureBar({
                   if (normalizedUrl && !form.title.trim()) onFormChange(mergeResourceMetadata(form, buildFallbackResourceMetadata(normalizedUrl, form), null));
                 }}
                 placeholder="Paste a URL or domain..."
-                className="min-h-11 min-w-0 flex-1 bg-transparent text-sm font-bold text-[var(--text)] outline-none ring-0 placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-0 focus-visible:outline-none"
+                className="min-h-11 min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--text)] outline-none ring-0 placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-0 focus-visible:outline-none"
               />
             </div>
           </label>
 
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Type</span>
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Type</span>
             <Select value={form.type} onChange={(event) => onFormChange({ ...form, type: event.target.value as HubResourceType })}>
               {resourceTypes.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -3154,7 +3154,7 @@ function ResourceCaptureBar({
           </label>
 
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Collection</span>
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Collection</span>
             <Input value={form.collection} onChange={(event) => onFormChange({ ...form, collection: event.target.value })} placeholder="Design tools" />
           </label>
 
@@ -3300,7 +3300,7 @@ function ResourceCard({
   const host = getResourceHost(item.url);
   const favicon = getResourceFavicon(item.url);
   return (
-    <Card className={`group overflow-hidden p-0 transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)] ${selected ? "border-[var(--brand-primary)]" : ""}`}>
+    <Card className={`group overflow-hidden p-0 transition hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)] ${selected ? "border-[var(--brand-primary)]" : ""}`}>
       <button type="button" onClick={onSelect} className="block w-full p-4 text-left">
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
@@ -3309,7 +3309,7 @@ function ResourceCard({
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{host || item.collection || "Saved resource"}</p>
+                <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{host || item.collection || "Saved resource"}</p>
                 <h3 className="mt-1 line-clamp-2 font-display text-lg font-bold leading-6 text-[var(--text)]">{item.title}</h3>
               </div>
               <Star size={16} className={item.favorite ? "shrink-0 fill-[var(--brand-primary)] text-[var(--brand-primary)]" : "shrink-0 text-[var(--text-soft)]"} />
@@ -3445,11 +3445,11 @@ function ResourceDetailInline({
           <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--text-muted)]">{item.notes || "No notes yet. Add context, why this is useful, login hints, or when you reach for it."}</p>
           <div className="mt-4 grid gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 text-sm sm:grid-cols-2">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Domain</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Domain</p>
               <p className="mt-1 truncate font-bold text-[var(--text)]">{host || "No website"}</p>
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Collection</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Collection</p>
               <p className="mt-1 truncate font-bold text-[var(--text)]">{item.collection || "Unfiled"}</p>
             </div>
           </div>

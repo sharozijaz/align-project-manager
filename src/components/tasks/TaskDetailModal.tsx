@@ -228,7 +228,7 @@ export function TaskDetailModal({
                   value={draft.title}
                   readOnly={readOnly}
                   onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-                  className="min-h-11 border-transparent bg-transparent px-0 text-xl font-black hover:border-transparent focus:border-transparent"
+                  className="min-h-11 border-transparent bg-transparent px-0 text-xl font-bold hover:border-transparent focus:border-transparent"
                 />
                 <textarea
                   value={draft.description}
@@ -444,17 +444,17 @@ function TimelineCard({
 }) {
   return (
     <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-black text-[var(--text)]">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--text)]">
         <CalendarDays size={15} />
         {label}
       </h3>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
         <label className="block space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Date</span>
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Date</span>
           <Input type="date" value={date} disabled={disabled} className="min-h-9 sm:min-h-9" onChange={(event) => onDateChange(event.target.value)} />
         </label>
         <label className="block space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">Time</span>
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Time</span>
           <Input type="time" value={time} disabled={disabled} placeholder="No time" className="min-h-9 sm:min-h-9" onChange={(event) => onTimeChange(event.target.value)} />
         </label>
       </div>
@@ -465,7 +465,7 @@ function TimelineCard({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="space-y-1.5">
-      <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</span>
       {children}
     </label>
   );
@@ -474,7 +474,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function InfoCard({ icon, title, children }: { icon?: ReactNode; title: string; children: ReactNode }) {
   return (
     <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-black text-[var(--text)]">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--text)]">
         {icon}
         {title}
       </h3>

@@ -227,7 +227,7 @@ function ProjectTaskGroupHeader({ project, fallbackLabel, count }: { project?: P
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--brand-primary)] text-sm font-black text-white shadow-[var(--shadow-sm)]">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--brand-primary)] text-sm font-bold text-white shadow-[var(--shadow-sm)]">
           {project ? initials : <FolderKanban size={20} />}
         </div>
         <div className="min-w-0">
@@ -324,14 +324,14 @@ function TaskDragPreview({ task, project, x, y, offsetX, offsetY }: { task: Task
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--text-muted)]">
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-bold uppercase text-[var(--text-muted)]">
               {task.status.replace(/_/g, " ")}
             </span>
-            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--brand-primary)]">
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-bold uppercase text-[var(--brand-primary)]">
               {task.priority}
             </span>
           </div>
-          <div className="mt-3 truncate text-base font-black text-[var(--text)]">{task.title}</div>
+          <div className="mt-3 truncate text-base font-bold text-[var(--text)]">{task.title}</div>
           <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">{project?.name ?? task.category}</div>
         </div>
         <span className="align-drag-handle shrink-0">⋯</span>

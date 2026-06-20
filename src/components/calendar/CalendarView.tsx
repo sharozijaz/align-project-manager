@@ -1043,7 +1043,7 @@ function EmptyPanel({ title, description, compact = false }: { title: string; de
 }
 
 function getCalendarItems(tasks: Task[], events: CalendarEvent[]): CalendarItem[] {
-  const visibleTasks = tasks.filter((task) => Boolean(task.dueDate));
+  const visibleTasks = tasks.filter((task) => Boolean(task.dueDate) && !task.deletedAt && !isTerminalTaskStatus(task.status));
   const visibleTaskIds = new Set(visibleTasks.map((task) => task.id));
   const visibleTaskTitles = new Set(visibleTasks.map((task) => normalizeCalendarTitle(task.title)));
   const visibleDateKeys = new Set([

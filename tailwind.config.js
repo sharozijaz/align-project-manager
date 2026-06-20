@@ -8,8 +8,8 @@ export default {
         soft: "0 22px 60px rgba(15, 23, 42, 0.08)",
       },
       fontFamily: {
-        sans: ["Jost", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["Space Grotesk", "Jost", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Nunito Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Manrope", "Nunito Sans", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

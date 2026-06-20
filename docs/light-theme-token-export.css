@@ -1,0 +1,221 @@
+/*
+  Align Light Theme Token Export
+  Generated for external contrast/theme review.
+
+  Source of truth in app:
+  - src/styles/globals.css
+
+  Important:
+  - globals.css defines base :root/[data-theme="light"] tokens near the top.
+  - Later in the file, a "Final theme contrast pass" overrides the light theme.
+  - The block below is the effective light theme after those later overrides.
+  - Accent tokens are included separately because data-accent overrides brand colors.
+*/
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* App Surfaces */
+  --canvas: #f3f2ee;
+  --nav-bg: #fbfaf7;
+  --card-bg: #fffefa;
+  --surface-app: var(--canvas);
+  --surface-nav: var(--nav-bg);
+  --surface-card: var(--card-bg);
+  --surface-raised: var(--card-bg);
+  --surface-input: var(--card-bg);
+  --surface-hover: #f0ede6;
+  --bg: var(--canvas);
+  --bg-soft: #ebe7de;
+  --bg-muted: #dfd9ce;
+  --surface: var(--surface-card);
+  --empty-bg: var(--surface-hover);
+
+  /* Borders */
+  --border: #d6d0c6;
+  --border-strong: #9e9588;
+  --input-border: #c7c0b5;
+  --panel-border: #d9d3c9;
+
+  /* Text */
+  --text: #17202c;
+  --text-muted: #3f4b5a;
+  --text-soft: #687381;
+  --text-inverse: #ffffff;
+  --text-brand: var(--brand-700);
+  --note-text: #202938;
+  --input-placeholder: #707a87;
+
+  /* Brand - default before accent override */
+  --brand-50: #edf6ff;
+  --brand-100: #d8ecff;
+  --brand-200: #b9dcff;
+  --brand-300: #80bdff;
+  --brand-500: #006bdb;
+  --brand-600: #0058b5;
+  --brand-700: #004f9f;
+  --brand-900: #10233f;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-secondary: #0b8ec2;
+  --brand-accent: var(--brand-300);
+  --brand-gradient: var(--brand-primary);
+  --progress-fill: var(--brand-primary);
+
+  /* Controls */
+  --input-bg: var(--card-bg);
+  --dropdown-bg: var(--card-bg);
+  --dropdown-hover: var(--surface-hover);
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover: var(--brand-primary-hover);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #f6f4ef;
+  --button-secondary-hover: #ebe7df;
+  --button-secondary-text: var(--text);
+  --button-danger-bg: var(--danger-bg);
+  --button-danger-hover: #f8e4e8;
+  --button-danger-text: var(--danger-text);
+
+  /* Panels */
+  --panel-bg: var(--card-bg);
+  --panel-bg-soft: #f8f6f1;
+  --panel-inset: #eeeae2;
+  --panel-rail: color-mix(in srgb, var(--brand-primary) 8%, var(--card-bg));
+  --icon-tile-bg: color-mix(in srgb, var(--brand-primary) 7%, var(--card-bg));
+  --icon-tile-border: color-mix(in srgb, var(--brand-primary) 18%, var(--border));
+  --accent-soft: color-mix(in srgb, var(--brand-primary) 7%, var(--card-bg));
+  --accent-muted: color-mix(in srgb, var(--brand-primary) 14%, var(--card-bg));
+  --ring-track: #e2ddd4;
+
+  /* Status */
+  --status-not-started-bg: #f3f0ea;
+  --status-not-started-text: #665f55;
+  --status-in-progress-bg: #edf6fa;
+  --status-in-progress-text: #176a87;
+  --status-completed-bg: var(--success-bg);
+  --status-completed-text: var(--success-text);
+  --status-paused-bg: var(--warning-bg);
+  --status-paused-text: var(--warning-text);
+
+  /* Priority */
+  --priority-low-bg: var(--success-bg);
+  --priority-low-text: var(--success-text);
+  --priority-medium-bg: var(--warning-bg);
+  --priority-medium-text: var(--warning-text);
+  --priority-high-bg: var(--danger-bg);
+  --priority-high-text: var(--danger-text);
+  --priority-urgent-bg: #f0edfb;
+  --priority-urgent-text: #4535a0;
+
+  /* Semantic */
+  --success: #147a58;
+  --success-bg: #eff7f2;
+  --success-text: #116344;
+  --warning: #b77914;
+  --warning-bg: #fbf5e4;
+  --warning-text: #75520d;
+  --danger: #c33d59;
+  --danger-bg: #fbedf0;
+  --danger-text: #8f2c43;
+
+  /* Calendar */
+  --calendar-day-bg: var(--card-bg);
+  --calendar-day-muted: #f1eee8;
+  --calendar-selected-bg: #e5edf8;
+  --calendar-selected-text: #17202c;
+
+  /* Sidebar intentionally remains dark even in light theme */
+  --sidebar-bg: #171717;
+  --sidebar-text: #f5f5f5;
+  --sidebar-muted: #c7c7c7;
+  --sidebar-border: rgba(255, 255, 255, 0.18);
+  --sidebar-hover: rgba(255, 255, 255, 0.1);
+  --sidebar-section-bg: #0f0f0f;
+
+  /* Desktop */
+  --desktop-titlebar-bg: #fbfaf7;
+  --desktop-titlebar-border: #ddd8cf;
+
+  /* Shadows */
+  --focus-ring: #6f8fd8;
+  --shadow-sm: 0 1px 2px rgba(39, 34, 27, 0.05), 0 1px 1px rgba(39, 34, 27, 0.03);
+  --shadow-md: 0 10px 24px rgba(39, 34, 27, 0.08), 0 2px 6px rgba(39, 34, 27, 0.04);
+  --shadow-lg: 0 22px 56px rgba(39, 34, 27, 0.11), 0 8px 18px rgba(39, 34, 27, 0.06);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 22%, transparent);
+}
+
+/* Accent overrides */
+[data-accent="blue"] {
+  --brand-50: #eef3ff;
+  --brand-100: #e0eaff;
+  --brand-200: #bfd0ff;
+  --brand-300: #7ba4ff;
+  --brand-500: #3563e9;
+  --brand-600: #1747d2;
+  --brand-700: #1538a8;
+  --brand-900: #222c4b;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-accent: var(--brand-300);
+  --progress-fill: var(--brand-primary);
+}
+
+[data-accent="violet"] {
+  --brand-50: #f1efff;
+  --brand-100: #e2ddff;
+  --brand-200: #c8bfff;
+  --brand-300: #a99cff;
+  --brand-500: #6453fc;
+  --brand-600: #412dfb;
+  --brand-700: #483fc0;
+  --brand-900: #4c4a65;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-accent: var(--brand-300);
+  --progress-fill: var(--brand-primary);
+}
+
+[data-accent="emerald"] {
+  --brand-50: #e9f8f1;
+  --brand-100: #cff0df;
+  --brand-200: #a7e4c6;
+  --brand-300: #73d6a8;
+  --brand-500: #0c7e57;
+  --brand-600: #0b704d;
+  --brand-700: #0b684b;
+  --brand-900: #0c1d17;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-accent: var(--brand-300);
+  --progress-fill: var(--brand-primary);
+}
+
+[data-accent="amber"] {
+  --brand-50: #fff7e6;
+  --brand-100: #fdecc8;
+  --brand-200: #f4d692;
+  --brand-300: #e5bc6c;
+  --brand-500: #946219;
+  --brand-600: #774f14;
+  --brand-700: #734810;
+  --brand-900: #221b11;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-accent: var(--brand-300);
+  --progress-fill: var(--brand-primary);
+}
+
+[data-accent="rose"] {
+  --brand-50: #fff0f4;
+  --brand-100: #ffd9e2;
+  --brand-200: #ffb5c5;
+  --brand-300: #fb8aa1;
+  --brand-500: #d12c4f;
+  --brand-600: #aa2440;
+  --brand-700: #91213a;
+  --brand-900: #3c262b;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-accent: var(--brand-300);
+  --progress-fill: var(--brand-primary);
+}

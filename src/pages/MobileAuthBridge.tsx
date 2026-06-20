@@ -23,7 +23,7 @@ export function MobileAuthBridge() {
         </p>
         <a
           href={appUrl}
-          className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#3563e9] px-6 font-extrabold text-white no-underline"
+          className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#3563e9] px-6 font-bold text-white no-underline"
         >
           Open Align
         </a>

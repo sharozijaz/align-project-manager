@@ -292,16 +292,17 @@ function SidebarContent({
           <NavLink
             to="/"
             onClick={onNavigate}
-            className="brand-logo-shell grid h-16 grid-cols-[88px_minmax(0,1fr)] items-center"
+            className="brand-logo-shell grid h-16 grid-cols-[80px_minmax(0,1fr)] items-center gap-1"
             aria-label="Align home"
           >
-            <span className="grid h-16 w-[88px] place-items-center">
-              <img src="/align-icon.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
+            <span className="grid h-16 w-20 place-items-center">
+              <img src="/align-sidebar-mark.svg" alt="" className="h-8 w-8 shrink-0 rounded-[8px] object-contain" />
             </span>
             <AnimatePresence initial={false}>
               {!collapsed ? (
-                <motion.span {...sidebarTextMotion} className="min-w-0 truncate text-xl font-black tracking-normal text-[var(--sidebar-text)]">
-                  Align
+                <motion.span {...sidebarTextMotion} className="min-w-0 translate-y-px overflow-hidden font-display leading-none tracking-normal">
+                  <span className="block truncate text-[1.15rem] font-semibold text-[var(--sidebar-text)]">Align</span>
+                  <span className="mt-1 block truncate text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--sidebar-muted)]">Workspace</span>
                 </motion.span>
               ) : null}
             </AnimatePresence>

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -1336,7 +1336,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  font-family: Jost, ui-sans-serif, system-ui, sans-serif;
+  font-family: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
 }
@@ -1418,7 +1418,7 @@ html.align-desktop-root #root {
   min-width: 0;
   align-items: center;
   gap: 0.45rem;
-  font-family: "Space Grotesk", Jost, ui-sans-serif, system-ui, sans-serif;
+  font-family: Manrope, "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -1433,12 +1433,12 @@ html.align-desktop-root #root {
   overflow: hidden;
   border-radius: 6px;
   background: var(--brand-primary);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-accent) 28%, transparent);
+  box-shadow: none;
 }
 
 .desktop-titlebar__mark img {
-  height: 1rem;
-  width: 1rem;
+  height: 1.25rem;
+  width: 1.25rem;
   object-fit: contain;
 }
 
@@ -1492,7 +1492,7 @@ h2,
 h3,
 h4,
 .font-display {
-  font-family: "Space Grotesk", Jost, ui-sans-serif, system-ui, sans-serif;
+  font-family: Manrope, "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 button,
@@ -1671,6 +1671,46 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .brand-logo-shell {
   background: var(--logo-bg);
+}
+
+.align-notification-badge {
+  border: 1px solid color-mix(in srgb, #ffffff 42%, transparent);
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow:
+    0 0 0 3px var(--panel-bg),
+    0 8px 18px rgba(220, 38, 38, 0.34);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
+}
+
+.align-notification-unread {
+  --notification-unread-title: #f8fafc;
+  --notification-unread-body: #dbe4ff;
+  --notification-unread-meta: #b8c7f5;
+  border-color: color-mix(in srgb, var(--brand-primary) 58%, var(--border));
+  background: color-mix(in srgb, var(--brand-primary) 22%, #1c1c1c);
+  box-shadow: inset 3px 0 0 var(--brand-primary);
+}
+
+.align-notification-unread-dot {
+  border: 2px solid color-mix(in srgb, var(--panel-bg) 86%, transparent);
+  background: #4f7cff;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #4f7cff 18%, transparent);
+}
+
+[data-theme="light"] .align-notification-badge {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 3px var(--panel-bg),
+    0 7px 18px rgba(185, 28, 28, 0.28);
+}
+
+[data-theme="light"] .align-notification-unread {
+  --notification-unread-title: var(--text);
+  --notification-unread-body: var(--text-muted);
+  --notification-unread-meta: var(--text-soft);
+  border-color: color-mix(in srgb, var(--brand-primary) 24%, var(--border));
+  background: color-mix(in srgb, var(--brand-primary) 6%, var(--panel-bg));
 }
 
 .align-sidebar-link {
@@ -1902,67 +1942,120 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 /* Final theme contrast pass: keep these after accent overrides. */
 [data-theme="light"] {
-  --canvas: #eef2f7;
-  --nav-bg: #f8fafc;
-  --nav-border: #c6d0df;
-  --card-bg: #ffffff;
-  --card-border: #bac6d8;
-  --task-bg: #ffffff;
-  --task-border: #bac6d8;
-  --task-hover: #e8eef6;
-  --stat-bg: #ffffff;
-  --stat-border: #bac6d8;
-  --progress-track: #d7dfeb;
-  --scrollbar-track: #e1e8f1;
-  --scrollbar-thumb: #a4b0c2;
-  --scrollbar-thumb-hover: #7e8ba1;
+  color-scheme: light;
+
+  --canvas: #f3f2ee;
+  --nav-bg: #fbfaf7;
+  --nav-border: #ddd8cf;
+  --card-bg: #fffefa;
+  --card-border: #ddd8cf;
+  --task-bg: #fffefa;
+  --task-border: #ddd8cf;
+  --task-hover: #f1eee8;
+  --stat-bg: #fffefa;
+  --stat-border: #ddd8cf;
+  --progress-track: #e3dfd7;
+  --scrollbar-track: #ece8e0;
+  --scrollbar-thumb: #bbb3a7;
+  --scrollbar-thumb-hover: #93897b;
   --surface-app: var(--canvas);
   --surface-nav: var(--nav-bg);
   --surface-card: var(--card-bg);
-  --surface-raised: #ffffff;
-  --surface-input: #ffffff;
-  --surface-hover: #e8eef6;
+  --surface-raised: var(--card-bg);
+  --surface-input: var(--card-bg);
+  --surface-hover: #f0ede6;
   --bg: var(--canvas);
-  --bg-soft: #e3eaf3;
-  --bg-muted: #d9e2ee;
+  --bg-soft: #ebe7de;
+  --bg-muted: #dfd9ce;
   --surface: var(--surface-card);
-  --border: #bac6d8;
-  --border-strong: #78889f;
-  --text: #071123;
-  --text-muted: #243247;
-  --text-soft: #53647a;
+  --border: #d6d0c6;
+  --border-strong: #9e9588;
+  --text: #17202c;
+  --text-muted: #3f4b5a;
+  --text-soft: #687381;
   --text-inverse: #ffffff;
   --text-brand: var(--brand-700);
-  --note-text: #17243a;
-  --input-bg: #ffffff;
-  --input-border: #9eacbf;
-  --input-placeholder: #5b6d84;
-  --dropdown-bg: #ffffff;
-  --dropdown-hover: #e8eef6;
-  --button-secondary-bg: #edf2f8;
-  --button-secondary-hover: #dde6f1;
+  --note-text: #202938;
+
+  --brand-50: #edf6ff;
+  --brand-100: #d8ecff;
+  --brand-200: #b9dcff;
+  --brand-300: #80bdff;
+  --brand-500: #006bdb;
+  --brand-600: #0058b5;
+  --brand-700: #004f9f;
+  --brand-900: #10233f;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-secondary: #0b8ec2;
+  --brand-accent: var(--brand-300);
+  --brand-gradient: var(--brand-primary);
+  --progress-fill: var(--brand-primary);
+
+  --input-bg: var(--card-bg);
+  --input-border: #c7c0b5;
+  --input-placeholder: #707a87;
+  --dropdown-bg: var(--card-bg);
+  --dropdown-hover: var(--surface-hover);
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover: var(--brand-primary-hover);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #f6f4ef;
+  --button-secondary-hover: #ebe7df;
   --button-secondary-text: var(--text);
-  --empty-bg: #e8eef6;
-  --calendar-cell-bg: #ffffff;
-  --calendar-cell-hover: #e8eef6;
-  --calendar-cell-muted: #d9e2ee;
-  --calendar-selected-bg: #e4ecf7;
-  --calendar-selected-text: #071123;
-  --panel-bg: #ffffff;
-  --panel-bg-soft: #f4f7fb;
-  --panel-border: #b7c3d4;
-  --panel-inset: #e6edf6;
-  --panel-rail: color-mix(in srgb, var(--brand-primary) 12%, #ffffff);
-  --icon-tile-bg: color-mix(in srgb, var(--brand-primary) 12%, #ffffff);
-  --icon-tile-border: color-mix(in srgb, var(--brand-primary) 26%, var(--border));
-  --accent-soft: color-mix(in srgb, var(--brand-primary) 10%, #ffffff);
-  --accent-muted: color-mix(in srgb, var(--brand-primary) 20%, #ffffff);
-  --ring-track: #d7dfeb;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08), 0 1px 1px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 10px 24px rgba(15, 23, 42, 0.11), 0 2px 6px rgba(15, 23, 42, 0.06);
-  --shadow-lg: 0 22px 56px rgba(15, 23, 42, 0.14), 0 8px 18px rgba(15, 23, 42, 0.08);
-  --desktop-titlebar-bg: #f8fafc;
-  --desktop-titlebar-border: #c6d0df;
+  --button-danger-bg: var(--danger-bg);
+  --button-danger-hover: #f8e4e8;
+  --button-danger-text: var(--danger-text);
+  --empty-bg: var(--surface-hover);
+  --calendar-cell-bg: var(--card-bg);
+  --calendar-cell-hover: #f0ede6;
+  --calendar-cell-muted: #e6e1d8;
+  --calendar-selected-bg: #e5edf8;
+  --calendar-selected-text: #17202c;
+  --calendar-day-bg: var(--card-bg);
+  --calendar-day-muted: #f1eee8;
+  --panel-bg: var(--card-bg);
+  --panel-bg-soft: #f8f6f1;
+  --panel-border: #d9d3c9;
+  --panel-inset: #eeeae2;
+  --panel-rail: color-mix(in srgb, var(--brand-primary) 8%, var(--card-bg));
+  --icon-tile-bg: color-mix(in srgb, var(--brand-primary) 7%, var(--card-bg));
+  --icon-tile-border: color-mix(in srgb, var(--brand-primary) 18%, var(--border));
+  --accent-soft: color-mix(in srgb, var(--brand-primary) 7%, var(--card-bg));
+  --accent-muted: color-mix(in srgb, var(--brand-primary) 14%, var(--card-bg));
+  --ring-track: #e2ddd4;
+  --status-not-started-bg: #f3f0ea;
+  --status-not-started-text: #665f55;
+  --status-in-progress-bg: #edf6fa;
+  --status-in-progress-text: #176a87;
+  --status-completed-bg: var(--success-bg);
+  --status-completed-text: var(--success-text);
+  --status-paused-bg: var(--warning-bg);
+  --status-paused-text: var(--warning-text);
+  --priority-low-bg: var(--success-bg);
+  --priority-low-text: var(--success-text);
+  --priority-medium-bg: var(--warning-bg);
+  --priority-medium-text: var(--warning-text);
+  --priority-high-bg: var(--danger-bg);
+  --priority-high-text: var(--danger-text);
+  --priority-urgent-bg: #f0edfb;
+  --priority-urgent-text: #4535a0;
+  --success: #147a58;
+  --success-bg: #eff7f2;
+  --success-text: #116344;
+  --warning: #b77914;
+  --warning-bg: #fbf5e4;
+  --warning-text: #75520d;
+  --danger: #c33d59;
+  --danger-bg: #fbedf0;
+  --danger-text: #8f2c43;
+  --focus-ring: #6f8fd8;
+  --shadow-sm: 0 1px 2px rgba(39, 34, 27, 0.05), 0 1px 1px rgba(39, 34, 27, 0.03);
+  --shadow-md: 0 10px 24px rgba(39, 34, 27, 0.08), 0 2px 6px rgba(39, 34, 27, 0.04);
+  --shadow-lg: 0 22px 56px rgba(39, 34, 27, 0.11), 0 8px 18px rgba(39, 34, 27, 0.06);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 22%, transparent);
+  --desktop-titlebar-bg: #fbfaf7;
+  --desktop-titlebar-border: #ddd8cf;
   --sidebar-bg: #171717;
   --sidebar-text: #f5f5f5;
   --sidebar-muted: #c7c7c7;
@@ -2101,14 +2194,32 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   box-shadow: var(--shadow-focus, none);
 }
 
+[data-accent="blue"] {
+  --brand-50: #eef3ff;
+  --brand-100: #e0eaff;
+  --brand-200: #bfd0ff;
+  --brand-300: #7ba4ff;
+  --brand-500: #3563e9;
+  --brand-600: #1747d2;
+  --brand-700: #1538a8;
+  --brand-900: #222c4b;
+  --brand-primary: var(--brand-500);
+  --brand-primary-hover: var(--brand-600);
+  --brand-accent: var(--brand-300);
+  --brand-gradient: var(--brand-primary);
+  --progress-fill: var(--brand-primary);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 28%, transparent);
+}
+
 [data-accent="violet"] {
   --brand-50: #f1efff;
   --brand-100: #e2ddff;
   --brand-200: #c8bfff;
   --brand-300: #a99cff;
-  --brand-500: #6d5dfc;
-  --brand-600: #5b4ee4;
+  --brand-500: #6453fc;
+  --brand-600: #412dfb;
   --brand-700: #483fc0;
+  --brand-900: #4c4a65;
   --brand-primary: var(--brand-500);
   --brand-primary-hover: var(--brand-600);
   --brand-accent: var(--brand-300);
@@ -2122,9 +2233,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   --brand-100: #cff0df;
   --brand-200: #a7e4c6;
   --brand-300: #73d6a8;
-  --brand-500: #0f9f6e;
-  --brand-600: #0c825b;
+  --brand-500: #0c7e57;
+  --brand-600: #0b704d;
   --brand-700: #0b684b;
+  --brand-900: #0c1d17;
   --brand-primary: var(--brand-500);
   --brand-primary-hover: var(--brand-600);
   --brand-accent: var(--brand-300);
@@ -2138,9 +2250,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   --brand-100: #fdecc8;
   --brand-200: #f4d692;
   --brand-300: #e5bc6c;
-  --brand-500: #b7791f;
-  --brand-600: #965f16;
+  --brand-500: #946219;
+  --brand-600: #774f14;
   --brand-700: #734810;
+  --brand-900: #221b11;
   --brand-primary: var(--brand-500);
   --brand-primary-hover: var(--brand-600);
   --brand-accent: var(--brand-300);
@@ -2154,9 +2267,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   --brand-100: #ffd9e2;
   --brand-200: #ffb5c5;
   --brand-300: #fb8aa1;
-  --brand-500: #d63b5c;
-  --brand-600: #b72b49;
+  --brand-500: #d12c4f;
+  --brand-600: #aa2440;
   --brand-700: #91213a;
+  --brand-900: #3c262b;
   --brand-primary: var(--brand-500);
   --brand-primary-hover: var(--brand-600);
   --brand-accent: var(--brand-300);

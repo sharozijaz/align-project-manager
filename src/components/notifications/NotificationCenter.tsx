@@ -127,7 +127,7 @@ export function NotificationCenter({
       >
         <Bell size={17} />
         {unread.length ? (
-          <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-[var(--button-danger-bg)] px-1 text-[10px] font-black text-[var(--button-danger-text)] ring-2 ring-[var(--panel-bg)]">
+          <span className="align-notification-badge absolute -right-1.5 -top-1.5 grid min-h-[1.35rem] min-w-[1.35rem] place-items-center rounded-full px-1.5 text-[11px] font-black leading-none">
             {unread.length > 9 ? "9+" : unread.length}
           </span>
         ) : null}
@@ -145,7 +145,7 @@ export function NotificationCenter({
             <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--text)] shadow-[var(--shadow-lg)]">
               <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] bg-[var(--panel-inset)] px-4 py-4">
                 <div>
-                  <p className="text-base font-black text-[var(--text)]">Attention Center</p>
+                  <p className="text-base font-bold text-[var(--text)]">Attention Center</p>
                   <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{unread.length ? `${unread.length} unread reminder${unread.length === 1 ? "" : "s"}` : "All caught up"}</p>
                 </div>
                 <div className="flex gap-1">
@@ -166,7 +166,7 @@ export function NotificationCenter({
                       <Inbox size={19} />
                     </span>
                     <div>
-                      <p className="text-sm font-black text-[var(--text)]">No reminders yet</p>
+                      <p className="text-sm font-bold text-[var(--text)]">No reminders yet</p>
                       <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">Task reminders will appear here when they are due.</p>
                     </div>
                   </div>
@@ -197,7 +197,7 @@ export function NotificationCenter({
 function NotificationGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-3 last:mb-0">
-      <p className="px-2 pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{title}</p>
+      <p className="px-2 pb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{title}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -221,17 +221,17 @@ function NotificationItem({
       type="button"
       onClick={() => void onOpen(item)}
       className={`block w-full rounded-[var(--radius-md)] border p-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] ${
-        item.readAt ? "border-[var(--border)] bg-[var(--panel-bg-soft)]" : "border-[var(--icon-tile-border)] bg-[var(--accent-soft)]"
+        item.readAt ? "border-[var(--border)] bg-[var(--panel-bg-soft)]" : "align-notification-unread"
       }`}
     >
       <span className="flex items-start justify-between gap-3">
         <span className="min-w-0">
-          <span className="block truncate text-sm font-black text-[var(--text)]">{item.title}</span>
-          <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--text-muted)]">{item.message}</span>
+          <span className="block truncate text-sm font-bold text-[var(--notification-unread-title,var(--text))]">{item.title}</span>
+          <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--notification-unread-body,var(--text-muted))]">{item.message}</span>
         </span>
-        {!item.readAt ? <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--brand-primary)]" /> : null}
+        {!item.readAt ? <span className="align-notification-unread-dot mt-1 h-3 w-3 shrink-0 rounded-full" /> : null}
       </span>
-      <span className="mt-3 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-[var(--text-soft)]">
+      <span className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--notification-unread-meta,var(--text-soft))]">
         {task && label ? <span>{label}</span> : null}
         <span>{formatDistanceToNow(new Date(item.scheduledFor), { addSuffix: true })}</span>
       </span>
@@ -245,7 +245,7 @@ function ActionButton({ children, disabled, icon, onClick }: { children: React.R
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-xs font-black text-[var(--text-muted)] transition hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-xs font-bold text-[var(--text-muted)] transition hover:bg-[var(--dropdown-hover)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
     >
       {icon}
       {children}

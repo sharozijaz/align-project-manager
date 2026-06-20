@@ -138,7 +138,7 @@ export function Projects() {
       <section className="rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div className="min-w-0 border-l-4 border-[var(--brand-primary)] pl-4">
-            <h1 className="text-2xl font-black tracking-normal text-[var(--text)] sm:text-3xl">Projects</h1>
+            <h1 className="text-2xl font-bold tracking-normal text-[var(--text)] sm:text-3xl">Projects</h1>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--text-muted)]">
               Manage active, paused, completed, archived, and shared client projects.
             </p>
@@ -152,7 +152,7 @@ export function Projects() {
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4 xl:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm font-semibold text-[var(--text-muted)]">
-              Showing <span className="font-black text-[var(--brand-primary)]">{visibleProjects.length}</span> {lifecycleLabel}
+              Showing <span className="font-bold text-[var(--brand-primary)]">{visibleProjects.length}</span> {lifecycleLabel}
             </span>
             {lifecycleFilter !== "archived" ? <ClientProjectsSharePanel embedded projects={shareableProjects} /> : null}
           </div>
@@ -343,7 +343,7 @@ function ProjectTemplatePicker({ onApply }: { onApply: (template: ProjectTemplat
   return (
     <section className="mb-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
       <div className="mb-3">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Templates</p>
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Templates</p>
         <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">Projects are outcomes. Pick a starter workflow or create a blank project below.</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -354,7 +354,7 @@ function ProjectTemplatePicker({ onApply }: { onApply: (template: ProjectTemplat
             onClick={() => onApply(template)}
             className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
           >
-            <span className="block font-black text-[var(--text)]">{template.name}</span>
+            <span className="block font-bold text-[var(--text)]">{template.name}</span>
             <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--text-muted)]">{template.description}</span>
           </button>
         ))}
@@ -427,14 +427,14 @@ function ProjectDragPreview({ project, x, y, offsetX, offsetY }: { project: Proj
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--text-muted)]">
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-bold uppercase text-[var(--text-muted)]">
               {project.status}
             </span>
-            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-black uppercase text-[var(--brand-primary)]">
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-bold uppercase text-[var(--brand-primary)]">
               {project.priority}
             </span>
           </div>
-          <div className="mt-3 truncate text-base font-black text-[var(--text)]">{project.name}</div>
+          <div className="mt-3 truncate text-base font-bold text-[var(--text)]">{project.name}</div>
           <div className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-[var(--text-muted)]">{project.description || "No description yet."}</div>
         </div>
         <span className="align-drag-handle shrink-0">⋯</span>

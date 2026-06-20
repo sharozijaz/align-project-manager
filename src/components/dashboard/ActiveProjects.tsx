@@ -22,7 +22,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
               <Link
                 key={project.id}
                 to={`/projects/${project.id}`}
-                className="group block min-w-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-4 transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
+                className="group block min-w-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="flex min-w-0 gap-3">
@@ -30,7 +30,7 @@ export function ActiveProjects({ projects, tasks }: { projects: Project[]; tasks
                       <FolderKanban size={18} />
                     </span>
                     <div className="min-w-0">
-                      <h3 className="min-w-0 break-words text-base font-black leading-6 text-[var(--text)]">{project.name}</h3>
+                      <h3 className="min-w-0 break-words text-base font-bold leading-6 text-[var(--text)]">{project.name}</h3>
                       <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{project.description || `${project.area} project`}</p>
                     </div>
                   </div>
@@ -67,7 +67,7 @@ function SectionHeader({ title, helper, to }: { title: string; helper: string; t
   return (
     <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-4 sm:px-5">
       <div>
-        <h2 className="text-lg font-black text-[var(--text)]">{title}</h2>
+        <h2 className="text-lg font-bold text-[var(--text)]">{title}</h2>
         <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{helper}</p>
       </div>
       <Link to={to} className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]">
@@ -82,7 +82,7 @@ function ProgressStrip({ value }: { value: number }) {
   const filled = Math.round(value / 10);
   return (
     <div className="grid w-28 shrink-0 gap-2">
-      <strong className="text-right text-sm font-black text-[var(--text)]">{value}%</strong>
+      <strong className="text-right text-sm font-bold text-[var(--text)]">{value}%</strong>
       <div className="grid grid-cols-10 gap-0.5" aria-hidden="true">
         {Array.from({ length: 10 }).map((_, index) => (
           <span key={index} className={`h-2 rounded-full ${index < filled ? "bg-[var(--brand-primary)]" : "bg-[var(--ring-track)]"}`} />

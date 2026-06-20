@@ -129,21 +129,21 @@ function CommandHeader({
     <div className="rounded-[var(--radius-lg)] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">{format(new Date(), "EEEE, MMM d")}</p>
-          <h1 className="mt-1 text-3xl font-black tracking-normal text-[var(--text)]">Project Command Center</h1>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)]">{format(new Date(), "EEEE, MMM d")}</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-normal text-[var(--text)]">Project Command Center</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">{projectDashboardMessage(activeProjects, atRiskProjects, nextDeadline)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
             to="/today"
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
           >
             Open Today
             <ArrowUpRight size={15} />
           </Link>
           <Link
             to="/projects"
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-secondary-text)] shadow-[var(--shadow-sm)] transition hover:border-[var(--border-strong)] hover:bg-[var(--button-secondary-hover)]"
           >
             New Project
             <ArrowUpRight size={15} />
@@ -165,8 +165,8 @@ function WatchProjectCard({ metric }: { metric?: ProjectMetric }) {
           <div className="rounded-[var(--radius-lg)] border border-[var(--icon-tile-border)] bg-[var(--accent-soft)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">{projectReason(metric)}</p>
-                <h2 className="mt-2 text-2xl font-black leading-8 text-[var(--text)]">{metric.project.name}</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)]">{projectReason(metric)}</p>
+                <h2 className="mt-2 text-2xl font-bold leading-8 text-[var(--text)]">{metric.project.name}</h2>
                 <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">
                   {metric.openTasks.length} open tasks · {metric.highPriorityOpen.length} high priority
                   {metric.nextDue ? ` · next ${dateLabel(metric.nextDue)}` : ""}
@@ -246,11 +246,11 @@ function ProjectPipeline({ metrics }: { metrics: ProjectMetric[] }) {
             <Link
               key={metric.project.id}
               to={`/projects/${metric.project.id}`}
-              className="group rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-4 transition hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
+              className="group rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-[var(--shadow-sm)]"
             >
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-base font-black text-[var(--text)]">{metric.project.name}</h3>
+                  <h3 className="truncate text-base font-bold text-[var(--text)]">{metric.project.name}</h3>
                   <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">
                     {metric.openTasks.length} open · {metric.highPriorityOpen.length} high priority
                   </p>
@@ -264,7 +264,7 @@ function ProjectPipeline({ metrics }: { metrics: ProjectMetric[] }) {
                   </div>
                   <p className="mt-2 text-xs font-bold text-[var(--text-soft)]">{metric.nextDue ? `Next deadline ${dateLabel(metric.nextDue)}` : "No dated project work"}</p>
                 </div>
-                <strong className="text-sm font-black text-[var(--text)]">{metric.progress}%</strong>
+                <strong className="text-sm font-bold text-[var(--text)]">{metric.progress}%</strong>
               </div>
             </Link>
           ))
@@ -287,7 +287,7 @@ function ProjectsNeedingAttention({ metrics }: { metrics: ProjectMetric[] }) {
           <Link key={metric.project.id} to={`/projects/${metric.project.id}`} className="block rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[var(--text)]">{metric.project.name}</p>
+                <p className="truncate text-sm font-bold text-[var(--text)]">{metric.project.name}</p>
                 <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{attentionReason(metric)}</p>
               </div>
               <Badge tone={metric.atRisk ? "red" : metric.stale ? "amber" : "slate"}>{metric.atRisk ? "Risk" : metric.stale ? "Stale" : "Priority"}</Badge>
@@ -312,12 +312,12 @@ function ProjectDeadlinesPanel({ projects }: { projects: Project[] }) {
           <Link key={project.id} to={`/projects/${project.id}`} className="block rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[var(--text)]">{project.name}</p>
+                <p className="truncate text-sm font-bold text-[var(--text)]">{project.name}</p>
                 <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{project.description || "Project deadline"}</p>
               </div>
               <Badge tone={priorityTone(project.priority)}>{getTaskPriorityOption(project.priority).label}</Badge>
             </div>
-            <p className="mt-3 text-xs font-black text-[var(--text)]">
+            <p className="mt-3 text-xs font-bold text-[var(--text)]">
               <CalendarClock size={13} className="mr-1 inline-block align-[-2px] text-[var(--text-soft)]" />
               {dateLabel(project.dueDate)}
             </p>
@@ -364,7 +364,7 @@ function RecentActivityPanel({ activity, notesCount }: { activity: ActivityItem[
             <div key={item.id} className="flex gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] p-3">
               <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${activityToneClass(item.tone)}`} />
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[var(--text)]">{item.title}</p>
+                <p className="truncate text-sm font-bold text-[var(--text)]">{item.title}</p>
                 <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{item.meta}</p>
               </div>
             </div>
@@ -380,8 +380,8 @@ function RecentActivityPanel({ activity, notesCount }: { activity: ActivityItem[
 function PortfolioSignal({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--panel-bg)] p-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</p>
-      <p className="mt-1 truncate text-sm font-black capitalize text-[var(--text)]">{value}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold capitalize text-[var(--text)]">{value}</p>
     </div>
   );
 }
@@ -393,7 +393,7 @@ function SectionTitle({ icon, title, helper }: { icon: React.ReactNode; title: s
         {icon}
       </span>
       <div className="min-w-0">
-        <h2 className="text-lg font-black text-[var(--text)]">{title}</h2>
+        <h2 className="text-lg font-bold text-[var(--text)]">{title}</h2>
         <p className="mt-1 text-xs font-semibold text-[var(--text-soft)]">{helper}</p>
       </div>
     </div>
@@ -406,7 +406,7 @@ function EmptyPanel({ icon, title, body, compact = false }: { icon: React.ReactN
       <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-md)] border border-[var(--icon-tile-border)] bg-[var(--icon-tile-bg)] text-[var(--brand-primary)]">
         {icon}
       </span>
-      <p className="text-sm font-black text-[var(--text)]">{title}</p>
+      <p className="text-sm font-bold text-[var(--text)]">{title}</p>
       <p className="max-w-sm text-xs font-semibold leading-5 text-[var(--text-muted)]">{body}</p>
     </div>
   );
@@ -417,8 +417,8 @@ function ProgressDotStrip({ value, label, compact = false }: { value: number; la
   return (
     <div className={`grid min-w-[150px] gap-2 ${compact ? "max-w-[170px]" : "max-w-[260px]"}`}>
       <div className="flex items-end justify-between gap-3">
-        <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</span>
-        <strong className={`${compact ? "text-lg" : "text-2xl"} font-black text-[var(--text)]`}>{value}%</strong>
+        <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</span>
+        <strong className={`${compact ? "text-lg" : "text-2xl"} font-bold text-[var(--text)]`}>{value}%</strong>
       </div>
       <div className="grid grid-cols-10 gap-1" aria-hidden="true">
         {Array.from({ length: 10 }).map((_, index) => (
@@ -436,7 +436,7 @@ function MomentumRow({ label, value, tone }: { label: string; value: number; ton
   return (
     <div className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-bg-soft)] px-3 py-2">
       <span className="text-sm font-bold text-[var(--text-muted)]">{label}</span>
-      <strong className="text-base font-black text-[var(--text)]" style={{ color: tone }}>
+      <strong className="text-base font-bold text-[var(--text)]" style={{ color: tone }}>
         {value}
       </strong>
     </div>
@@ -449,7 +449,9 @@ function buildProjectMetric(project: Project, tasks: Task[], today: string, soon
   const completedTasks = projectTasks.filter((task) => isTerminalTaskStatus(task.status));
   const highPriorityOpen = openTasks.filter((task) => task.priority === "high" || task.priority === "urgent");
   const overdueOpen = openTasks.filter((task) => isOverdue(task.dueDate));
-  const nextDue = [project.dueDate, ...openTasks.map((task) => task.dueDate)].filter((date): date is string => Boolean(date)).sort()[0];
+  const nextDue = [project.dueDate, ...openTasks.map((task) => task.dueDate)]
+    .filter((date): date is string => date !== undefined && date >= today)
+    .sort()[0];
   const projectDueSoon = Boolean(project.dueDate && project.dueDate >= today && project.dueDate <= soon && openTasks.length);
   const taskDueSoon = openTasks.some((task) => task.dueDate && task.dueDate >= today && task.dueDate <= soon);
   const dueSoon = projectDueSoon || taskDueSoon;

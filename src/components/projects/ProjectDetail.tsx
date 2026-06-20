@@ -14,6 +14,8 @@ import {
   Link2,
   ListTree,
   Palette,
+  PanelRightClose,
+  PanelRightOpen,
   Pin,
   Plus,
   RotateCcw,
@@ -317,12 +319,12 @@ function ProjectHero({
         <div className="relative flex min-h-[220px] flex-col justify-between gap-6 p-5 text-white sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-4">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[var(--radius-md)] border border-white/20 bg-black/35 text-2xl font-black shadow-[var(--shadow-sm)]">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[var(--radius-md)] border border-white/20 bg-black/35 text-2xl font-bold shadow-[var(--shadow-sm)]">
                 {identity.icon}
               </span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate font-display text-3xl font-black tracking-normal text-white">{project.name}</h1>
+                  <h1 className="truncate font-display text-3xl font-bold tracking-normal text-white">{project.name}</h1>
                   {project.pinnedAt ? <Badge tone="purple">Pinned</Badge> : null}
                   <Badge tone={project.status === "active" ? "emerald" : project.status === "paused" ? "amber" : "slate"}>{project.status}</Badge>
                 </div>
@@ -350,7 +352,7 @@ function ProjectHero({
             <div className="rounded-[var(--radius-md)] border border-white/15 bg-black/35 p-3">
               <div className="flex items-end justify-between gap-3">
                 <span className="text-xs font-bold uppercase tracking-[0.16em] text-white/62">Progress</span>
-                <strong className="text-3xl font-black text-white">{metrics.progress}%</strong>
+                <strong className="text-3xl font-bold text-white">{metrics.progress}%</strong>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/18">
                 <div className="h-full rounded-full" style={{ width: `${metrics.progress}%`, backgroundColor: identity.accent }} />
@@ -511,7 +513,7 @@ function ProjectOverview({
               <h2 className="text-xl font-bold text-[var(--text)]">{workspace.movesTitle}</h2>
               <p className="text-sm text-[var(--text-muted)]">{workspace.movesBody}</p>
             </div>
-            <span className="rounded-full border border-[var(--icon-tile-border)] bg-[var(--icon-tile-bg)] px-3 py-1 text-xs font-black text-[var(--project-accent)]">
+            <span className="rounded-full border border-[var(--icon-tile-border)] bg-[var(--icon-tile-bg)] px-3 py-1 text-xs font-bold text-[var(--project-accent)]">
               {workspace.label} workspace
             </span>
           </div>
@@ -697,11 +699,11 @@ function ClientHandoffPreview({ project, tasks, notes, milestones }: { project: 
     <Card className="p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h3 className="text-lg font-black text-[var(--text)]">Client Handoff Preview</h3>
+          <h3 className="text-lg font-bold text-[var(--text)]">Client Handoff Preview</h3>
           <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">A read-only outline of what a client-safe handoff should communicate.</p>
         </div>
         <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-right">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Deadline</p>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Deadline</p>
           <p className="text-sm font-bold text-[var(--text)]">{dateLabel(project.dueDate, project.dueTime)}</p>
         </div>
       </div>
@@ -713,13 +715,13 @@ function ClientHandoffPreview({ project, tasks, notes, milestones }: { project: 
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Selected Docs</p>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Selected Docs</p>
           <div className="mt-2 space-y-2">
             {notes.length ? notes.slice(0, 4).map((note) => <p key={note.id} className="rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-sm font-bold text-[var(--text)]">{note.title}</p>) : <p className="text-sm font-semibold text-[var(--text-muted)]">No client-visible docs yet.</p>}
           </div>
         </section>
         <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Next Steps</p>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Next Steps</p>
           <div className="mt-2 space-y-2">
             {nextSteps.length ? nextSteps.map((task) => <p key={task.id} className="rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-sm font-bold text-[var(--text)]">{task.title}</p>) : <p className="text-sm font-semibold text-[var(--text-muted)]">No open next steps.</p>}
           </div>
@@ -732,8 +734,8 @@ function ClientHandoffPreview({ project, tasks, notes, milestones }: { project: 
 function HandoffMiniCard({ label, value, helper }: { label: string; value: string | number; helper: string }) {
   return (
     <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{label}</p>
-      <p className="mt-2 text-xl font-black capitalize text-[var(--text)]">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</p>
+      <p className="mt-2 text-xl font-bold capitalize text-[var(--text)]">{value}</p>
       <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{helper}</p>
     </div>
   );
@@ -882,7 +884,7 @@ function ProjectDocsWorkspace({
 
   return (
     <section className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <ProjectDocStat label="Docs" value={stats.total} helper="Linked to project" />
         <ProjectDocStat label="Active" value={stats.active} helper="Ready context" />
         <ProjectDocStat label="Review" value={stats.review} helper="Needs decision" tone={stats.review ? "danger" : "neutral"} />
@@ -906,18 +908,18 @@ function ProjectDocsWorkspace({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mt-4 flex flex-col gap-3 min-[1180px]:flex-row min-[1180px]:items-center min-[1180px]:justify-between">
           <label className="flex min-h-11 flex-1 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-semibold text-[var(--text)]">
             <Search size={16} className="text-[var(--text-soft)]" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search project docs, tags, body..." className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[var(--input-placeholder)]" />
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto px-1 pb-1 min-[1180px]:max-w-[58%]">
             {projectDocFilters.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setFilter(item.value)}
-                className={`min-h-9 rounded-[var(--radius-sm)] border px-3 text-xs font-black transition ${
+                className={`min-h-9 shrink-0 rounded-[var(--radius-sm)] border px-3 text-xs font-bold transition ${
                   filter === item.value
                     ? "border-[var(--project-accent)] bg-[var(--accent-soft)] text-[var(--text)]"
                     : "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
@@ -929,8 +931,8 @@ function ProjectDocsWorkspace({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(280px,0.42fr)_minmax(0,1fr)]">
-          <div className="min-h-[420px] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2">
+        <div className="mt-5 grid gap-4 min-[1180px]:grid-cols-[minmax(260px,360px)_minmax(0,1fr)]">
+          <div className="max-h-[520px] min-h-[280px] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2 min-[1180px]:max-h-[calc(100vh-360px)] min-[1180px]:min-h-[420px]">
             {filteredNotes.length ? (
               <div className="space-y-2">
                 {filteredNotes.map((note) => (
@@ -989,10 +991,14 @@ function ProjectDocsWorkspace({
 
 function ProjectDocStat({ label, value, helper, tone = "neutral" }: { label: string; value: number; helper: string; tone?: "neutral" | "danger" }) {
   return (
-    <Card className={`border p-4 ${tone === "danger" ? "border-[var(--priority-high-border)] bg-[var(--priority-high-bg)]" : ""}`}>
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</p>
-      <p className="mt-2 text-2xl font-black text-[var(--text)]">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{helper}</p>
+    <Card className={`border p-3 ${tone === "danger" ? "border-[var(--priority-high-border)] bg-[var(--priority-high-bg)]" : ""}`}>
+      <div className="flex items-center justify-between gap-3 lg:block">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</p>
+          <p className="mt-1 truncate text-xs font-semibold text-[var(--text-muted)]">{helper}</p>
+        </div>
+        <p className="shrink-0 text-2xl font-bold text-[var(--text)] lg:mt-2">{value}</p>
+      </div>
     </Card>
   );
 }
@@ -1045,9 +1051,11 @@ function ProjectDocReader({
   onNewPalette: () => void;
 }) {
   const headings = getMarkdownHeadings(note.body);
+  const [detailsOpen, setDetailsOpen] = useState(() => (typeof window === "undefined" ? true : window.matchMedia("(min-width: 1536px)").matches));
+  const detailCount = headings.length + relatedNotes.length + relatedTasks.length + palettes.length;
 
   return (
-    <div className="grid min-h-[420px] gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
+    <div className={`grid min-h-[420px] gap-0 ${detailsOpen ? "min-[1536px]:grid-cols-[minmax(0,1fr)_260px]" : ""}`}>
       <article className="min-w-0 p-4 sm:p-5">
         <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
@@ -1057,12 +1065,17 @@ function ProjectDocReader({
               {note.clientVisible ? <Badge tone="blue">Client-visible</Badge> : <Badge tone="slate">Private</Badge>}
               {note.favorite ? <Badge tone="purple">Pinned</Badge> : null}
             </div>
-            <h2 className="mt-3 text-2xl font-black text-[var(--text)]">{note.title}</h2>
+            <h2 className="mt-3 text-2xl font-bold text-[var(--text)]">{note.title}</h2>
             <p className="mt-1 text-sm font-semibold text-[var(--text-soft)]">Updated {plainProjectDate(note.updatedAt)} · {getReadTimeLabel(note.body)}</p>
           </div>
-          <Button variant="secondary" icon={<Edit3 size={15} />} onClick={onEdit}>
-            Edit
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" icon={detailsOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />} onClick={() => setDetailsOpen((open) => !open)}>
+              Details {detailCount ? `(${detailCount})` : ""}
+            </Button>
+            <Button variant="secondary" icon={<Edit3 size={15} />} onClick={onEdit}>
+              Edit
+            </Button>
+          </div>
         </div>
         <div className="pt-5">
           {note.body.trim() ? (
@@ -1072,7 +1085,7 @@ function ProjectDocReader({
           )}
         </div>
       </article>
-      <aside className="border-t border-[var(--border)] bg-[var(--surface-raised)] p-4 xl:border-l xl:border-t-0">
+      <aside className={`${detailsOpen ? "block" : "hidden"} border-t border-[var(--border)] bg-[var(--surface-raised)] p-4 min-[1536px]:border-l min-[1536px]:border-t-0`}>
         <div className="space-y-4">
           <ProjectDocSideBlock title="Outline" empty="Add headings to build an outline.">
             {headings.map((heading) => (
@@ -1122,7 +1135,7 @@ function ProjectDocSideBlock({ title, empty, children }: { title: string; empty:
   const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
     <section>
-      <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{title}</p>
+      <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{title}</p>
       <div className="space-y-2">{hasChildren ? children : <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--empty-bg)] p-3 text-sm font-semibold text-[var(--text-muted)]">{empty}</p>}</div>
     </section>
   );
@@ -1271,7 +1284,7 @@ function ProjectPaletteModal({
         </div>
         <RelatedNoteSelector notes={notes} selectedIds={form.noteIds} onChange={(noteIds) => setForm({ ...form, noteIds })} title="Linked Docs" />
         <div className="space-y-2">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">Colors</p>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">Colors</p>
           {form.colors.map((color) => (
             <div key={color.id} className="grid gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 md:grid-cols-[44px_minmax(0,1fr)_140px_minmax(0,1fr)_auto] md:items-center">
               <label className="align-color-picker-swatch" style={{ backgroundColor: normalizeHexInput(color.hex) }} title="Pick color">
@@ -1319,7 +1332,7 @@ function RelatedNoteSelector({ notes, selectedIds, onChange, currentNoteId, titl
   return (
     <section className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{title}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{title}</p>
         <Badge tone="slate">{selectedIds.length} selected</Badge>
       </div>
       <input value={query} onChange={(event) => setQuery(event.target.value)} className="align-project-input mt-3" placeholder="Search docs..." />
@@ -1338,7 +1351,7 @@ function RelatedNoteSelector({ notes, selectedIds, onChange, currentNoteId, titl
 function FieldShell({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.14em] text-[var(--text-soft)]">{label}</span>
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">{label}</span>
       {children}
     </label>
   );
@@ -1490,7 +1503,7 @@ function OverviewStat({ icon, label, value, helper, tone = "neutral" }: { icon: 
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">{label}</p>
-          <p className="mt-2 text-2xl font-black text-[var(--text)]">{value}</p>
+          <p className="mt-2 text-2xl font-bold text-[var(--text)]">{value}</p>
           <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{helper}</p>
         </div>
         <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)]" style={{ color }}>
@@ -1505,7 +1518,7 @@ function ProjectMiniTask({ task, completed, onOpen }: { task: Task; completed?: 
   const priority = getTaskPriorityOption(task.priority);
   const status = getTaskStatusOption(task.status);
   return (
-    <button type="button" onClick={onOpen} className="block w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
+    <button type="button" onClick={onOpen} className="block w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
       <div className="flex items-start justify-between gap-3">
         <span className={`min-w-0 font-bold text-[var(--text)] ${completed ? "line-through opacity-60" : ""}`}>{task.title}</span>
         <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: priority.bg, borderColor: priority.border, color: priority.text }}>

@@ -38,14 +38,14 @@ export function SearchBox({
 
   return (
     <label
-      className={`grid min-w-0 grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--brand-primary)] focus-within:shadow-[var(--shadow-focus)] ${
+      className={`grid min-w-0 grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm shadow-none transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--focus-ring,var(--brand-primary))] focus-within:shadow-[var(--shadow-focus)] ${
         compact ? "min-h-9" : "min-h-10"
       } ${className}`}
     >
       <Search size={compact ? 14 : 16} className="shrink-0 text-[var(--text-soft)]" />
       <input
         aria-label={ariaLabel ?? placeholder}
-        className={`min-w-0 appearance-none border-0 bg-transparent p-0 font-semibold text-[var(--text)] outline-none ring-0 placeholder:text-[var(--input-placeholder)] focus:border-0 focus:outline-none focus:ring-0 ${
+        className={`min-w-0 appearance-none border-0 bg-transparent p-0 font-medium text-[var(--text)] outline-none ring-0 placeholder:text-[var(--input-placeholder)] focus:border-0 focus:outline-none focus:ring-0 ${
           compact ? "text-sm" : "text-sm"
         } ${inputClassName}`}
         placeholder={placeholder}
@@ -67,7 +67,7 @@ export function SearchBox({
           <X size={14} />
         </button>
       ) : trailingLabel ? (
-        <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[var(--text-soft)]">{trailingLabel}</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-soft)]">{trailingLabel}</span>
       ) : (
         <span aria-hidden="true" />
       )}

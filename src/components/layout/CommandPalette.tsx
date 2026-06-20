@@ -132,10 +132,10 @@ export function CommandPalette() {
                           <ResultIcon kind={result.kind} />
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-black text-[var(--text)]">{result.title}</span>
+                          <span className="block truncate text-sm font-bold text-[var(--text)]">{result.title}</span>
                           <span className="mt-0.5 block truncate text-xs font-semibold text-[var(--text-muted)]">{result.subtitle}</span>
                         </span>
-                        <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.1em] text-[var(--text-soft)]">
+                        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
                           {result.kind}
                           <ArrowRight size={14} />
                         </span>
@@ -148,7 +148,7 @@ export function CommandPalette() {
                       <Search size={20} />
                     </span>
                     <div>
-                      <p className="text-sm font-black text-[var(--text)]">No matches</p>
+                      <p className="text-sm font-bold text-[var(--text)]">No matches</p>
                       <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">Try a project, task, note, resource, or route name.</p>
                     </div>
                   </div>
