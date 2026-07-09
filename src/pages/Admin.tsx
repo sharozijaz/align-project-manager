@@ -196,7 +196,7 @@ export function Admin() {
           <div>
             <h2 className="font-display text-xl font-bold text-[var(--text)]">Invite or update access</h2>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Members get Project Management by default. Add Resources only for people who should see private notes and resource links.
+              Members get Project Management by default. Add Resources only for people who should see private docs and resource links.
             </p>
           </div>
         </div>

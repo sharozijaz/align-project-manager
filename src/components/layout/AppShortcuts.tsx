@@ -15,8 +15,8 @@ const shortcutRows = [
   ["G H", "Go to Home"],
   ["G P", "Go to Projects"],
   ["G T", "Go to Tasks"],
-  ["G D", "Go to Todos"],
-  ["G N", "Go to Notes"],
+  ["G I", "Go to Inbox"],
+  ["G D", "Go to Docs"],
   ["G C", "Go to Calendar"],
   ["G R", "Go to Reports"],
   ["?", "Show keyboard shortcuts"],
@@ -94,7 +94,7 @@ export function AppShortcuts() {
     <>
       {goChordActive && !dialog ? (
         <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-semibold text-[var(--text-muted)] shadow-[var(--shadow-md)]">
-          Go to: H home, P projects, T tasks, D todos, N notes, C calendar, R reports
+          Go to: H home, P projects, T tasks, I inbox, D docs, C calendar, R reports
         </div>
       ) : null}
 
@@ -137,8 +137,9 @@ function routeFromGoKey(key: string) {
   if (key === "h") return "/";
   if (key === "p") return "/projects";
   if (key === "t") return "/tasks";
-  if (key === "d") return "/todos";
-  if (key === "n") return "/notes";
+  if (key === "i") return "/todos";
+  if (key === "d") return "/docs";
+  if (key === "n") return "/docs";
   if (key === "c") return "/calendar";
   if (key === "r") return "/reports";
   if (key === "u") return "/resources";

@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, CheckCircle2, Command, FileText, Folder, Home, LibraryBig, Plus, Search, StickyNote } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Command, FileText, Folder, Home, LibraryBig, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -136,7 +136,7 @@ export function CommandPalette() {
                           <span className="mt-0.5 block truncate text-xs font-semibold text-[var(--text-muted)]">{result.subtitle}</span>
                         </span>
                         <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
-                          {result.kind}
+                          {resultKindLabel(result.kind)}
                           <ArrowRight size={14} />
                         </span>
                       </button>
@@ -149,7 +149,7 @@ export function CommandPalette() {
                     </span>
                     <div>
                       <p className="text-sm font-bold text-[var(--text)]">No matches</p>
-                      <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">Try a project, task, note, resource, or route name.</p>
+                      <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">Try a project, task, doc, resource, or route name.</p>
                     </div>
                   </div>
                 )}
@@ -173,18 +173,22 @@ function ResultIcon({ kind }: { kind: WorkspaceSearchKind }) {
   if (kind === "project") return <Folder size={16} />;
   if (kind === "task") return <CheckCircle2 size={16} />;
   if (kind === "todo") return <Home size={16} />;
-  if (kind === "note") return <StickyNote size={16} />;
+  if (kind === "note") return <FileText size={16} />;
   if (kind === "resource") return <LibraryBig size={16} />;
   if (kind === "event") return <CalendarDays size={16} />;
   return <FileText size={16} />;
 }
 
 function searchPlaceholder(pathname: string) {
-  if (pathname.startsWith("/projects/")) return "Search this project, tasks, notes...";
+  if (pathname.startsWith("/projects/")) return "Search this project, tasks, docs...";
   if (pathname.startsWith("/projects")) return "Search projects, clients, work...";
   if (pathname.startsWith("/tasks")) return "Search tasks...";
   if (pathname.startsWith("/todos")) return "Search todos...";
-  if (pathname.startsWith("/notes")) return "Search notes, tags, linked projects...";
+  if (pathname.startsWith("/docs") || pathname.startsWith("/notes")) return "Search docs, tags, linked projects...";
   if (pathname.startsWith("/resources")) return "Search resources, tags, collections...";
-  return "Search tasks, projects, notes...";
+  return "Search tasks, projects, docs...";
+}
+
+function resultKindLabel(kind: WorkspaceSearchKind) {
+  return kind === "note" ? "doc" : kind;
 }

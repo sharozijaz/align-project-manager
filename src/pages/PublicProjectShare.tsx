@@ -254,7 +254,7 @@ export function PublicProjectShare() {
                     <NotebookTabs size={18} />
                     Project Context
                   </h2>
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">Shared notes and decisions linked to this project.</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">Shared docs and decisions linked to this project.</p>
                   <div className="mt-4 grid gap-3 xl:grid-cols-2">
                     {sortSharedNotes(data.project.notes ?? []).map((note) => (
                       <SharedNoteCard key={note.id} note={note} onOpen={setSelectedNote} />

@@ -29,7 +29,6 @@ import {
   Save,
   Search,
   Star,
-  StickyNote,
   Strikethrough,
   Table2,
   Trash2,
@@ -157,9 +156,9 @@ const noteDocTypeOptions: Array<{ value: HubNoteDocType; label: string; template
   { value: "general", label: "General", templateTitle: "General Note" },
   { value: "brief", label: "Brief", templateTitle: "Project Brief" },
   { value: "strategy", label: "Strategy", templateTitle: "Strategy Plan" },
-  { value: "research", label: "Research", templateTitle: "Research Notes" },
+  { value: "research", label: "Research", templateTitle: "Research Doc" },
   { value: "palette", label: "Palette", templateTitle: "Color Palette" },
-  { value: "meeting", label: "Meeting", templateTitle: "Meeting Notes" },
+  { value: "meeting", label: "Meeting", templateTitle: "Meeting Doc" },
   { value: "prompt", label: "Prompt", templateTitle: "Prompt Library" },
   { value: "checklist", label: "Checklist", templateTitle: "Checklist" },
   { value: "reference", label: "Reference", templateTitle: "Reference" },
@@ -414,9 +413,9 @@ function getReadTimeLabel(body: string) {
 function getDocumentTemplate(type: HubNoteDocType) {
   if (type === "brief") return "# Project Brief\n\n## Goal\n\n## Audience\n\n## Scope\n\n## Success Criteria\n\n## Open Questions\n";
   if (type === "strategy") return "# Strategy Plan\n\n## Objective\n\n## Positioning\n\n## Priorities\n\n## Risks\n\n## Next Moves\n";
-  if (type === "research") return "# Research Notes\n\n## Sources\n\n## Findings\n\n## Patterns\n\n## Decisions\n";
+  if (type === "research") return "# Research Doc\n\n## Sources\n\n## Findings\n\n## Patterns\n\n## Decisions\n";
   if (type === "palette") return "# Color Palette\n\n## Direction\n\n```align-palette\nPalette Name\nPrimary | #1C1C1C | Base\nText | #E5E5E5 | Foreground\nSubtle | #A1A1A1 | Muted\n```\n";
-  if (type === "meeting") return "# Meeting Notes\n\n## Agenda\n\n## Decisions\n\n## Actions\n\n- [ ] \n";
+  if (type === "meeting") return "# Meeting Doc\n\n## Agenda\n\n## Decisions\n\n## Actions\n\n- [ ] \n";
   if (type === "prompt") return "# Prompt\n\n## Context\n\n## Prompt\n\n## Expected Output\n\n## Notes\n";
   if (type === "checklist") return "# Checklist\n\n- [ ] First item\n- [ ] Second item\n";
   if (type === "reference") return "# Reference\n\n## Link\n\n## Summary\n\n## Useful Details\n";
@@ -675,7 +674,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     if (space.type !== "space") return;
     const confirmed = await confirm({
       title: "Delete space?",
-      description: `Delete "${space.name}"? Notes stay in your library; only this space grouping is removed.`,
+      description: `Delete "${space.name}"? Docs stay in your library; only this space grouping is removed.`,
       confirmLabel: "Delete Space",
       tone: "danger",
     });
@@ -692,7 +691,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     if (space.type !== "project") return;
     const confirmed = await confirm({
       title: "Delete project?",
-      description: `Move "${space.name}" to Trash? Linked notes stay in your library, but this Project Docs group will disappear.`,
+      description: `Move "${space.name}" to Trash? Linked docs stay in your library, but this Project Docs group will disappear.`,
       confirmLabel: "Delete Project",
       tone: "danger",
     });
@@ -889,7 +888,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
     const filenameBase =
       scope === "current" && selectedNote
         ? `align-note-${slugifyFilename(selectedNote.title)}`
-        : "align-notes";
+        : "align-docs";
 
     if (format === "json") {
       const exportPalettes = scope === "current" && selectedNote ? palettes.filter((palette) => palette.noteIds.includes(selectedNote.id)) : palettes;
@@ -918,7 +917,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
       setImportMessage(summary.message);
       setView("notes");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not import notes.";
+      const message = error instanceof Error ? error.message : "Could not import docs.";
       setImportMessage(message);
     }
   };
@@ -991,7 +990,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   const removePalette = async (palette: HubPalette) => {
     const confirmed = await confirm({
       title: "Delete palette?",
-      description: `Delete "${palette.name}" from your palette library? Notes keep their written content.`,
+      description: `Delete "${palette.name}" from your palette library? Docs keep their written content.`,
       confirmLabel: "Delete Palette",
       tone: "danger",
     });
@@ -1031,10 +1030,10 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isNotesWorkspace ? "Notes" : "Resources"}
+        title={isNotesWorkspace ? "Docs" : "Resources"}
         description={
           isNotesWorkspace
-            ? "A private writing space for decisions, snippets, project context, and reusable notes."
+            ? "A private docs space for decisions, snippets, project context, and reusable planning."
             : "A private library for inspiration, tools, links, assets, snippets, and working references."
         }
         actions={
@@ -1053,7 +1052,7 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
                     <div className="absolute right-0 z-20 mt-2 w-72 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-md)]">
                       {selectedNote ? (
                         <>
-                          <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Current note</p>
+                          <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">Current doc</p>
                           <ExportMenuButton
                             title="Download Markdown"
                             description={selectedNote.title}
@@ -1061,21 +1060,21 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
                           />
                           <ExportMenuButton
                             title="Download JSON"
-                            description="Single-note backup"
+                            description="Single-doc backup"
                             onClick={() => exportNotes("json", "current")}
                           />
                           <div className="my-2 border-t border-[var(--border)]" />
                         </>
                       ) : null}
-                      <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">All notes</p>
+                      <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">All docs</p>
                       <ExportMenuButton
                         title="Backup JSON"
-                        description="Best for restoring every note later."
+                        description="Best for restoring every doc later."
                         onClick={() => exportNotes("json", "all")}
                       />
                       <ExportMenuButton
                         title="Markdown Bundle"
-                        description="Readable archive containing every note."
+                        description="Readable archive containing every doc."
                         onClick={() => exportNotes("markdown", "all")}
                       />
                     </div>
@@ -1093,14 +1092,14 @@ export function ResourcesWorkspace({ initialView = "resources" }: { initialView?
                 </Button>
                 <Button
                   variant="secondary"
-                  icon={<StickyNote size={16} />}
+                  icon={<FileText size={16} />}
                   onClick={() => {
                     setNoteForm(noteFormForCurrentSpace());
                     setShowForm("note");
                     setView("notes");
                   }}
                 >
-                  New Note
+                  New Doc
                 </Button>
               </>
             ) : (
@@ -1711,7 +1710,7 @@ function RelatedNotesPicker({
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search notes, tags, projects..."
+          placeholder="Search docs, tags, projects..."
           className="min-w-0 flex-1 bg-transparent text-[var(--text)] outline-none placeholder:text-[var(--text-soft)]"
         />
       </label>
@@ -1753,7 +1752,7 @@ function RelatedNotesPicker({
             </button>
           );
         })}
-        {!candidateNotes.length ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-3 text-xs text-[var(--text-soft)]">No notes match this search.</p> : null}
+        {!candidateNotes.length ? <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-3 text-xs text-[var(--text-soft)]">No docs match this search.</p> : null}
       </div>
     </div>
   );
@@ -2496,7 +2495,7 @@ function NoteListPanel({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-bold text-[var(--text)]">Library</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{allNotes.length} notes · {personalSpaces.length + projectSpaces.length} spaces</p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{allNotes.length} docs · {personalSpaces.length + projectSpaces.length} spaces</p>
           </div>
         </div>
         <div className="mt-3">
@@ -2903,7 +2902,7 @@ function NotesWorkspace({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-soft)]">
-                    <span className="inline-flex items-center gap-1.5"><FolderOpen size={14} />{selectedSpace?.name || selectedNote.collection || "Notes"}</span>
+                    <span className="inline-flex items-center gap-1.5"><FolderOpen size={14} />{selectedSpace?.name || selectedNote.collection || "Docs"}</span>
                     <ChevronRight size={13} />
                     <span className="truncate">{selectedNote.title}</span>
                   </div>

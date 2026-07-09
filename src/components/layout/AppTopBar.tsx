@@ -50,11 +50,11 @@ export function AppTopBar() {
 }
 
 function searchPlaceholder(pathname: string) {
-  if (pathname.startsWith("/projects/")) return "Search this project, tasks, notes...";
+  if (pathname.startsWith("/projects/")) return "Search this project, tasks, docs...";
   if (pathname.startsWith("/projects")) return "Search projects, clients, work...";
   if (pathname.startsWith("/tasks")) return "Search tasks...";
   if (pathname.startsWith("/todos")) return "Search todos...";
-  if (pathname.startsWith("/notes")) return "Search notes, tags, linked projects...";
+  if (pathname.startsWith("/docs") || pathname.startsWith("/notes")) return "Search docs, tags, linked projects...";
   if (pathname.startsWith("/resources")) return "Search resources, tags, collections...";
-  return "Search tasks, projects, notes...";
+  return "Search tasks, projects, docs...";
 }

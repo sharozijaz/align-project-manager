@@ -185,8 +185,8 @@ export function TaskDetailModal({
   const createLinkedDoc = () => {
     if (readOnly || !projectContext) return;
     const created = addNote({
-      title: `${task.title} Notes`,
-      body: `# ${task.title} Notes\n\n## Context\n\n## Decisions\n\n## Follow-up\n\n- [ ] \n`,
+      title: `${task.title} Doc`,
+      body: `# ${task.title} Doc\n\n## Context\n\n## Decisions\n\n## Follow-up\n\n- [ ] \n`,
       docType: "general",
       docStatus: "draft",
       clientVisible: false,

@@ -117,6 +117,13 @@ export const router = createBrowserRouter([
         element: <Navigate to="/resources" replace />,
       },
       {
+        path: "docs",
+        lazy: async () => {
+          const { ResourcesWorkspace } = await import("../pages/Resources");
+          return { Component: () => <RequireFeature feature="personal_hub"><ResourcesWorkspace initialView="notes" /></RequireFeature> };
+        },
+      },
+      {
         path: "notes",
         lazy: async () => {
           const { ResourcesWorkspace } = await import("../pages/Resources");

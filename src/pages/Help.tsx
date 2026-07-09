@@ -19,14 +19,14 @@ const sections = [
   {
     icon: Link2,
     title: "Client Share Links",
-    body: "Share links are read-only and separate from app accounts. Notes linked to a project appear there only when marked client-visible; unlinked notes stay private.",
-    example: "Use password protection for agency/client links when a linked note contains sensitive project context.",
+    body: "Share links are read-only and separate from app accounts. Docs linked to a project appear there only when marked client-visible; unlinked docs stay private.",
+    example: "Use password protection for agency/client links when a linked doc contains sensitive project context.",
   },
   {
     icon: ShieldCheck,
     title: "Feature Access",
     body: "Owner accounts can see every module. Members only see modules enabled from Admin, so future studio tools can stay private.",
-    example: "A future teammate can get Project Management only, while you keep Notes and Resources private.",
+    example: "A future teammate can get Project Management only, while you keep Docs and Resources private.",
   },
   {
     icon: Sparkles,

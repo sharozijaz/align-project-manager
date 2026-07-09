@@ -33,7 +33,7 @@ const navigationCommands: Omit<WorkspaceSearchResult, "score">[] = [
   { id: "command-tasks", kind: "command", title: "Open Tasks", subtitle: "Project work and task views", to: "/tasks", keywords: "tasks work list board table" },
   { id: "command-todos", kind: "command", title: "Open Todos", subtitle: "Personal todos", to: "/todos", keywords: "todos personal checklist" },
   { id: "command-calendar", kind: "command", title: "Open Calendar", subtitle: "Schedule and deadlines", to: "/calendar", keywords: "calendar schedule events deadlines" },
-  { id: "command-notes", kind: "command", title: "Open Notes", subtitle: "Project context and private notes", to: "/notes", keywords: "notes context writing docs" },
+  { id: "command-docs", kind: "command", title: "Open Docs", subtitle: "Project context and private docs", to: "/docs", keywords: "docs notes context writing" },
   { id: "command-resources", kind: "command", title: "Open Resources", subtitle: "Links, assets, inspiration", to: "/resources", keywords: "resources links assets inspiration" },
   { id: "command-reports", kind: "command", title: "Open Reports", subtitle: "Progress and workload reports", to: "/reports", keywords: "reports progress analytics" },
   { id: "command-settings", kind: "command", title: "Open Settings", subtitle: "Theme, sync, data, and preferences", to: "/settings", keywords: "settings theme sync data preferences" },
@@ -43,8 +43,8 @@ const actionCommands: Omit<WorkspaceSearchResult, "score">[] = [
   { id: "action-create-project", kind: "action", title: "Create Project", subtitle: "Start a client or personal outcome", to: "/projects?new=project", keywords: "new create project client outcome template" },
   { id: "action-create-task", kind: "action", title: "Create Task", subtitle: "Add execution work tied to a project", to: "/tasks?new=task", keywords: "new create task execution project work" },
   { id: "action-create-todo", kind: "action", title: "Create Todo", subtitle: "Capture loose personal work", to: "/todos?new=todo", keywords: "new create todo personal loose work" },
-  { id: "action-create-doc", kind: "action", title: "Create Project Doc", subtitle: "Capture a brief, strategy, research, or decision", to: "/notes?new=doc", keywords: "new create doc note brief strategy research decision" },
-  { id: "action-create-palette", kind: "action", title: "Create Palette", subtitle: "Save reusable project colors", to: "/notes?new=palette", keywords: "new create palette colors brand swatches" },
+  { id: "action-create-doc", kind: "action", title: "Create Project Doc", subtitle: "Capture a brief, strategy, research, or decision", to: "/docs?new=doc", keywords: "new create doc note brief strategy research decision" },
+  { id: "action-create-palette", kind: "action", title: "Create Palette", subtitle: "Save reusable project colors", to: "/docs?new=palette", keywords: "new create palette colors brand swatches" },
 ];
 
 export function buildWorkspaceSearchResults({
@@ -92,8 +92,8 @@ export function buildWorkspaceSearchResults({
         id: `note-${note.id}`,
         kind: "note" as const,
         title: note.title,
-        subtitle: note.collection || linkedProjectNames || "Note",
-        to: "/notes",
+        subtitle: note.collection || linkedProjectNames || "Doc",
+        to: "/docs",
         keywords: `${note.title} ${note.body} ${note.tags ?? ""} ${note.collection ?? ""} ${linkedProjectNames}`,
       };
     }),

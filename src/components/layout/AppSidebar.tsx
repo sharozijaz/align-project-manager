@@ -2,6 +2,8 @@ import {
   BarChart3,
   CalendarDays,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   CheckCircle2,
   CircleHelp,
   Folder,
@@ -10,7 +12,7 @@ import {
   ListTodo,
   LogOut,
   Menu,
-  NotebookText,
+  FileText,
   Settings,
   Shield,
   Trash2,
@@ -53,10 +55,10 @@ const primaryLinks: NavItem[] = [
   { to: "/today", label: "Today", hint: "G F", icon: Target, feature: "project_management" },
   { to: "/projects", label: "Projects", hint: "G P", icon: Folder, feature: "project_management" },
   { to: "/tasks", label: "Tasks", hint: "G T", icon: CheckCircle2, feature: "project_management" },
-  { to: "/todos", label: "Inbox", hint: "G D", icon: ListTodo, feature: "project_management" },
+  { to: "/todos", label: "Inbox", hint: "G I", icon: ListTodo, feature: "project_management" },
   { to: "/calendar", label: "Calendar", hint: "G C", icon: CalendarDays, feature: "project_management" },
   { to: "/reports", label: "Reports", hint: "G R", icon: BarChart3, feature: "project_management" },
-  { to: "/notes", label: "Notes", hint: "G N", icon: NotebookText, feature: "personal_hub" },
+  { to: "/docs", label: "Docs", hint: "G D", icon: FileText, feature: "personal_hub" },
   { to: "/resources", label: "Resources", hint: "G U", icon: LibraryBig, feature: "personal_hub" },
 ];
 
@@ -76,6 +78,7 @@ const sidebarTextMotion = {
   exit: { opacity: 0 },
   transition: { duration: 0.1, ease: "easeOut" },
 } as const;
+const SIDEBAR_STORAGE_KEY = "align:desktop-sidebar-expanded";
 
 export function AppSidebar() {
   const confirm = useConfirm();
@@ -90,14 +93,17 @@ export function AppSidebar() {
   const noteSpaces = useStudioStore((state) => state.noteSpaces);
   const palettes = useStudioStore((state) => state.palettes);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true";
+  });
   const [openMenu, setOpenMenu] = useState<"profile" | null>(null);
   const [pinnedProjectsOpen, setPinnedProjectsOpen] = useState(true);
   const desktopSidebarRef = useRef<HTMLElement | null>(null);
   const profileName = access?.profile.displayName || access?.profile.email?.split("@")[0] || "Profile";
   const profileEmail = access?.profile.email;
   const profileAvatarUrl = getProfileAvatarUrl(session?.user.user_metadata);
-  const desktopExpanded = desktopOpen || openMenu !== null;
+  const desktopExpanded = desktopOpen;
   const logoSrc = isLightThemeMode(theme) ? "/align-logo-light.png" : "/align-logo.png";
   const pinnedProjects = projects
     .filter((project) => project.pinnedAt && !project.deletedAt && (project.status === "active" || project.status === "paused"))
@@ -137,17 +143,8 @@ export function AppSidebar() {
   }, []);
 
   useEffect(() => {
-    if (!desktopExpanded) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (desktopSidebarRef.current?.contains(event.target as Node)) return;
-      setOpenMenu(null);
-      setDesktopOpen(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [desktopExpanded]);
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(desktopOpen));
+  }, [desktopOpen]);
 
   return (
     <>
@@ -171,7 +168,6 @@ export function AppSidebar() {
         className="relative z-30 hidden h-full min-h-0 shrink-0 overflow-visible bg-[var(--sidebar-bg)] lg:block"
         animate={{ width: desktopExpanded ? 248 : 88 }}
         transition={sidebarSpring}
-        onPointerDown={() => setDesktopOpen(true)}
       >
         <div className="h-full w-full overflow-visible">
           <SidebarContent
@@ -187,6 +183,8 @@ export function AppSidebar() {
             pinnedProjects={pinnedProjects}
             canSignOut={Boolean(session && supabase)}
             onSignOut={() => void handleSignOut()}
+            desktopExpanded={desktopExpanded}
+            onToggleDesktop={() => setDesktopOpen((open) => !open)}
           />
         </div>
       </motion.aside>
@@ -231,6 +229,8 @@ export function AppSidebar() {
                 onNavigate={() => setMobileOpen(false)}
                 canSignOut={Boolean(session && supabase)}
                 onSignOut={() => void handleSignOut()}
+                desktopExpanded
+                onToggleDesktop={undefined}
               />
             </motion.aside>
           </motion.div>
@@ -254,6 +254,8 @@ function SidebarContent({
   onNavigate,
   canSignOut,
   onSignOut,
+  desktopExpanded,
+  onToggleDesktop,
 }: {
   links: { primary: NavItem[]; workspace: NavItem[]; profile: NavItem[] };
   profileName: string;
@@ -268,6 +270,8 @@ function SidebarContent({
   onNavigate?: () => void;
   canSignOut?: boolean;
   onSignOut?: () => void;
+  desktopExpanded: boolean;
+  onToggleDesktop?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
   const accentColor = useThemeStore((state) => state.accentColor);
@@ -287,7 +291,7 @@ function SidebarContent({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] shadow-[var(--shadow-sm)]">
-      <div className="pb-3">
+      <div className={collapsed && onToggleDesktop ? "pb-11" : "pb-3"}>
         <div className="relative">
           <NavLink
             to="/"
@@ -307,6 +311,19 @@ function SidebarContent({
               ) : null}
             </AnimatePresence>
           </NavLink>
+          {onToggleDesktop ? (
+            <button
+              type="button"
+              onClick={onToggleDesktop}
+              className={`absolute grid place-items-center rounded-[var(--radius-sm)] text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] ${
+                collapsed ? "right-[26px] top-14 h-8 w-8" : "right-3 top-3 h-9 w-9"
+              }`}
+              aria-label={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
+              title={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {desktopExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
+            </button>
+          ) : null}
         </div>
       </div>
 

@@ -121,7 +121,7 @@ export function Today() {
             </div>
           </Card>
           <TodayPanel icon={<BookOpen size={18} />} title="Docs Needing Review" helper="Planning, briefs, and handoff notes waiting for a decision.">
-            {reviewDocs.length ? reviewDocs.map((note) => <Link key={note.id} to="/notes" className="block rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"><p className="truncate font-bold text-[var(--text)]">{note.title}</p><p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{note.docType ?? "general"}</p></Link>) : <EmptyToday text="No docs are marked Needs Review." />}
+            {reviewDocs.length ? reviewDocs.map((note) => <Link key={note.id} to="/docs" className="block rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"><p className="truncate font-bold text-[var(--text)]">{note.title}</p><p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">{note.docType ?? "general"}</p></Link>) : <EmptyToday text="No docs are marked Needs Review." />}
           </TodayPanel>
         </aside>
       </div>

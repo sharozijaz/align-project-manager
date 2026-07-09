@@ -343,7 +343,7 @@ function DocumentationLoadPanel({ stats }: { stats: ReturnType<typeof buildDocSt
         <MomentumRow label="Unfiled docs" value={stats.unfiled} tone="var(--danger)" />
       </div>
       <div className="border-t border-[var(--border)] px-5 py-3">
-        <Link to="/notes" className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]">
+        <Link to="/docs" className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]">
           Inspect docs
           <ArrowUpRight size={14} />
         </Link>

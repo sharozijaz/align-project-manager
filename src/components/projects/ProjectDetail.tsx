@@ -23,7 +23,6 @@ import {
   Search,
   Settings2,
   Share2,
-  StickyNote,
   Table2,
   Target,
   X,
@@ -402,7 +401,7 @@ function ProjectWorkspaceToolbar({
       <ProjectTaskViewToggle value={view} onChange={onViewChange} />
       {docsActive ? (
         <div className="ml-auto">
-          <Button icon={<StickyNote size={16} />} onClick={onAddDoc}>
+          <Button icon={<FileText size={16} />} onClick={onAddDoc}>
             New Doc
           </Button>
         </div>
@@ -902,7 +901,7 @@ function ProjectDocsWorkspace({
             <Button variant="secondary" icon={<Palette size={16} />} onClick={() => setPaletteOpen(true)}>
               New Palette
             </Button>
-            <Button icon={<StickyNote size={16} />} onClick={() => setCreatingDoc(true)}>
+            <Button icon={<FileText size={16} />} onClick={() => setCreatingDoc(true)}>
               New Doc
             </Button>
           </div>
@@ -1094,7 +1093,7 @@ function ProjectDocReader({
               </p>
             ))}
           </ProjectDocSideBlock>
-          <ProjectDocSideBlock title="Related Notes" empty="No related notes yet.">
+          <ProjectDocSideBlock title="Related Docs" empty="No related docs yet.">
             {relatedNotes.map((related) => (
               <button key={related.id} type="button" onClick={() => onOpenNote(related.id)} className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left text-sm font-bold text-[var(--text)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
                 <Link2 size={14} className="shrink-0 text-[var(--project-accent)]" />
@@ -1314,7 +1313,7 @@ function ProjectPaletteModal({
   );
 }
 
-function RelatedNoteSelector({ notes, selectedIds, onChange, currentNoteId, title = "Related Notes" }: { notes: HubNote[]; selectedIds: string[]; onChange: (ids: string[]) => void; currentNoteId?: string; title?: string }) {
+function RelatedNoteSelector({ notes, selectedIds, onChange, currentNoteId, title = "Related Docs" }: { notes: HubNote[]; selectedIds: string[]; onChange: (ids: string[]) => void; currentNoteId?: string; title?: string }) {
   const [query, setQuery] = useState("");
   const selected = new Set(selectedIds);
   const candidates = notes
@@ -1417,7 +1416,7 @@ function getProjectDocTemplate(type: HubNoteDocType) {
   if (type === "strategy") return "# Strategy\n\n## Objective\n\n## Priorities\n\n## Risks\n\n## Next Moves\n";
   if (type === "research") return "# Research\n\n## Sources\n\n## Findings\n\n## Decisions\n";
   if (type === "palette") return "# Color Palette\n\n```align-palette\nProject Palette\nPrimary | #1C1C1C | Base\nText | #E5E5E5 | Foreground\nSubtle | #A1A1A1 | Muted\n```\n";
-  if (type === "meeting") return "# Meeting Notes\n\n## Agenda\n\n## Decisions\n\n## Actions\n\n- [ ] \n";
+  if (type === "meeting") return "# Meeting Doc\n\n## Agenda\n\n## Decisions\n\n## Actions\n\n- [ ] \n";
   if (type === "prompt") return "# Prompt\n\n## Context\n\n## Prompt\n\n## Expected Output\n";
   if (type === "checklist") return "# Checklist\n\n- [ ] First item\n- [ ] Second item\n";
   if (type === "reference") return "# Reference\n\n## Link\n\n## Summary\n\n## Details\n";
