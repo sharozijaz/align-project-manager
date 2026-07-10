@@ -317,11 +317,13 @@ function SidebarContent({
         <button
           type="button"
           onClick={onToggleDesktop}
-          className="absolute -right-3 top-5 z-20 grid h-10 w-6 place-items-center rounded-r-[10px] border border-l-0 border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] text-[var(--sidebar-muted)] shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className={`absolute z-20 grid h-8 w-8 place-items-center rounded-[var(--radius-sm)] text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+            collapsed ? "left-7 top-[4.25rem]" : "right-3 top-4"
+          }`}
           aria-label={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
           title={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
         >
-          {desktopExpanded ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+          {desktopExpanded ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
         </button>
       ) : null}
 
