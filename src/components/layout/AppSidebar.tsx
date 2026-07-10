@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { NavLink } from "react-router-dom";
 import { InstallAppButton } from "../pwa/InstallAppButton";
@@ -183,7 +184,6 @@ export function AppSidebar() {
             pinnedProjects={pinnedProjects}
             canSignOut={Boolean(session && supabase)}
             onSignOut={() => void handleSignOut()}
-            desktopExpanded={desktopExpanded}
             onToggleDesktop={() => setDesktopOpen((open) => !open)}
           />
         </div>
@@ -229,7 +229,6 @@ export function AppSidebar() {
                 onNavigate={() => setMobileOpen(false)}
                 canSignOut={Boolean(session && supabase)}
                 onSignOut={() => void handleSignOut()}
-                desktopExpanded
                 onToggleDesktop={undefined}
               />
             </motion.aside>
@@ -254,7 +253,6 @@ function SidebarContent({
   onNavigate,
   canSignOut,
   onSignOut,
-  desktopExpanded,
   onToggleDesktop,
 }: {
   links: { primary: NavItem[]; workspace: NavItem[]; profile: NavItem[] };
@@ -270,12 +268,24 @@ function SidebarContent({
   onNavigate?: () => void;
   canSignOut?: boolean;
   onSignOut?: () => void;
-  desktopExpanded: boolean;
   onToggleDesktop?: () => void;
 }) {
   const isProfileMenuOpen = openMenu === "profile";
   const accentColor = useThemeStore((state) => state.accentColor);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const [railTooltip, setRailTooltip] = useState<{ label: string; left: number; top: number } | null>(null);
+
+  const showRailTooltip = (label: string, element: HTMLElement) => {
+    if (!collapsed) return;
+    const rect = element.getBoundingClientRect();
+    setRailTooltip({
+      label,
+      left: rect.right + 10,
+      top: rect.top + rect.height / 2,
+    });
+  };
+
+  const hideRailTooltip = () => setRailTooltip(null);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -311,32 +321,74 @@ function SidebarContent({
               ) : null}
             </AnimatePresence>
           </NavLink>
+          {onToggleDesktop && !collapsed ? (
+            <button
+              type="button"
+              onClick={onToggleDesktop}
+              className="absolute right-3 top-4 z-20 grid h-8 w-8 place-items-center rounded-[var(--radius-sm)] text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose size={16} />
+            </button>
+          ) : null}
         </div>
       </div>
-      {onToggleDesktop ? (
+      {onToggleDesktop && collapsed ? (
         <button
           type="button"
           onClick={onToggleDesktop}
-          className={`absolute z-20 grid h-8 w-8 place-items-center rounded-[var(--radius-sm)] text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-            collapsed ? "left-7 top-[4.25rem]" : "right-3 top-4"
-          }`}
-          aria-label={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
-          title={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          className="absolute right-0 top-6 z-20 grid h-8 w-[18px] place-items-center rounded-l-[7px] border border-r-0 border-[var(--sidebar-border)] bg-[#151515] text-[var(--sidebar-muted)] shadow-[0_8px_22px_rgba(0,0,0,0.28)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          aria-label="Expand sidebar"
+          onMouseEnter={(event) => showRailTooltip("Expand sidebar", event.currentTarget)}
+          onMouseLeave={hideRailTooltip}
+          onFocus={(event) => showRailTooltip("Expand sidebar", event.currentTarget)}
+          onBlur={hideRailTooltip}
         >
-          {desktopExpanded ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          <PanelLeftOpen size={13} />
         </button>
       ) : null}
+      {createPortal(
+        <AnimatePresence>
+          {railTooltip ? (
+            <motion.div
+              key={railTooltip.label}
+              initial={{ opacity: 0, x: -5, y: "-50%", scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, y: "-50%", scale: 1 }}
+              exit={{ opacity: 0, x: -3, y: "-50%", scale: 0.98 }}
+              transition={{ duration: 0.14, ease: "easeOut" }}
+              className="pointer-events-none fixed z-[9999] rounded-[var(--radius-sm)] border border-white/10 bg-[#202020] px-2.5 py-1.5 text-xs font-semibold text-[#e5e5e5] shadow-[0_14px_32px_rgba(0,0,0,0.34)]"
+              style={{ left: railTooltip.left, top: railTooltip.top }}
+              role="tooltip"
+            >
+              {railTooltip.label}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-0 py-1">
-        <NavSection items={links.primary} collapsed={collapsed} onNavigate={onNavigate} />
+        <NavSection items={links.primary} collapsed={collapsed} onNavigate={onNavigate} onTooltip={showRailTooltip} onTooltipClose={hideRailTooltip} />
         <PinnedProjectsSection
           projects={pinnedProjects}
           collapsed={collapsed}
           open={pinnedProjectsOpen}
           onToggle={() => setPinnedProjectsOpen((open) => !open)}
           onNavigate={onNavigate}
+          onTooltip={showRailTooltip}
+          onTooltipClose={hideRailTooltip}
         />
-        {links.workspace.length ? <NavSection items={links.workspace} collapsed={collapsed} onNavigate={onNavigate} separated /> : null}
+        {links.workspace.length ? (
+          <NavSection
+            items={links.workspace}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+            separated
+            onTooltip={showRailTooltip}
+            onTooltipClose={hideRailTooltip}
+          />
+        ) : null}
       </nav>
 
       <div className="space-y-4 border-t border-[var(--sidebar-border)] pb-4 pt-4">
@@ -434,23 +486,34 @@ function NavSection({
   collapsed,
   onNavigate,
   separated = false,
+  onTooltip,
+  onTooltipClose,
 }: {
   items: NavItem[];
   collapsed: boolean;
   onNavigate?: () => void;
   separated?: boolean;
+  onTooltip?: (label: string, element: HTMLElement) => void;
+  onTooltipClose?: () => void;
 }) {
   return (
     <section className={`${separated ? "mt-3 pt-3" : ""}`}>
       {separated ? <div className={`${collapsed ? "mx-auto w-16" : "mx-4"} mb-3 h-px bg-[var(--sidebar-border)]`} /> : null}
       <div className="grid gap-1">
         {items.map(({ to, label, icon: Icon }) => (
-          <div key={to} className="grid gap-1">
+          <div
+            key={to}
+            className="grid gap-1"
+            onMouseEnter={(event) => onTooltip?.(label, event.currentTarget)}
+            onMouseLeave={onTooltipClose}
+            onFocus={(event) => onTooltip?.(label, event.currentTarget)}
+            onBlur={onTooltipClose}
+          >
             <NavLink
               to={to}
               end={to === "/"}
               onClick={onNavigate}
-              title={collapsed ? label : undefined}
+              aria-label={collapsed ? label : undefined}
               className={({ isActive }) =>
                 `align-sidebar-link group relative isolate grid h-10 min-w-0 overflow-hidden ${collapsed ? "grid-cols-[88px]" : "mx-4 grid-cols-[40px_minmax(0,1fr)] rounded-[var(--radius-sm)] pr-3"} items-center text-sm font-bold transition ${
                   isActive
@@ -507,12 +570,16 @@ function PinnedProjectsSection({
   open,
   onToggle,
   onNavigate,
+  onTooltip,
+  onTooltipClose,
 }: {
   projects: Project[];
   collapsed: boolean;
   open: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
+  onTooltip?: (label: string, element: HTMLElement) => void;
+  onTooltipClose?: () => void;
 }) {
   const visibleProjects = projects.slice(0, 6);
 
@@ -522,7 +589,7 @@ function PinnedProjectsSection({
       {collapsed ? (
         <div className="grid gap-1">
           {visibleProjects.map((project) => (
-            <PinnedProjectLink key={project.id} project={project} collapsed onNavigate={onNavigate} />
+            <PinnedProjectLink key={project.id} project={project} collapsed onNavigate={onNavigate} onTooltip={onTooltip} onTooltipClose={onTooltipClose} />
           ))}
         </div>
       ) : (
@@ -571,57 +638,76 @@ function PinnedProjectsSection({
   );
 }
 
-function PinnedProjectLink({ project, collapsed, onNavigate }: { project: Project; collapsed: boolean; onNavigate?: () => void }) {
+function PinnedProjectLink({
+  project,
+  collapsed,
+  onNavigate,
+  onTooltip,
+  onTooltipClose,
+}: {
+  project: Project;
+  collapsed: boolean;
+  onNavigate?: () => void;
+  onTooltip?: (label: string, element: HTMLElement) => void;
+  onTooltipClose?: () => void;
+}) {
   return (
-    <NavLink
-      to={`/projects/${project.id}`}
-      onClick={onNavigate}
-      title={project.name}
-      className={({ isActive }) =>
-        `group relative isolate min-w-0 overflow-hidden text-xs font-bold transition ${
-          collapsed ? "grid h-10 place-items-center" : "mx-4 grid h-9 grid-cols-[40px_minmax(0,1fr)] items-center rounded-[var(--radius-sm)] pr-3"
-        } ${
-          isActive
-            ? collapsed
-              ? "text-white"
-              : "text-white"
-            : "text-[var(--sidebar-muted)] hover:text-[var(--sidebar-text)]"
-        }`
-      }
+    <div
+      onMouseEnter={(event) => onTooltip?.(project.name, event.currentTarget)}
+      onMouseLeave={onTooltipClose}
+      onFocus={(event) => onTooltip?.(project.name, event.currentTarget)}
+      onBlur={onTooltipClose}
     >
-      {({ isActive }) => (
-        <>
-          {!collapsed ? (
-            <motion.span
-              initial={{ opacity: 0, scaleX: 0.94 }}
-              animate={{ opacity: 1, scaleX: 1 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
-              className={`pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-sm)] transition ${
-                isActive ? "bg-white/[0.13]" : "group-hover:bg-white/[0.075]"
-              }`}
-            />
-          ) : null}
-          <span className={`relative z-10 grid shrink-0 place-items-center ${collapsed ? "h-10 w-[88px]" : "h-9 w-10"}`}>
-            <span
-              className={`grid h-7 min-w-7 place-items-center rounded-[var(--radius-xs)] px-1.5 text-[10px] font-black transition ${
-                collapsed && isActive
-                  ? "bg-[var(--brand-primary)] text-white"
-                  : isActive
-                    ? "bg-white/[0.16] text-[var(--sidebar-text)]"
-                    : "bg-white/[0.055] text-[var(--sidebar-muted)] group-hover:bg-white/[0.1] group-hover:text-[var(--sidebar-text)]"
-              }`}
-            >
-              {projectInitials(project.name)}
+      <NavLink
+        to={`/projects/${project.id}`}
+        onClick={onNavigate}
+        aria-label={collapsed ? project.name : undefined}
+        className={({ isActive }) =>
+          `group relative isolate min-w-0 overflow-hidden text-xs font-bold transition ${
+            collapsed ? "grid h-10 place-items-center" : "mx-4 grid h-9 grid-cols-[40px_minmax(0,1fr)] items-center rounded-[var(--radius-sm)] pr-3"
+          } ${
+            isActive
+              ? collapsed
+                ? "text-white"
+                : "text-white"
+              : "text-[var(--sidebar-muted)] hover:text-[var(--sidebar-text)]"
+          }`
+        }
+      >
+        {({ isActive }) => (
+          <>
+            {!collapsed ? (
+              <motion.span
+                initial={{ opacity: 0, scaleX: 0.94 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.16, ease: "easeOut" }}
+                className={`pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-sm)] transition ${
+                  isActive ? "bg-white/[0.13]" : "group-hover:bg-white/[0.075]"
+                }`}
+              />
+            ) : null}
+            <span className={`relative z-10 grid shrink-0 place-items-center ${collapsed ? "h-10 w-[88px]" : "h-9 w-10"}`}>
+              <span
+                className={`grid h-7 min-w-7 place-items-center rounded-[var(--radius-xs)] px-1.5 text-[10px] font-black transition ${
+                  collapsed && isActive
+                    ? "bg-[var(--brand-primary)] text-white"
+                    : isActive
+                      ? "bg-white/[0.16] text-[var(--sidebar-text)]"
+                      : "bg-white/[0.055] text-[var(--sidebar-muted)] group-hover:bg-white/[0.1] group-hover:text-[var(--sidebar-text)]"
+                }`}
+              >
+                {projectInitials(project.name)}
+              </span>
             </span>
-          </span>
-          {!collapsed ? (
-            <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 overflow-hidden truncate text-left text-[12px] font-semibold tracking-normal">
-              {project.name}
-            </motion.span>
-          ) : null}
-        </>
-      )}
-    </NavLink>
+            {!collapsed ? (
+              <motion.span {...sidebarTextMotion} className="relative z-10 min-w-0 overflow-hidden truncate text-left text-[12px] font-semibold tracking-normal">
+                {project.name}
+              </motion.span>
+            ) : null}
+          </>
+        )}
+      </NavLink>
+    </div>
   );
 }
 
