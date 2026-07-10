@@ -2,8 +2,6 @@ import {
   BarChart3,
   CalendarDays,
   ChevronDown,
-  ChevronsLeft,
-  ChevronsRight,
   CheckCircle2,
   CircleHelp,
   Folder,
@@ -13,6 +11,8 @@ import {
   LogOut,
   Menu,
   FileText,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   Shield,
   Trash2,
@@ -291,7 +291,7 @@ function SidebarContent({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] shadow-[var(--shadow-sm)]">
-      <div className={collapsed && onToggleDesktop ? "pb-11" : "pb-3"}>
+      <div className="pb-3">
         <div className="relative">
           <NavLink
             to="/"
@@ -311,21 +311,19 @@ function SidebarContent({
               ) : null}
             </AnimatePresence>
           </NavLink>
-          {onToggleDesktop ? (
-            <button
-              type="button"
-              onClick={onToggleDesktop}
-              className={`absolute grid place-items-center rounded-[var(--radius-sm)] text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] ${
-                collapsed ? "right-[26px] top-14 h-8 w-8" : "right-3 top-3 h-9 w-9"
-              }`}
-              aria-label={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
-              title={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {desktopExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
-            </button>
-          ) : null}
         </div>
       </div>
+      {onToggleDesktop ? (
+        <button
+          type="button"
+          onClick={onToggleDesktop}
+          className="absolute -right-3 top-5 z-20 grid h-10 w-6 place-items-center rounded-r-[10px] border border-l-0 border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] text-[var(--sidebar-muted)] shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          aria-label={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          title={desktopExpanded ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {desktopExpanded ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+        </button>
+      ) : null}
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-0 py-1">
         <NavSection items={links.primary} collapsed={collapsed} onNavigate={onNavigate} />
