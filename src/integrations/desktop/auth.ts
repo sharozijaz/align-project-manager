@@ -20,8 +20,17 @@ async function handleDesktopAuthUrls(urls: string[] | null) {
     const code = extractAuthCode(rawUrl);
     if (!code) continue;
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        console.error("Desktop auth callback failed.", error);
+        continue;
+      }
+    } catch (error) {
+      console.error("Desktop auth callback failed.", error);
+      continue;
+    }
+
     break;
   }
 }

@@ -44,6 +44,7 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useConfirm } from "../components/ui/ConfirmProvider";
+import { ExternalTextLink } from "../components/ui/ExternalTextLink";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { ScopedSearchNotice } from "../components/ui/ScopedSearchNotice";
@@ -62,6 +63,7 @@ import {
   mergeImportedHubNotes,
   parseHubNotesImport,
 } from "../utils/hubNotesImportExport";
+import { openExternalUrl } from "../integrations/desktop/runtime";
 
 const resourceTypes: Array<{ value: HubResourceType; label: string; tone: "blue" | "amber" | "emerald" | "purple" | "slate" }> = [
   { value: "inspiration", label: "Inspiration", tone: "purple" },
@@ -3467,7 +3469,7 @@ function ResourceDetailInline({
               <Button variant="secondary" onClick={() => navigator.clipboard.writeText(normalizedUrl)} icon={<Copy size={15} />}>
                 Copy Link
               </Button>
-              <Button onClick={() => window.open(normalizedUrl, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={15} />}>
+              <Button onClick={() => void openExternalUrl(normalizedUrl, { browserMode: "new-tab" })} icon={<ExternalLink size={15} />}>
                 Open Website
               </Button>
             </div>
@@ -3829,9 +3831,9 @@ function renderInlineMarkdown(value: string, options: InlineMarkdownOptions = {}
     if (linkMatch) {
       const href = sanitizeMarkdownUrl(linkMatch[2]);
       return href ? (
-        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noopener noreferrer">
+        <ExternalTextLink key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href}>
           {linkMatch[1]}
-        </a>
+        </ExternalTextLink>
       ) : (
         <span key={index}>{linkMatch[1]}</span>
       );

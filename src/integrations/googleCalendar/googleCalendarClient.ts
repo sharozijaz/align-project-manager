@@ -47,10 +47,10 @@ export async function connectGoogleCalendar(): Promise<GoogleCalendarConnection>
       authorization: `Bearer ${token}`,
     },
   });
-  const data = (await response.json()) as { url?: string; error?: string };
+  const data = (await readApiJson(response)) as { url?: string; error?: string };
 
   if (!response.ok || !data.url) {
-    throw new Error(data.error || "Could not start Google Calendar connection.");
+    throw new Error(apiErrorMessage(data, response, "Could not start Google Calendar connection."));
   }
 
   await openExternalUrl(data.url);
@@ -65,10 +65,10 @@ export async function disconnectGoogleCalendar(): Promise<void> {
       authorization: `Bearer ${token}`,
     },
   });
-  const data = (await response.json()) as { error?: string };
+  const data = (await readApiJson(response)) as { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not disconnect Google Calendar.");
+    throw new Error(apiErrorMessage(data, response, "Could not disconnect Google Calendar."));
   }
 }
 
@@ -95,4 +95,16 @@ async function getAccessToken() {
   if (!session?.access_token) throw new Error("Sign in before connecting Google Calendar.");
 
   return session.access_token;
+}
+
+async function readApiJson(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function apiErrorMessage(data: { error?: string }, response: Response, fallback: string) {
+  return data.error || response.statusText || fallback;
 }

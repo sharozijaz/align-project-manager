@@ -13,6 +13,7 @@ import {
 } from "./_googleCalendar.js";
 import {
   applyRateLimit,
+  readJsonBody,
   rejectOversizedPayload,
   requireJsonPayload,
   sanitizeIdArray,
@@ -110,12 +111,13 @@ async function handleSync(req, res) {
 
   try {
     const user = await requireAllowedUser(req, env);
-    const tasks = sanitizeTaskSyncPayload(req.body?.tasks);
+    const body = await readJsonBody(req, SYNC_MAX_BYTES);
+    const tasks = sanitizeTaskSyncPayload(body.tasks);
     const result = {};
 
-    if (req.body?.calendar) {
+    if (body.calendar) {
       const calendarResult = await syncTasksToGoogleCalendarForUser(env, user.id, tasks, {
-        forceTaskIds: sanitizeIdArray(req.body?.forceTaskIds),
+        forceTaskIds: sanitizeIdArray(body.forceTaskIds),
       });
       result.calendar = {
         ...calendarResult,

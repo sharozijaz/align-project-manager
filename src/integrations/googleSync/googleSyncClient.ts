@@ -45,10 +45,10 @@ export async function getGoogleSyncStatus(options: { includeLists?: boolean; max
       authorization: `Bearer ${token}`,
     },
   });
-  const data = (await response.json()) as Partial<GoogleSyncStatus> & { error?: string };
+  const data = (await readApiJson(response)) as Partial<GoogleSyncStatus> & { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not read Google Calendar status.");
+    throw new Error(apiErrorMessage(data, response, "Could not read Google Calendar status."));
   }
 
   const status = normalizeStatus(data);
@@ -70,10 +70,10 @@ export async function syncGoogleWorkspace(payload: GoogleWorkspaceSyncPayload): 
       forceTaskIds: payload.forceTaskIds ?? [],
     }),
   });
-  const data = (await response.json()) as Partial<GoogleWorkspaceSyncResult> & { error?: string };
+  const data = (await readApiJson(response)) as Partial<GoogleWorkspaceSyncResult> & { error?: string };
 
   if (!response.ok) {
-    throw new Error(data.error || "Could not sync Google Calendar.");
+    throw new Error(apiErrorMessage(data, response, "Could not sync Google Calendar."));
   }
 
   clearGoogleSyncStatusCache();
@@ -130,4 +130,16 @@ async function getAccessToken() {
   if (!session?.access_token) throw new Error("Sign in before using Google Calendar sync.");
 
   return session.access_token;
+}
+
+async function readApiJson(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function apiErrorMessage(data: { error?: string }, response: Response, fallback: string) {
+  return data.error || response.statusText || fallback;
 }

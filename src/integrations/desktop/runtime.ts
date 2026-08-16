@@ -12,13 +12,30 @@ export const isTauriRuntime = () =>
     window.location.protocol === "tauri:" ||
     window.location.origin.includes("tauri.localhost"));
 
-export async function openExternalUrl(url: string) {
+export type ExternalUrlBrowserMode = "same-tab" | "new-tab";
+
+export interface OpenExternalUrlOptions {
+  browserMode?: ExternalUrlBrowserMode;
+}
+
+export function parseExternalUrl(url: string) {
   const parsed = new URL(url);
   if (!["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) {
     throw new Error("Unsupported external URL.");
   }
 
+  return parsed;
+}
+
+export async function openExternalUrl(url: string, options: OpenExternalUrlOptions = {}) {
+  const parsed = parseExternalUrl(url);
+
   if (!isTauriRuntime()) {
+    if (options.browserMode === "new-tab") {
+      window.open(parsed.toString(), "_blank", "noopener,noreferrer");
+      return;
+    }
+
     window.location.href = parsed.toString();
     return;
   }

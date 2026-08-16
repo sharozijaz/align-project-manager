@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import type { ReactNode } from "react";
+import { ExternalTextLink } from "../ui/ExternalTextLink";
 
 export function MarkdownRenderer({ body, className = "" }: { body: string; className?: string }) {
   const lines = body.split("\n");
@@ -197,9 +198,9 @@ function renderInlineMarkdown(value: string) {
     if (linkMatch) {
       const href = sanitizeMarkdownUrl(linkMatch[2]);
       return href ? (
-        <a key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href} target="_blank" rel="noopener noreferrer">
+        <ExternalTextLink key={index} className="font-semibold text-[var(--text-brand)] hover:underline" href={href}>
           {linkMatch[1]}
-        </a>
+        </ExternalTextLink>
       ) : (
         <span key={index}>{linkMatch[1]}</span>
       );

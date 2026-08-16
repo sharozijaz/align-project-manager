@@ -33,10 +33,5 @@ export function clientShareUrl(token: string) {
 }
 
 export function openShareUrl(url: string) {
-  if (isTauriRuntime()) {
-    return openExternalUrl(url);
-  }
-
-  window.open(url, "_blank", "noopener,noreferrer");
-  return Promise.resolve();
+  return openExternalUrl(url, { browserMode: "new-tab" });
 }
