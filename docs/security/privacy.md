@@ -2,8 +2,6 @@
 
 Align is designed to be local-first.
 
-The public project covers the web and Windows desktop app. Mobile companion source and artifacts are excluded from public releases and are not part of the public repository or public release distribution.
-
 ## Local-Only Mode
 
 If Supabase and hosted API environment variables are not configured, Align stores workspace data in the local browser or desktop WebView storage on your device.

@@ -4,7 +4,7 @@ Align supports Supabase Google OAuth as a smoother sign-in option alongside magi
 
 ## What This Does
 
-- Adds a `Continue with Google` button on the private sign-in screen.
+- Adds a `Continue with Google` button on the hosted sign-in screen.
 - Google authenticates the user through Supabase Auth.
 - Align still checks the signed-in email against your approved users and feature access.
 - Google Calendar sync remains separate. A user can sign in with Google without connecting Calendar.

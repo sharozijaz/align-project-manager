@@ -2,8 +2,6 @@
 
 Align is moving toward a public, open-source Windows desktop release with local-first behavior as the default.
 
-Public releases cover the web app and Windows desktop app only. Mobile companion source and artifacts are excluded from public releases and must not be pushed to the public repository or attached to public releases.
-
 ## Current Foundation
 
 - React, TypeScript, Vite, Tailwind CSS, Zustand, and Tauri.
@@ -48,24 +46,21 @@ Public releases cover the web app and Windows desktop app only. Mobile companion
 ## Phase 5 - GitHub Release Pipeline
 
 - Publish Windows installers through GitHub Releases.
-- Exclude mobile companion source and Android release artifacts from GitHub source and releases.
 - Keep package and Tauri versions aligned.
 - Run checks before release: unused code, TypeScript, audit, build, desktop build, secret scan, and smoke tests.
 - First public release can be unsigned, with a documented Windows SmartScreen warning.
 - Add GitHub issue templates, PR template, and CI checks for safer public contributions.
 - Keep desktop release builds manual until signing and updater automation are ready.
 
-## Phase 6 - Monetization Path
+## Phase 6 - Template Library
 
 - Keep the local app free and open source.
-- Start with paid workflow/template packs for web designers and freelancers.
-- Keep one free sample template pack in the public repo.
-- Sell paid packs separately from the source repository.
-- Offer paid workflow customization as a service after template demand is proven.
-- Consider paid hosted Align Cloud later for sync, share links, Google sync, reminders, and backup history.
-- Consider signed convenience builds later.
+- Add useful workflow templates for designers, developers, freelancers, and small teams.
+- Keep templates local-first and importable through the normal backup/import flow.
+- Include sample projects, notes, task structures, and planning timelines without real client data.
+- Make templates optional so the core app stays clean for blank workspaces.
 
-## Phase 7 - Marketing And Positioning
+## Phase 7 - Product Positioning
 
 - Position Align as a local-first project and life planning app for freelance web designers and developers.
 - Show real workflows: Figma to WordPress, client feedback, weekly planning, notes, and handoff.

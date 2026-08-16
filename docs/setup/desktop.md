@@ -134,7 +134,7 @@ npm run desktop:build
 
 Then run the new installer from `src-tauri/target/release/bundle/`.
 
-For the full owner maintenance workflow, including monthly security checks, dependency updates, cleanup, and release tagging, see `docs/release/maintenance.md`. For the public GitHub release pipeline, see `docs/release/release.md`.
+For release build modes, see `docs/release/build-variants.md`.
 
 ## Ubuntu GNOME Build
 

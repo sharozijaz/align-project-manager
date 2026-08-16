@@ -1,12 +1,12 @@
 # Align Workflow Templates
 
-Align templates are importable workspace packs for repeatable project and planning workflows. They are meant to help web designers and developers start faster without turning Align into a paid-gated app.
+Align templates are importable workspace packs for repeatable project and planning workflows. They help designers, developers, freelancers, and small teams start from a useful structure instead of a blank workspace.
 
 ## Template Model
 
-- The open-source app stays free and fully usable.
-- Free samples can live in this repository.
-- Paid packs should be sold separately from the source repository.
+- Templates are optional.
+- The app remains fully usable without templates.
+- Public templates should contain only fake, generic sample data.
 - Template packs use Align's existing full workspace backup format.
 - Importing a template currently replaces the local workspace after saving a safety copy.
 
@@ -29,9 +29,9 @@ It includes:
 - a reusable discovery note
 - a small resource list
 
-## Optional Paid Packs
+## Template Ideas
 
-Examples of optional packs that could be distributed outside this repository:
+Useful template ideas:
 
 - `Web Designer Starter Pack`
 - `Figma to WordPress Project Pack`
@@ -39,13 +39,13 @@ Examples of optional packs that could be distributed outside this repository:
 - `Website Care Plan Pack`
 - `Freelance Weekly Planning Pack`
 
-Each paid pack should include:
+Each template should include:
 
 - an importable Align JSON file
 - a short Markdown guide
 - example projects, tasks, subtasks, notes, and planning structure
 - optional client handoff notes and checklists
-- a changelog for pack updates
+- notes that explain how to adapt the workflow
 
 ## How To Import A Template
 
@@ -61,7 +61,7 @@ The import flow saves a local safety copy first, but a manual backup is still re
 
 ## Creating New Packs
 
-Use fake, generic client names only. Never include real client data, private links, credentials, API keys, passwords, tokens, or paid customer content.
+Use fake, generic client names only. Never include real client data, private links, credentials, API keys, passwords, tokens, or customer content.
 
 Recommended structure:
 
@@ -71,7 +71,7 @@ templates/pack-name/
   align-template.json
 ```
 
-For paid packs, keep the finished JSON outside the public repository. Only publish free samples here.
+Only publish templates that are safe for public use.
 
 ## Template Quality Bar
 

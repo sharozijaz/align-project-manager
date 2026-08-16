@@ -1,28 +1,39 @@
 # Align
 
-Align is a local-first project and life planning app for freelance web designers and developers. It brings projects, tasks, todos, calendar planning, notes, reminders, reports, and client handoff into one focused workspace.
+Align is a local-first project management workspace for freelancers, solo builders, and small teams who need one calm place to plan work, track deadlines, keep notes, and stay on top of delivery.
 
-The public open-source app is designed to work without a hosted backend. Supabase sync, Google sync, email reminders, and share links are optional cloud features for users who configure their own backend.
-
-This public repository and its release artifacts cover the web app and Windows desktop app. Mobile companion source, signing files, APKs, and AABs are excluded from public releases.
-
-## Status
-
-Align is a release-candidate local-first desktop app. The public release path focuses on a polished offline workflow, with optional self-hosted cloud features documented for advanced users. See `docs/product/roadmap.md`.
+It combines projects, tasks, todos, calendar planning, docs, resources, reminders, reports, and client-ready share views in a desktop-friendly app that works offline by default. Cloud sync and hosted integrations are optional for users who want to self-host them.
 
 ![Align dashboard command center](docs/assets/dashboard-command-center.png)
 
-## Core Features
+## Who It Is For
 
-- Projects with tasks, subtasks, card/table/board/kanban views, and client context.
-- Todos and task planning across day, week, and month.
-- Calendar with Month, Week, and Agenda views.
-- Notes and Resources as separate workspace areas.
-- Reports for progress, overdue work, status mix, and upcoming deadlines.
-- Local desktop notifications and Tauri desktop packaging.
-- Optional Supabase sync, Google Calendar/Todo sync, client share links, and email reminders for configured hosted deployments.
+- Freelance designers and developers managing multiple client projects.
+- Solo founders and indie makers balancing product, admin, and recurring work.
+- Small teams that want a lightweight local-first planner without a heavy SaaS setup.
+- Users who prefer owning their workspace data and using cloud services only when they choose.
 
-## Local-First Usage
+## Features
+
+- Project dashboard with active work, delivery progress, due windows, stale work, and attention signals.
+- Projects with tasks, subtasks, priorities, statuses, start dates, due dates, pinned projects, trash, and lifecycle states.
+- Multiple task views including list, table, cards, board, and kanban-style planning.
+- Today, calendar, and agenda views for daily and weekly focus.
+- Separate todos for non-project work.
+- Docs and notes for project context, planning, decisions, and client-visible content.
+- Resource library for saved links, tools, inspiration, assets, snippets, and references.
+- Reports for progress, overdue work, status mix, upcoming deadlines, and workspace health.
+- Local backups through JSON export/import.
+- Desktop notifications and a Windows desktop build powered by Tauri.
+- Optional self-hosted Supabase sync, Google Calendar/Todo sync, share links, and email reminders.
+
+## Local-First By Default
+
+Align starts as a local app. If no cloud environment variables are configured, workspace data stays in browser or desktop WebView storage on the current device.
+
+Fresh installs start with a blank workspace. You can import a backup or template pack when you want starter content.
+
+## Quick Start
 
 Install dependencies:
 
@@ -42,12 +53,6 @@ Build the web app:
 npm run build
 ```
 
-Build a public local-first web app that ignores private root `.env.local` values:
-
-```bash
-npm run build:public
-```
-
 Run the desktop app in development:
 
 ```bash
@@ -60,35 +65,92 @@ Build the Windows desktop app:
 npm run desktop:build
 ```
 
-Build the public local-first Windows desktop installer:
+Build a local-first desktop installer:
 
 ```bash
 npm run release:desktop:public
 ```
 
-When no Supabase environment variables are configured, Align stores data locally in browser or desktop WebView storage.
-
-Fresh installs start with a blank workspace. Import a backup or template pack if you want starter content.
-
-### Sync Modes
+## Sync Modes
 
 Align has three workspace sync modes in Settings > Data:
 
-- `Local only`: keep data on this device and block Supabase upload/download. Use this for the lowest-cost public/open-source setup.
-- `Paused`: stay signed in, but use manual upload/download only. Use this before testing a new backend or switching devices.
-- `Cloud sync`: automatically download and upload workspace changes when signed in. Use this only with your own configured Supabase project or trusted hosted deployment.
+- `Local only`: keep data on this device and block cloud upload/download.
+- `Paused`: stay signed in, but use manual upload/download only.
+- `Cloud sync`: automatically download and upload workspace changes when signed in.
 
-Export a full workspace backup before switching modes on an important workspace.
+Export a workspace backup before switching sync modes on important data.
 
-If Supabase is unavailable or returns an unexpected empty existing workspace, Align keeps the local workspace visible and warns that local data is safe on this device. Restore from a JSON backup first, then reconnect cloud sync.
+## Optional Cloud Features
 
-## Optional Cloud Setup
+Cloud features are optional and require your own configured services:
 
-Cloud features are optional. Public users can configure their own Supabase/Vercel/Google/email services when they want hosted sync or integrations. No hosted backend is bundled with the public app.
+- Supabase for auth, database, and workspace sync.
+- Hosted API routes for share links, reminders, Google sync, and server-only secrets.
+- Google Cloud OAuth for Google Calendar and Google Tasks integrations.
+- An email provider for reminder emails.
 
-Align uses one codebase for local-first and configured self-hosted builds. Public release commands set `ALIGN_PUBLIC_RELEASE=true` so Vite ignores root local env files and uses `config/public-env/` instead. Normal build commands keep reading `.env.local`, so configured deployments keep the full cloud feature set. See `docs/release/build-variants.md`.
+No hosted backend is required for local-only use.
 
-Frontend-safe environment variables:
+Self-hosting guides:
+
+- [Self-hosting guide](docs/setup/self-hosting.md)
+- [Self-hosting checklist](docs/setup/self-hosting-checklist.md)
+- [Deployment guide](docs/setup/deployment.md)
+- [Google sign-in setup](docs/setup/google-sign-in.md)
+- [Google Calendar setup](docs/setup/google-calendar.md)
+
+## Supabase Setup
+
+For a fresh self-hosted Supabase project:
+
+1. Create a Supabase project.
+2. Open the Supabase SQL editor.
+3. Run `supabase/schema.sql`.
+4. Run the migration files for the cloud features you plan to enable.
+5. Add allowed users if your deployment uses allowlisting.
+6. Add your Supabase URL and anon key to `.env.local`.
+7. Restart the dev server or rebuild the desktop app.
+
+Common migrations:
+
+```text
+supabase/security-hardening.sql
+supabase/grants.sql
+supabase/google-calendar.sql
+supabase/reminders.sql
+supabase/email-reminders.sql
+supabase/email-preferences.sql
+supabase/recurring-tasks.sql
+supabase/project-shares.sql
+supabase/client-share-links.sql
+supabase/share-passwords.sql
+supabase/share-link-schema-repair.sql
+supabase/hub-notes-project-links.sql
+supabase/project-areas.sql
+supabase/project-notes.sql
+supabase/start-dates.sql
+supabase/time-and-manual-order.sql
+supabase/task-options.sql
+supabase/task-subitems.sql
+supabase/project-paused-status.sql
+supabase/project-lifecycle-trash.sql
+supabase/project-pins.sql
+supabase/planned-week-start.sql
+supabase/planned-month.sql
+supabase/google-todos-sync.sql
+supabase/google-tasks-bridge.sql
+```
+
+If Supabase reports a schema-cache error after a migration, run:
+
+```sql
+notify pgrst, 'reload schema';
+```
+
+## Environment Variables
+
+Frontend-safe variables:
 
 ```bash
 VITE_SUPABASE_URL=
@@ -102,7 +164,7 @@ VITE_GOOGLE_REDIRECT_URI=
 VITE_GOOGLE_CALENDAR_ID=primary
 ```
 
-Server-only environment variables:
+Server-only variables:
 
 ```bash
 APP_URL=
@@ -121,86 +183,22 @@ REMINDER_EMAIL_FROM=
 REMINDER_EMAIL_REPLY_TO=
 ```
 
-Never commit `.env.local`, Supabase service-role keys, Google client secrets, Resend keys, cron secrets, OAuth refresh tokens, database passwords, or private keys.
+Never commit `.env.local`, service-role keys, Google client secrets, email provider keys, cron secrets, OAuth refresh tokens, database passwords, or private keys.
 
-## Supabase Setup
+## Development Checks
 
-For a fresh self-hosted Supabase project:
-
-1. Create a Supabase project.
-2. Open the Supabase SQL editor.
-3. Run `supabase/schema.sql`.
-4. Run the feature migration files needed for your deployment:
-
-```text
-supabase/security-hardening.sql
-supabase/grants.sql
-supabase/google-calendar.sql
-supabase/reminders.sql
-supabase/email-reminders.sql
-supabase/email-preferences.sql
-supabase/recurring-tasks.sql
-supabase/project-shares.sql
-supabase/client-share-links.sql
-supabase/share-passwords.sql
-supabase/share-link-schema-repair.sql
-supabase/personal-hub.sql
-supabase/hub-notes-project-links.sql
-supabase/project-areas.sql
-supabase/project-notes.sql
-supabase/start-dates.sql
-supabase/time-and-manual-order.sql
-supabase/task-options.sql
-supabase/task-subitems.sql
-supabase/project-paused-status.sql
-supabase/project-lifecycle-trash.sql
-supabase/project-pins.sql
-supabase/planned-week-start.sql
-supabase/planned-month.sql
-supabase/hub-notes-project-links.sql
-supabase/google-todos-sync.sql
-supabase/google-tasks-bridge.sql
+```bash
+npm run check:unused
+npm run check:ts-unused
+npm audit --audit-level=moderate
+npm run build
 ```
 
-5. Insert allowed users if your deployment uses allowlisting:
+Run the combined release check:
 
-```sql
-insert into public.allowed_users (email)
-values ('your-email@example.com')
-on conflict (email) do nothing;
+```bash
+npm run check:release
 ```
-
-6. Add your Supabase URL and anon key to `.env.local`.
-7. Restart the dev server or rebuild the desktop app.
-
-If Supabase reports a schema-cache error after a migration, run:
-
-```sql
-notify pgrst, 'reload schema';
-```
-
-## Google And Hosted APIs
-
-Google Calendar/Todo sync, email reminders, and public share links require hosted API routes and server-side secrets. They should not run from frontend-only or desktop-only builds unless `VITE_APP_URL` or `VITE_PUBLIC_APP_URL` points to a deployment that owns those routes.
-
-Configured hosted deployments should use Google-only auth (`VITE_AUTH_METHOD=google`), run `supabase/security-hardening.sql`, add trusted emails to `public.allowed_users`, set `ALLOWED_API_ORIGINS`, and set `GOOGLE_TOKEN_ENCRYPTION_KEY` before enabling Google sync. Public open-source builds should stay local-first unless the user self-hosts these services.
-
-Google sign-in setup notes live in `docs/setup/google-sign-in.md`.
-Google Calendar setup notes live in `docs/setup/google-calendar.md`.
-Deployment notes live in `docs/setup/deployment.md`.
-Complete self-hosting notes live in `docs/setup/self-hosting.md`.
-Short self-hosting checklist lives in `docs/setup/self-hosting-checklist.md`.
-
-## Desktop App
-
-Align uses Tauri for the Windows desktop build.
-
-Desktop notes live in `docs/setup/desktop.md`.
-Maintenance and update steps live in `docs/release/maintenance.md`.
-
-After a cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
-
-Mobile companion builds are not part of the public source release. Keep mobile source, signing material, APKs, AABs, and mobile release notes out of public artifacts.
 
 ## Project Structure
 
@@ -217,38 +215,17 @@ src/
   utils/               Date, storage, sharing, and helper utilities
 ```
 
-## Checks
-
-```bash
-npm run check:unused
-npm run check:ts-unused
-npm audit --audit-level=moderate
-npm run build
-```
-
-Or run the combined release check:
-
-```bash
-npm run check:release
-```
-
-Before a desktop release:
-
-```bash
-npm run release:desktop
-```
-
 ## Documentation
 
-- `docs/README.md` - documentation index.
-- `docs/setup/` - desktop, deployment, Google, and self-hosting guides.
-- `docs/release/` - build variants, release flow, maintenance, and release checks.
-- `docs/security/` - privacy, threat model, audits, and security reports.
-- `docs/product/` - roadmap, templates, and support model.
-- `docs/reports/` - historical quality and UI reports.
-- `SECURITY.md` - security rules and manual checks.
-- `CONTRIBUTING.md` - contribution and development rules.
-- `CHANGELOG.md` - release notes.
+- [Documentation index](docs/README.md)
+- [Desktop guide](docs/setup/desktop.md)
+- [Self-hosting guide](docs/setup/self-hosting.md)
+- [Privacy notes](docs/security/privacy.md)
+- [Threat model](docs/security/threat-model.md)
+- [Roadmap](docs/product/roadmap.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

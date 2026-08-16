@@ -30,10 +30,6 @@ npm run desktop:build
 
 If `.env.local` contains Supabase, hosted API, Google, and email settings, those optional features remain available. This is the path for configured desktop/web deployments and for advanced users who self-host their own backend.
 
-## Android Boundary
-
-Mobile companion source and artifacts are excluded from public releases. Keep `android-app/`, signing material, APKs, AABs, and mobile release notes out of public source commits and GitHub Releases.
-
 ## Data Safety
 
 Build variants do not reset app data. Align stores workspace data locally unless cloud sync is enabled. Before installing a public release candidate over an important workspace, export a full JSON backup from Settings.

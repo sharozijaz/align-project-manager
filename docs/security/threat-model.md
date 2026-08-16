@@ -1,8 +1,6 @@
 # Align Threat Model
 
-Updated detailed threat model: `docs/security/detailed-threat-model.md`.
-
-Last updated: 2026-06-05 after the public-repo secret and Android hardening audit.
+Last updated: 2026-06-05 after the public-repo security review.
 
 ## Scope
 
@@ -11,12 +9,12 @@ This model covers the public Align repository: the Vite/React frontend in `src/`
 Align has two intended release modes:
 
 - Public local-first mode: no default backend configured; data stays in browser or desktop WebView storage unless the user imports/exports backups.
-- Private or self-hosted cloud mode: Supabase Auth/database, hosted `/api/*` routes, Google sync, email reminders, and share links are explicitly configured by the operator.
+- Configured or self-hosted cloud mode: Supabase Auth/database, hosted `/api/*` routes, Google sync, email reminders, and share links are explicitly configured by the operator.
 
 ## Assets
 
 - Workspace data: projects, tasks, todos, calendar events, notes, resources, reminders, and preferences.
-- Private notes/resources in Personal Hub.
+- Notes and resources that may contain workspace or client context.
 - Share-link tokens and share passwords.
 - Supabase session tokens and per-user cloud rows.
 - Server-only secrets: Supabase service role key, Google client secret, Google token encryption key, Resend key, cron secret.
@@ -29,7 +27,7 @@ Align has two intended release modes:
 - Supabase client reads/writes in `src/integrations/supabase/*`.
 - Hosted API routes in `api/google-calendar/*`, `api/google-sync.js`, `api/google-todos.js`, `api/reminders/check.js`, `api/project-share.js`, `api/client-share.js`, and `api/cron/sync-google-calendar.js`.
 - Public share-link APIs for read-only client views.
-- Backup import/export flows in Settings and Personal Hub.
+- Backup import/export flows in Settings and workspace notes.
 - Markdown/template files intended for public distribution.
 
 ## Trust Boundaries

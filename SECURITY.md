@@ -19,8 +19,6 @@ Frontend environment variables are visible in browser builds, so `VITE_ALLOWED_E
 
 Never commit real `.env` files or Vercel local metadata. The repo intentionally ignores `.env`, `.env.*`, `.vercel/`, build output, logs, and TypeScript build info.
 
-Mobile companion source and artifacts are excluded from public releases. Do not push `android-app/`, Android signing files, APKs, or AABs to the public GitHub repository.
-
 Safe to expose:
 
 - `VITE_SUPABASE_URL`
@@ -73,7 +71,6 @@ The public desktop app should not silently depend on a default hosted backend. H
 For public builds:
 
 - Leave cloud env vars empty for local-only mode.
-- Confirm `android-app/` is not staged or included in the public source archive.
 - Do not include service-role keys or OAuth client secrets in desktop/frontend builds.
 - Use `VITE_APP_URL` only when the build should call a hosted API owned by that deployment.
 - Use `VITE_PUBLIC_APP_URL` only when share links should point to a public web deployment.
