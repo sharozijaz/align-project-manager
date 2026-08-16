@@ -6,7 +6,7 @@ Use Vercel for the easiest full hosted deployment because this repo includes bot
 
 Netlify or Cloudflare Pages can host the static frontend, but the `api/` routes need to be ported or hosted separately.
 
-For complete bring-your-own-backend instructions, including Supabase, Google OAuth, cron, email, desktop, and cost-control notes, see `SELF_HOSTING.md`.
+For complete bring-your-own-backend instructions, including Supabase, Google OAuth, cron, email, desktop, and cost-control notes, see `docs/setup/self-hosting.md`.
 
 ## Build Settings
 

@@ -8,7 +8,9 @@ The Android companion app is personal/private only. Do not commit, publish, or i
 
 ## Status
 
-Align is past the alpha/beta stage for personal daily use, but the public open-source release is being prepared in phases. See `ROADMAP.md`.
+Align is past the alpha/beta stage for personal daily use, but the public open-source release is being prepared in phases. See `docs/product/roadmap.md`.
+
+![Align dashboard command center](docs/assets/dashboard-command-center.png)
 
 ## Core Features
 
@@ -84,7 +86,7 @@ If Supabase is unavailable or returns an unexpected empty existing workspace, Al
 
 Cloud features are optional. Public users should configure their own Supabase/Vercel/Google/email services if they want hosted sync or integrations. The maintainer's private hosted deployment is not intended for public app users.
 
-Align uses one codebase for public and private/self-hosted builds. Public release commands set `ALIGN_PUBLIC_RELEASE=true` so Vite ignores root private env files and uses `config/public-env/` instead. Normal build commands keep reading `.env.local`, so the maintainer's private cloud-enabled app keeps the full feature set. See `BUILD_VARIANTS.md`.
+Align uses one codebase for public and private/self-hosted builds. Public release commands set `ALIGN_PUBLIC_RELEASE=true` so Vite ignores root private env files and uses `config/public-env/` instead. Normal build commands keep reading `.env.local`, so the maintainer's private cloud-enabled app keeps the full feature set. See `docs/release/build-variants.md`.
 
 Frontend-safe environment variables:
 
@@ -183,18 +185,18 @@ Google Calendar/Todo sync, email reminders, and public share links require hoste
 
 Private hosted deployments should use Google-only auth (`VITE_AUTH_METHOD=google`), run `supabase/security-hardening.sql`, add trusted emails to `public.allowed_users`, set `ALLOWED_API_ORIGINS`, and set `GOOGLE_TOKEN_ENCRYPTION_KEY` before enabling Google sync. Public open-source builds should stay local-first unless the user self-hosts these services.
 
-Google sign-in setup notes live in `GOOGLE_SIGN_IN.md`.
-Google Calendar setup notes live in `GOOGLE_CALENDAR.md`.
-Deployment notes live in `DEPLOYMENT.md`.
-Complete self-hosting notes live in `SELF_HOSTING.md`.
-Short self-hosting checklist lives in `SELF_HOSTING_CHECKLIST.md`.
+Google sign-in setup notes live in `docs/setup/google-sign-in.md`.
+Google Calendar setup notes live in `docs/setup/google-calendar.md`.
+Deployment notes live in `docs/setup/deployment.md`.
+Complete self-hosting notes live in `docs/setup/self-hosting.md`.
+Short self-hosting checklist lives in `docs/setup/self-hosting-checklist.md`.
 
 ## Desktop App
 
 Align uses Tauri for the Windows desktop build.
 
-Desktop notes live in `DESKTOP.md`.
-Owner maintenance and update steps live in `MAINTENANCE.md`.
+Desktop notes live in `docs/setup/desktop.md`.
+Owner maintenance and update steps live in `docs/release/maintenance.md`.
 
 After a cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
 
@@ -238,22 +240,15 @@ npm run release:desktop
 
 ## Documentation
 
-- `ROADMAP.md` - production and open-source roadmap.
-- `PRIVACY.md` - local-first privacy model and optional cloud behavior.
+- `docs/README.md` - documentation index.
+- `docs/setup/` - desktop, deployment, Google, and self-hosting guides.
+- `docs/release/` - build variants, release flow, maintenance, and release checks.
+- `docs/security/` - privacy, threat model, audits, and security reports.
+- `docs/product/` - roadmap, templates, and support model.
+- `docs/reports/` - historical quality and UI reports.
 - `SECURITY.md` - security rules and manual checks.
-- `THREAT_MODEL.md` - repository-grounded threat model.
-- `SECURITY_AUDIT.md` - current hardening audit and remaining risks.
-- `SELF_HOSTING.md` - bring-your-own-backend setup and cost-control guide.
-- `SELF_HOSTING_CHECKLIST.md` - short self-hosting checklist.
 - `CONTRIBUTING.md` - contribution and development rules.
-- `RELEASE.md` - GitHub release pipeline and desktop installer checklist.
-- `TEMPLATES.md` - free and paid workflow template pack model.
-- `BUSINESS_MODEL.md` - monetization path for templates, customization, and future cloud services.
 - `CHANGELOG.md` - release notes.
-- `DESKTOP.md` - Tauri desktop setup and release notes.
-- `BUILD_VARIANTS.md` - public local-first and private/self-hosted build boundaries.
-- `DEPLOYMENT.md` - hosted deployment notes.
-- `MAINTENANCE.md` - owner maintenance checklist.
 
 ## License
 

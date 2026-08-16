@@ -15,7 +15,7 @@ Align remains designed for two release modes:
 
 The Android companion app is outside the public release boundary. It is personal/private only and must not be pushed to the public repository or included in public release artifacts.
 
-The app is not a full enterprise SaaS security product, but the main public-release risks now have code, docs, and process controls. Detailed findings are documented in `docs/security-optimization-audit-2026-06-05.md`.
+The app is not a full enterprise SaaS security product, but the main public-release risks now have code, docs, and process controls. Detailed findings are documented in `docs/security/security-optimization-audit-2026-06-05.md`.
 
 ## Implemented Controls
 
@@ -67,9 +67,9 @@ The app is not a full enterprise SaaS security product, but the main public-rele
 - `src/components/auth/AuthGate.tsx`: respects `VITE_AUTH_METHOD`.
 - `src/integrations/supabase/projectShares.ts`: new share links default to password and expiry.
 - `src/store/*`: demo seed data removed for blank first-run workspaces.
-- `android-app/app/src/main/AndroidManifest.xml`: backup disabled, cleartext disabled, task-action receiver non-exported.
-- `android-app/app/src/main/java/dev/sharoz/align/widget/AlignTaskWidget.kt`: exported widget provider no longer handles custom task mutation broadcasts.
-- `android-app/app/src/main/java/dev/sharoz/align/auth/AuthCallbackActivity.kt`: callback origin validation added.
+- Private Android manifest: backup disabled, cleartext disabled, task-action receiver non-exported.
+- Private Android widget receiver: exported widget provider no longer handles custom task mutation broadcasts.
+- Private Android auth callback: callback origin validation added.
 
 ## Residual Risks
 

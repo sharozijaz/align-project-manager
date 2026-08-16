@@ -1,6 +1,6 @@
 # Align Threat Model
 
-Updated detailed threat model: `align-app-code-threat-model.md`.
+Updated detailed threat model: `docs/security/detailed-threat-model.md`.
 
 Last updated: 2026-06-05 after the public-repo secret and Android hardening audit.
 

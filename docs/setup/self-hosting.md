@@ -4,7 +4,7 @@ Align is local-first by default. Self-hosting is optional and is only needed if 
 
 If you self-host, you bring your own accounts and pay your own usage costs for Supabase, Vercel or another API host, Google Cloud, and email delivery.
 
-For a shorter step-by-step path, use `SELF_HOSTING_CHECKLIST.md`.
+For a shorter step-by-step path, use `docs/setup/self-hosting-checklist.md`.
 
 ## Recommended Modes
 

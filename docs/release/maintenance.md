@@ -248,7 +248,7 @@ Recommended release steps:
 
 The desktop app is a client shell. Data should come back through Supabase after sign-in. Manual JSON restore is only needed if cloud sync was disabled or the workspace was never uploaded.
 
-For public GitHub releases, follow `RELEASE.md` before creating tags or uploading installers.
+For public GitHub releases, follow `docs/release/release.md` before creating tags or uploading installers.
 
 ## Cleanup After Release
 

@@ -31,8 +31,8 @@ Open questions that would materially change risk:
 - Vercel-style serverless API routes (`api/_googleCalendar.js`, `api/_security.js`, `api/project-share.js`, `api/client-share.js`)
 - Supabase Auth/PostgREST/database (`supabase/*.sql`)
 - Tauri desktop shell (`src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`)
-- Native Android companion (`android-app/app/src/main/*`)
-- Public release tooling (`scripts/check-public-release-env.mjs`, `RELEASE.md`)
+- Private Android companion (source excluded from the public repo)
+- Public release tooling (`scripts/check-public-release-env.mjs`, `docs/release/release.md`)
 
 ### Data flows and trust boundaries
 
@@ -104,9 +104,9 @@ flowchart TD
 | Cron/reminders | `/api/cron/*`, `/api/reminders/*` | Scheduler/session -> service role | Cron bearer secret and session checks | `api/_googleCalendar.js`, `api/reminders/check.js` |
 | Service worker | Browser fetch handling | Network -> cache | Does not cache `/api/*` | `public/sw.js` |
 | Tauri desktop | Desktop WebView IPC | Local app -> OS | CSP and limited permissions | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` |
-| Android auth callback | Deep link / app link | External intent -> session save | Scheme/host allowlist added | `android-app/app/src/main/java/dev/sharoz/align/auth/AuthCallbackActivity.kt` |
-| Android widget actions | App widget PendingIntent | Widget host -> local DB | Non-exported action receiver added | `android-app/app/src/main/java/dev/sharoz/align/widget/AlignTaskWidget.kt` |
-| Release pipeline | Git push/GitHub release | Local files -> public repo | Env guard and artifact ignores | `.gitignore`, `scripts/check-public-release-env.mjs`, `RELEASE.md` |
+| Android auth callback | Deep link / app link | External intent -> session save | Scheme/host allowlist added | Private Android auth callback |
+| Android widget actions | App widget PendingIntent | Widget host -> local DB | Non-exported action receiver added | Private Android widget receiver |
+| Release pipeline | Git push/GitHub release | Local files -> public repo | Env guard and artifact ignores | `.gitignore`, `scripts/check-public-release-env.mjs`, `docs/release/release.md` |
 
 ## Top abuse paths
 
@@ -123,7 +123,7 @@ flowchart TD
 
 | Threat ID | Threat source | Prerequisites | Threat action | Impact | Impacted assets | Existing controls (evidence) | Gaps | Recommended mitigations | Detection ideas | Likelihood | Impact severity | Priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TM-001 | Developer/release mistake | Secret or signing material exists in repo tree | Commit/push private env, keystore, APK, or backup ZIP | Public credential/artifact exposure | Service keys, Android signing key | `.gitignore`, `scripts/check-public-release-env.mjs`, release scans in `RELEASE.md` | Human override can still publish configured builds | Keep secrets outside repo; rotate any exposed credentials; enable GitHub secret scanning alerts | GitHub secret scanning, pre-release `git ls-files` checks | Medium | High | High |
+| TM-001 | Developer/release mistake | Secret or signing material exists in repo tree | Commit/push private env, keystore, APK, or backup ZIP | Public credential/artifact exposure | Service keys, Android signing key | `.gitignore`, `scripts/check-public-release-env.mjs`, release scans in `docs/release/release.md` | Human override can still publish configured builds | Keep secrets outside repo; rotate any exposed credentials; enable GitHub secret scanning alerts | GitHub secret scanning, pre-release `git ls-files` checks | Medium | High | High |
 | TM-002 | Remote share visitor | Valid share token or client overview link | Read public share API until disabled/expired | Client project data exposure | Projects, tasks, client-visible notes | `api/project-share.js`, `api/client-share.js` enforce token format, enabled, expiry, password hash | Bearer links can be forwarded | Keep default passwords/expiry; add owner-visible audit/revoke UI | Log share hits and failed password attempts | Medium | Medium | Medium |
 | TM-003 | Remote API abuse | Hosted APIs public on internet | Abuse API routes for quota/cost/availability | DoS, API costs, Google quota burn | Hosted API, Google quota | `api/_security.js` in-memory rate limits; CORS allowlist | Serverless in-memory limits do not stop distributed attacks | Add Cloudflare/Vercel WAF and per-route edge limits | Alert on 429 spikes, Google quota errors | Medium | Medium | Medium |
 | TM-004 | Signed-in unapproved user | User has Supabase session but should not use hosted backend | Call hosted APIs directly | Unauthorized backend use | Workspace data, Google tokens | `requireAllowedUser`, `public.allowed_users`, feature access SQL | Production migrations must be applied | Verify staging/prod SQL after schema resets | Monitor 403s and unknown emails | Low | High | Medium |
@@ -155,9 +155,9 @@ flowchart TD
 | `supabase/share-link-rls-fix.sql` | Share-link RLS ownership controls | TM-002, TM-008 |
 | `src-tauri/tauri.conf.json` | Desktop CSP and WebView restrictions | TM-001 |
 | `src-tauri/capabilities/default.json` | Desktop permission surface | TM-001 |
-| `android-app/app/src/main/AndroidManifest.xml` | Exported components, backup, cleartext settings | TM-006, TM-007 |
-| `android-app/app/src/main/java/dev/sharoz/align/widget/AlignTaskWidget.kt` | Widget mutation surface | TM-006 |
-| `android-app/app/src/main/java/dev/sharoz/align/auth/AuthCallbackActivity.kt` | Mobile auth callback surface | TM-007 |
-| `android-app/app/src/main/java/dev/sharoz/align/data/SettingsStore.kt` | Android token persistence | TM-007 |
-| `RELEASE.md` | Public release process and scans | TM-001 |
-| `MAINTENANCE.md` | Ongoing security handoff | TM-001, TM-008 |
+| Private Android manifest | Exported components, backup, cleartext settings | TM-006, TM-007 |
+| Private Android widget receiver | Widget mutation surface | TM-006 |
+| Private Android auth callback | Mobile auth callback surface | TM-007 |
+| Private Android settings storage | Android token persistence | TM-007 |
+| `docs/release/release.md` | Public release process and scans | TM-001 |
+| `docs/release/maintenance.md` | Ongoing security handoff | TM-001, TM-008 |

@@ -34,3 +34,5 @@ private-backups/
 *.keystore
 *.p12
 *.pfx
+
+.agents/

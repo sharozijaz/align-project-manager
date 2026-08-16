@@ -1,6 +1,6 @@
 # Self-Hosting Checklist
 
-Use this as the short path after reading `SELF_HOSTING.md`.
+Use this as the short path after reading `docs/setup/self-hosting.md`.
 
 ## Local-Only Test
 
@@ -14,7 +14,7 @@ Use this as the short path after reading `SELF_HOSTING.md`.
 
 - Create your own Supabase project.
 - Run `supabase/schema.sql`.
-- Run the migration scripts listed in `SELF_HOSTING.md`.
+- Run the migration scripts listed in `docs/setup/self-hosting.md`.
 - Run `notify pgrst, 'reload schema';`.
 - Add your own allowed user email if using allowlisting.
 - Add Supabase Site URL and Redirect URLs.

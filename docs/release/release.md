@@ -74,7 +74,7 @@ Then run these additional checks:
 ```powershell
 git diff --check
 rg -n "(service_role|client_secret|api[_-]?key|password|token|Bearer\\s+[A-Za-z0-9._-]+)" --glob "!node_modules/**" --glob "!dist/**" --glob "!src-tauri/target/**" --glob "!package-lock.json"
-rg -n "(gmail|@gmail|internal-only|CONTEXT HANDOFF|NEXT CHAT HANDOFF|Gumroad|\\$[0-9]|client secret|service role|refresh token)" -g "*.md" -g "!RELEASE.md"
+rg -n "(gmail|@gmail|internal-only|CONTEXT HANDOFF|NEXT CHAT HANDOFF|Gumroad|\\$[0-9]|client secret|service role|refresh token)" -g "*.md" -g "!docs/release/release.md"
 git ls-files .env .env.local .env.production android-app/keystore.properties android-app/*.jks private-backups
 git check-ignore -v private-backups/test.zip android-app/keystore.properties android-app/align-release.jks android-app/app-release.apk android-app/app/build/outputs/bundle/release/app-release.aab
 ```
