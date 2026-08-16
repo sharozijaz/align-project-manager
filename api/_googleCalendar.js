@@ -7,6 +7,7 @@ const GOOGLE_CALENDAR_API_URL = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TASKS_API_URL = "https://tasks.googleapis.com/tasks/v1";
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const ENCRYPTED_TOKEN_PREFIX = "enc:v1:";
+const PROJECT_DUE_EMAIL_OFFSETS = [7, 1, 0, -1];
 
 export const calendarScopes = ["https://www.googleapis.com/auth/calendar.events.owned"];
 export const googleTasksScopes = ["https://www.googleapis.com/auth/tasks"];
@@ -1704,6 +1705,43 @@ export async function findTasksForUser(env, userId) {
   }));
 }
 
+export async function findProjectsForUser(env, userId) {
+  const url = new URL(`${env.supabaseUrl}/rest/v1/projects`);
+  url.searchParams.set("user_id", `eq.${userId}`);
+  url.searchParams.set("select", "id,name,description,area,status,priority,start_date,due_date,deleted_at,created_at,updated_at");
+  url.searchParams.set("order", "due_date.asc.nullslast");
+
+  let response;
+  try {
+    response = await serviceFetch(env, url);
+  } catch (error) {
+    if (!String(error.message || "").toLowerCase().includes("deleted_at")) {
+      throw error;
+    }
+
+    const fallbackUrl = new URL(`${env.supabaseUrl}/rest/v1/projects`);
+    fallbackUrl.searchParams.set("user_id", `eq.${userId}`);
+    fallbackUrl.searchParams.set("select", "id,name,description,area,status,priority,start_date,due_date,created_at,updated_at");
+    fallbackUrl.searchParams.set("order", "due_date.asc.nullslast");
+    response = await serviceFetch(env, fallbackUrl);
+  }
+
+  const rows = await response.json();
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description || undefined,
+    area: row.area || "business",
+    status: row.status || "active",
+    priority: normalizeTaskPriority(row.priority),
+    startDate: row.start_date || undefined,
+    dueDate: row.due_date || undefined,
+    deletedAt: row.deleted_at || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
 export async function syncTasksToGoogleCalendarForUser(env, userId, tasks, options = {}) {
   const connection = await requireGoogleConnection(env, userId);
   const forceTaskIds = new Set(Array.isArray(options.forceTaskIds) ? options.forceTaskIds : []);
@@ -1788,12 +1826,19 @@ function isRecoverableGoogleEventError(error) {
   return message.includes("invalid start time") || message.includes("invalid end time") || message.includes("invalid time");
 }
 
-export async function createReminderNotificationsForUser(env, userId, tasks, now = new Date()) {
+export async function createReminderNotificationsForUser(env, userId, tasks, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date();
+  const projects = Array.isArray(options.projects) ? options.projects : [];
   const today = toDateKey(now);
-  const rows = tasks
+  const taskRows = tasks
     .filter((task) => task.dueDate && !task.deletedAt && !isTerminalTaskStatus(task.status))
     .map((task) => buildReminderNotification(userId, task, today))
     .filter(Boolean);
+  const projectRows = projects
+    .filter((project) => project.dueDate && !project.deletedAt && !isTerminalProjectStatus(project.status))
+    .flatMap((project) => buildProjectDueNotifications(userId, project, today));
+  const summaryRows = buildSummaryNotifications(userId, tasks, projects, today);
+  const rows = [...taskRows, ...projectRows, ...summaryRows];
 
   if (!rows.length) {
     return { reminders: 0 };
@@ -1803,7 +1848,7 @@ export async function createReminderNotificationsForUser(env, userId, tasks, now
   try {
     response = await serviceFetch(
       env,
-      `${env.supabaseUrl}/rest/v1/notifications?on_conflict=user_id,task_id,type,scheduled_for`,
+      `${env.supabaseUrl}/rest/v1/notifications?on_conflict=id`,
       {
         method: "POST",
         headers: {
@@ -1830,12 +1875,12 @@ export async function sendReminderEmailsForUser(env, userId) {
     return { emails: 0, emailFailed: 0, emailSkipped: true };
   }
 
-  const preferences = await findUserPreferences(env, userId);
-  if (preferences && preferences.email_reminders_enabled === false) {
+  const preferences = normalizeEmailPreferences(await findUserPreferences(env, userId));
+  if (!preferences.emailRemindersEnabled) {
     return { emails: 0, emailFailed: 0, emailSkipped: true };
   }
 
-  const notifications = await findDueReminderNotificationsForUser(env, userId);
+  const notifications = await findDueEmailNotificationsForUser(env, userId, preferences);
 
   if (!notifications.length) {
     return { emails: 0, emailFailed: 0 };
@@ -1847,27 +1892,21 @@ export async function sendReminderEmailsForUser(env, userId) {
     return { emails: 0, emailFailed: notifications.length, emailError: "No email found for user." };
   }
 
-  let emails = 0;
-  let emailFailed = 0;
-
-  for (const notification of notifications) {
-    try {
-      await sendReminderEmail(env, email, notification);
-      await markNotificationEmailSent(env, notification.id);
-      emails += 1;
-    } catch (error) {
-      emailFailed += 1;
-      await markNotificationEmailError(env, notification.id, error.message || "Email delivery failed.");
-    }
+  try {
+    await sendReminderEmailDigest(env, email, notifications);
+    await markNotificationsEmailSent(env, notifications.map((notification) => notification.id));
+    return { emails: 1, emailFailed: 0 };
+  } catch (error) {
+    const message = error.message || "Email delivery failed.";
+    await Promise.all(notifications.map((notification) => markNotificationEmailError(env, notification.id, message)));
+    return { emails: 0, emailFailed: 1 };
   }
-
-  return { emails, emailFailed };
 }
 
 async function findUserPreferences(env, userId) {
   const url = new URL(`${env.supabaseUrl}/rest/v1/user_preferences`);
   url.searchParams.set("user_id", `eq.${userId}`);
-  url.searchParams.set("select", "email_reminders_enabled");
+  url.searchParams.set("select", "email_reminders_enabled,email_task_reminders_enabled,email_project_due_enabled,email_weekly_summary_enabled,email_monthly_summary_enabled");
   url.searchParams.set("limit", "1");
 
   try {
@@ -1881,12 +1920,19 @@ async function findUserPreferences(env, userId) {
 }
 
 export async function findDueReminderNotificationsForUser(env, userId) {
+  return findDueEmailNotificationsForUser(env, userId, normalizeEmailPreferences(null));
+}
+
+export async function findDueEmailNotificationsForUser(env, userId, preferences) {
+  const enabledTypes = enabledEmailNotificationTypes(preferences);
+  if (!enabledTypes.length) return [];
+
   const url = new URL(`${env.supabaseUrl}/rest/v1/notifications`);
   url.searchParams.set("user_id", `eq.${userId}`);
-  url.searchParams.set("type", "eq.task-reminder");
+  url.searchParams.set("type", `in.(${enabledTypes.join(",")})`);
   url.searchParams.set("scheduled_for", `lte.${new Date().toISOString()}`);
   url.searchParams.set("email_sent_at", "is.null");
-  url.searchParams.set("select", "id,title,message,scheduled_for,email_sent_at,email_error");
+  url.searchParams.set("select", "id,type,title,message,scheduled_for,email_sent_at,email_error");
   url.searchParams.set("order", "scheduled_for.asc");
   url.searchParams.set("limit", "25");
 
@@ -1900,6 +1946,25 @@ export async function findDueReminderNotificationsForUser(env, userId) {
 
     throw error;
   }
+}
+
+function normalizeEmailPreferences(row) {
+  return {
+    emailRemindersEnabled: row?.email_reminders_enabled ?? true,
+    taskRemindersEnabled: row?.email_task_reminders_enabled ?? true,
+    projectDueEnabled: row?.email_project_due_enabled ?? true,
+    weeklySummaryEnabled: row?.email_weekly_summary_enabled ?? true,
+    monthlySummaryEnabled: row?.email_monthly_summary_enabled ?? true,
+  };
+}
+
+function enabledEmailNotificationTypes(preferences) {
+  const types = [];
+  if (preferences.taskRemindersEnabled) types.push("task-reminder");
+  if (preferences.projectDueEnabled) types.push("project-due");
+  if (preferences.weeklySummaryEnabled) types.push("weekly-summary");
+  if (preferences.monthlySummaryEnabled) types.push("monthly-summary");
+  return types;
 }
 
 async function findUserEmail(env, userId) {
@@ -1916,7 +1981,8 @@ async function findUserEmail(env, userId) {
   return user.email || "";
 }
 
-async function sendReminderEmail(env, to, notification) {
+async function sendReminderEmailDigest(env, to, notifications) {
+  const subject = digestEmailSubject(notifications);
   const response = await fetch(RESEND_EMAIL_API_URL, {
     method: "POST",
     headers: {
@@ -1926,9 +1992,9 @@ async function sendReminderEmail(env, to, notification) {
     body: JSON.stringify({
       from: env.reminderEmailFrom,
       to,
-      subject: notification.title,
-      text: `${notification.message}\n\nOpen Align: ${env.appUrl}`,
-      html: reminderEmailHtml(env, notification),
+      subject,
+      text: reminderEmailText(env, notifications),
+      html: reminderEmailHtml(env, notifications),
       ...(env.reminderEmailReplyTo ? { reply_to: env.reminderEmailReplyTo } : {}),
     }),
   });
@@ -1939,31 +2005,102 @@ async function sendReminderEmail(env, to, notification) {
   }
 }
 
-function reminderEmailHtml(env, notification) {
-  const title = escapeHtml(notification.title);
-  const message = escapeHtml(notification.message);
+function digestEmailSubject(notifications) {
+  if (notifications.length === 1) return notifications[0].title;
+  if (notifications.some((notification) => notification.type === "weekly-summary")) return "Your Align weekly summary";
+  if (notifications.some((notification) => notification.type === "monthly-summary")) return "Your Align monthly summary";
+  return `${notifications.length} Align updates for today`;
+}
+
+function reminderEmailText(env, notifications) {
+  return [
+    digestEmailSubject(notifications),
+    "",
+    ...notifications.flatMap((notification) => [`- ${notification.title}`, `  ${notification.message}`]),
+    "",
+    `Open Align: ${env.appUrl}`,
+  ].join("\n");
+}
+
+function reminderEmailHtml(env, notifications) {
+  const groups = groupEmailNotifications(notifications);
   const appUrl = escapeHtml(env.appUrl || "#");
+  const headline = escapeHtml(digestEmailSubject(notifications));
+  const intro = escapeHtml(notifications.length === 1 ? notifications[0].message : "Here is the work that needs your attention in Align.");
+  const generatedAt = escapeHtml(new Date().toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" }));
 
   return `<!doctype html>
 <html>
-  <body style="margin:0;background:#f4f5fb;font-family:Arial,sans-serif;color:#111827;">
-    <div style="display:none;max-height:0;overflow:hidden;">${message}</div>
-    <div style="max-width:600px;margin:0 auto;padding:32px 20px;">
-      <div style="border-radius:22px;background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 18px 45px rgba(15,23,42,.08);overflow:hidden;">
-        <div style="background:#111425;padding:22px 26px;">
-          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-.02em;">Align</p>
-          <p style="margin:6px 0 0;color:#c4b5fd;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Task Reminder</p>
-        </div>
-        <div style="padding:28px 26px;">
-          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#111827;">${title}</h1>
-          <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.65;">${message}</p>
-          <a href="${appUrl}" style="display:inline-block;border-radius:12px;background:#8b5cf6;color:#ffffff;text-decoration:none;font-weight:800;padding:13px 18px;">Open Align</a>
-          <p style="margin:22px 0 0;color:#94a3b8;font-size:12px;line-height:1.5;">You are receiving this because a task reminder is due in Align.</p>
-        </div>
-      </div>
-    </div>
+  <body style="margin:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+    <div style="display:none;max-height:0;overflow:hidden;">${intro}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,.08);">
+            <tr>
+              <td style="background:#111425;padding:24px 28px;">
+                <p style="margin:0;color:#ffffff;font-size:24px;line-height:1.2;font-weight:800;letter-spacing:-.01em;">Align</p>
+                <p style="margin:7px 0 0;color:#c4b5fd;font-size:12px;line-height:1.5;font-weight:800;letter-spacing:.12em;text-transform:uppercase;">Workspace Email</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 8px;color:#64748b;font-size:13px;font-weight:700;">${generatedAt}</p>
+                <h1 style="margin:0;color:#111827;font-size:27px;line-height:1.2;font-weight:850;letter-spacing:-.02em;">${headline}</h1>
+                <p style="margin:12px 0 24px;color:#475569;font-size:15px;line-height:1.65;">${intro}</p>
+                ${groups.map(emailSectionHtml).join("")}
+                <div style="margin-top:26px;">
+                  <a href="${appUrl}" style="display:inline-block;border-radius:12px;background:#6d5dfc;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 18px;">Open Align</a>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="border-top:1px solid #e5e7eb;background:#f8fafc;padding:18px 28px;">
+                <p style="margin:0;color:#64748b;font-size:12px;line-height:1.6;">You are receiving this because email reminders are enabled in Align. Manage email types in Settings -> Notifications.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>`;
+}
+
+function groupEmailNotifications(notifications) {
+  const labels = {
+    "task-reminder": "Task reminders",
+    "project-due": "Project due dates",
+    "weekly-summary": "Weekly summary",
+    "monthly-summary": "Monthly summary",
+  };
+
+  return Object.entries(labels)
+    .map(([type, label]) => ({
+      type,
+      label,
+      items: notifications.filter((notification) => notification.type === type),
+    }))
+    .filter((group) => group.items.length);
+}
+
+function emailSectionHtml(group) {
+  return `<div style="margin:0 0 18px;padding:16px;border:1px solid #e5e7eb;border-radius:16px;background:#ffffff;">
+          <p style="margin:0 0 12px;color:#6d5dfc;font-size:12px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;">${escapeHtml(group.label)}</p>
+          ${group.items.map(emailItemHtml).join("")}
+        </div>
+`;
+}
+
+function emailItemHtml(notification) {
+  return `<div style="padding:12px 0;border-top:1px solid #eef2f7;">
+            <p style="margin:0;color:#111827;font-size:16px;line-height:1.35;font-weight:800;">${escapeHtml(notification.title)}</p>
+            <p style="margin:6px 0 0;color:#475569;font-size:14px;line-height:1.6;">${escapeHtml(notification.message).replace(/\n/g, "<br>")}</p>
+          </div>`;
+}
+
+async function markNotificationsEmailSent(env, notificationIds) {
+  await Promise.all(notificationIds.map((notificationId) => markNotificationEmailSent(env, notificationId)));
 }
 
 async function markNotificationEmailSent(env, notificationId) {
@@ -2019,6 +2156,113 @@ function buildReminderNotification(userId, task, today) {
     scheduled_for: scheduledReminderIso(scheduledDate, task.dueTime),
     created_at: new Date().toISOString(),
   };
+}
+
+function buildProjectDueNotifications(userId, project, today) {
+  const dueDate = validDateKeyOrNull(project.dueDate);
+  if (!dueDate) return [];
+
+  return PROJECT_DUE_EMAIL_OFFSETS.map((offsetDays) => {
+    const scheduledDate = shiftDateKey(dueDate, -offsetDays);
+    if (scheduledDate !== today) return null;
+
+    const label = projectDueLabel(offsetDays);
+    const id = crypto
+      .createHash("sha256")
+      .update(`${userId}:${project.id}:project-due:${scheduledDate}:${offsetDays}`)
+      .digest("hex")
+      .slice(0, 32);
+
+    return {
+      id,
+      user_id: userId,
+      task_id: null,
+      type: "project-due",
+      title: `${label}: ${project.name}`,
+      message: projectDueMessage(project, offsetDays),
+      scheduled_for: scheduledReminderIso(scheduledDate, "09:00"),
+      created_at: new Date().toISOString(),
+    };
+  }).filter(Boolean);
+}
+
+function buildSummaryNotifications(userId, tasks, projects, today) {
+  const rows = [];
+  const date = new Date(`${today}T00:00:00.000Z`);
+
+  if (date.getUTCDay() === 1) {
+    rows.push(buildSummaryNotification(userId, "weekly-summary", today, weeklySummaryMessage(tasks, projects, today)));
+  }
+
+  if (date.getUTCDate() === 1) {
+    rows.push(buildSummaryNotification(userId, "monthly-summary", today, monthlySummaryMessage(tasks, projects, today)));
+  }
+
+  return rows;
+}
+
+function buildSummaryNotification(userId, type, today, message) {
+  return {
+    id: crypto
+      .createHash("sha256")
+      .update(`${userId}:${type}:${today}`)
+      .digest("hex")
+      .slice(0, 32),
+    user_id: userId,
+    task_id: null,
+    type,
+    title: type === "weekly-summary" ? "Your weekly Align summary" : "Your monthly Align summary",
+    message,
+    scheduled_for: scheduledReminderIso(today, "09:00"),
+    created_at: new Date().toISOString(),
+  };
+}
+
+function projectDueLabel(offsetDays) {
+  if (offsetDays === 7) return "Project due in 7 days";
+  if (offsetDays === 1) return "Project due tomorrow";
+  if (offsetDays === 0) return "Project due today";
+  return "Project overdue";
+}
+
+function projectDueMessage(project, offsetDays) {
+  if (offsetDays === 7) return `${project.name} is due in 7 days on ${project.dueDate}.`;
+  if (offsetDays === 1) return `${project.name} is due tomorrow.`;
+  if (offsetDays === 0) return `${project.name} is due today.`;
+  return `${project.name} was due on ${project.dueDate}.`;
+}
+
+function weeklySummaryMessage(tasks, projects, today) {
+  const weekEnd = shiftDateKey(today, 6);
+  const openTasks = activeTasks(tasks);
+  const dueThisWeek = openTasks.filter((task) => task.dueDate && task.dueDate >= today && task.dueDate <= weekEnd).length;
+  const overdue = openTasks.filter((task) => task.dueDate && task.dueDate < today).length;
+  const projectDue = activeProjects(projects).filter((project) => project.dueDate && project.dueDate >= today && project.dueDate <= weekEnd).length;
+  return `${dueThisWeek} tasks due this week, ${overdue} overdue tasks, and ${projectDue} projects due by ${weekEnd}.`;
+}
+
+function monthlySummaryMessage(tasks, projects, today) {
+  const date = new Date(`${today}T00:00:00.000Z`);
+  const monthStart = today.slice(0, 8) + "01";
+  date.setUTCMonth(date.getUTCMonth() + 1, 0);
+  const monthEnd = toDateKey(date);
+  const openTasks = activeTasks(tasks);
+  const dueThisMonth = openTasks.filter((task) => task.dueDate && task.dueDate >= monthStart && task.dueDate <= monthEnd).length;
+  const completedThisMonth = tasks.filter((task) => isTerminalTaskStatus(task.status) && task.updatedAt?.slice(0, 10) >= monthStart && task.updatedAt?.slice(0, 10) <= monthEnd).length;
+  const projectDue = activeProjects(projects).filter((project) => project.dueDate && project.dueDate >= monthStart && project.dueDate <= monthEnd).length;
+  return `${dueThisMonth} open tasks, ${completedThisMonth} completed tasks, and ${projectDue} projects due in ${today.slice(0, 7)}.`;
+}
+
+function activeTasks(tasks) {
+  return tasks.filter((task) => !task.deletedAt && !isTerminalTaskStatus(task.status));
+}
+
+function activeProjects(projects) {
+  return projects.filter((project) => !project.deletedAt && !isTerminalProjectStatus(project.status));
+}
+
+function isTerminalProjectStatus(status) {
+  return status === "completed" || status === "archived";
 }
 
 function scheduledReminderIso(dateKey, time) {

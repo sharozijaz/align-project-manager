@@ -16,10 +16,16 @@ export function notificationContext(
 ) {
   const task = item.taskId ? taskById.get(item.taskId) : undefined;
   const project = task?.projectId ? projectById.get(task.projectId) : undefined;
+  const fallbackLabels: Record<AppNotification["type"], string> = {
+    "task-reminder": "",
+    "project-due": "Project deadline",
+    "weekly-summary": "Weekly summary",
+    "monthly-summary": "Monthly summary",
+  };
 
   return {
     task,
     project,
-    label: project ? project.name : task ? "Personal task" : "",
+    label: project ? project.name : task ? "Personal task" : fallbackLabels[item.type],
   };
 }

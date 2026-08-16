@@ -57,7 +57,7 @@ create table if not exists public.notifications (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   task_id text references public.tasks(id) on delete cascade,
-  type text not null check (type in ('task-reminder')),
+  type text not null check (type in ('task-reminder', 'project-due', 'weekly-summary', 'monthly-summary')),
   title text not null,
   message text not null,
   scheduled_for timestamptz not null,
@@ -71,6 +71,10 @@ create table if not exists public.notifications (
 create table if not exists public.user_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email_reminders_enabled boolean not null default true,
+  email_task_reminders_enabled boolean not null default true,
+  email_project_due_enabled boolean not null default true,
+  email_weekly_summary_enabled boolean not null default true,
+  email_monthly_summary_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

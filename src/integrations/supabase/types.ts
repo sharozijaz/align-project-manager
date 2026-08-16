@@ -180,7 +180,7 @@ export interface Database {
           id: string;
           user_id: string;
           task_id: string | null;
-          type: "task-reminder";
+          type: "task-reminder" | "project-due" | "weekly-summary" | "monthly-summary";
           title: string;
           message: string;
           scheduled_for: string;
@@ -193,7 +193,7 @@ export interface Database {
           id: string;
           user_id: string;
           task_id?: string | null;
-          type: "task-reminder";
+          type: "task-reminder" | "project-due" | "weekly-summary" | "monthly-summary";
           title: string;
           message: string;
           scheduled_for: string;
@@ -265,12 +265,20 @@ export interface Database {
         Row: {
           user_id: string;
           email_reminders_enabled: boolean;
+          email_task_reminders_enabled: boolean;
+          email_project_due_enabled: boolean;
+          email_weekly_summary_enabled: boolean;
+          email_monthly_summary_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           user_id: string;
           email_reminders_enabled?: boolean;
+          email_task_reminders_enabled?: boolean;
+          email_project_due_enabled?: boolean;
+          email_weekly_summary_enabled?: boolean;
+          email_monthly_summary_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };

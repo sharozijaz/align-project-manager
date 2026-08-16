@@ -13,7 +13,7 @@ const requireClient = () => {
 const rowToNotification = (row: {
   id: string;
   task_id: string | null;
-  type: "task-reminder";
+  type: AppNotification["type"];
   title: string;
   message: string;
   scheduled_for: string;

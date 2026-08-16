@@ -35,4 +35,10 @@ describe("notificationPresentation", () => {
 
     expect(context.label).toBe("Personal task");
   });
+
+  it("labels non-task email notification types", () => {
+    expect(notificationContext(notification({ type: "project-due" }), new Map(), new Map()).label).toBe("Project deadline");
+    expect(notificationContext(notification({ type: "weekly-summary" }), new Map(), new Map()).label).toBe("Weekly summary");
+    expect(notificationContext(notification({ type: "monthly-summary" }), new Map(), new Map()).label).toBe("Monthly summary");
+  });
 });

@@ -1,9 +1,25 @@
 create table if not exists public.user_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email_reminders_enabled boolean not null default true,
+  email_task_reminders_enabled boolean not null default true,
+  email_project_due_enabled boolean not null default true,
+  email_weekly_summary_enabled boolean not null default true,
+  email_monthly_summary_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.user_preferences
+add column if not exists email_task_reminders_enabled boolean not null default true;
+
+alter table public.user_preferences
+add column if not exists email_project_due_enabled boolean not null default true;
+
+alter table public.user_preferences
+add column if not exists email_weekly_summary_enabled boolean not null default true;
+
+alter table public.user_preferences
+add column if not exists email_monthly_summary_enabled boolean not null default true;
 
 alter table public.user_preferences enable row level security;
 

@@ -34,7 +34,7 @@ import { useStudioStore } from "../store/studioStore";
 import { useTaskStore } from "../store/taskStore";
 import { accentOptions, themeOptions, useThemeStore } from "../store/themeStore";
 import { canUseMagicLinkAuth, getAuthRedirectUrl, isSupabaseConfigured, supabase, supabaseConfigIssue, supabaseUrl } from "../integrations/supabase/client";
-import { getUserPreferences, saveUserPreferences } from "../integrations/supabase/preferences";
+import { defaultUserPreferences, getUserPreferences, saveUserPreferences, type UserPreferences } from "../integrations/supabase/preferences";
 import {
   canUseDesktopNotifications,
   getDesktopReminderHeartbeat,
@@ -108,7 +108,7 @@ export function Settings() {
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [email, setEmail] = useState("");
-  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
+  const [emailPreferences, setEmailPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [desktopNotificationsEnabled, setDesktopNotificationsEnabledState] = useState(false);
   const [desktopAutostartEnabled, setDesktopAutostartEnabledState] = useState(false);
   const [autoCleanTasks, setAutoCleanTasks] = useState(() => getTrashCleanupPreference(AUTO_CLEANUP_DELETED_TASKS_KEY));
@@ -239,7 +239,7 @@ export function Settings() {
     let cancelled = false;
     void getUserPreferences()
       .then((preferences) => {
-        if (!cancelled) setEmailRemindersEnabled(preferences.emailRemindersEnabled);
+        if (!cancelled) setEmailPreferences(preferences);
       })
       .catch((error) => {
         if (!cancelled) setPreferenceMessage(errorMessage(error, "Could not load reminder preferences."));
@@ -744,15 +744,17 @@ export function Settings() {
     }
   };
 
-  const updateEmailReminderPreference = async (enabled: boolean) => {
-    setEmailRemindersEnabled(enabled);
+  const updateEmailReminderPreference = async (updates: Partial<UserPreferences>) => {
+    const previousPreferences = emailPreferences;
+    const nextPreferences = { ...emailPreferences, ...updates };
+    setEmailPreferences(nextPreferences);
     setPreferenceMessage("");
 
     try {
-      await saveUserPreferences({ emailRemindersEnabled: enabled });
-      setPreferenceMessage(enabled ? "Email reminders enabled." : "Email reminders paused.");
+      await saveUserPreferences(nextPreferences);
+      setPreferenceMessage("Email reminder preferences saved.");
     } catch (error) {
-      setEmailRemindersEnabled(!enabled);
+      setEmailPreferences(previousPreferences);
       setPreferenceMessage(errorMessage(error, "Could not save reminder preference."));
     }
   };
@@ -1258,24 +1260,54 @@ export function Settings() {
         {settingsSection === "notifications" ? (
         <>
         <Card className="p-4 sm:p-5 lg:col-span-2">
-          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Mail size={18} /> Reminder Email</h2>
+          <h2 className="flex items-center gap-2 font-bold text-[var(--text)]"><Mail size={18} /> Email Notifications</h2>
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Email reminders use the same due reminder rules as the notification bell. The template is branded for Align and links back to your workspace.
+            Low-volume digest emails combine due reminders, project deadlines, and summaries into one message when possible.
           </p>
           <div className="mt-4 flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <div>
-              <p className="font-semibold text-[var(--text)]">Send reminder emails</p>
+              <p className="font-semibold text-[var(--text)]">Send Align emails</p>
               <p className="text-sm text-[var(--text-muted)]">
                 {session ? "Saved to Supabase for cron delivery." : "Sign in to save email delivery preferences."}
               </p>
             </div>
             <Button
-              variant={emailRemindersEnabled ? "secondary" : "ghost"}
-              onClick={() => void updateEmailReminderPreference(!emailRemindersEnabled)}
+              variant={emailPreferences.emailRemindersEnabled ? "secondary" : "ghost"}
+              onClick={() => void updateEmailReminderPreference({ emailRemindersEnabled: !emailPreferences.emailRemindersEnabled })}
               disabled={!session}
             >
-              {emailRemindersEnabled ? "Enabled" : "Paused"}
+              {emailPreferences.emailRemindersEnabled ? "Enabled" : "Paused"}
             </Button>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <EmailPreferenceToggle
+              title="Task reminders"
+              description="Due-date reminder emails from individual tasks."
+              enabled={emailPreferences.emailTaskRemindersEnabled}
+              disabled={!session || !emailPreferences.emailRemindersEnabled}
+              onToggle={() => void updateEmailReminderPreference({ emailTaskRemindersEnabled: !emailPreferences.emailTaskRemindersEnabled })}
+            />
+            <EmailPreferenceToggle
+              title="Project due dates"
+              description="Project deadline notices 7 days before, 1 day before, due day, and one day overdue."
+              enabled={emailPreferences.emailProjectDueEnabled}
+              disabled={!session || !emailPreferences.emailRemindersEnabled}
+              onToggle={() => void updateEmailReminderPreference({ emailProjectDueEnabled: !emailPreferences.emailProjectDueEnabled })}
+            />
+            <EmailPreferenceToggle
+              title="Weekly summaries"
+              description="A Monday summary of due work, overdue tasks, and upcoming project deadlines."
+              enabled={emailPreferences.emailWeeklySummaryEnabled}
+              disabled={!session || !emailPreferences.emailRemindersEnabled}
+              onToggle={() => void updateEmailReminderPreference({ emailWeeklySummaryEnabled: !emailPreferences.emailWeeklySummaryEnabled })}
+            />
+            <EmailPreferenceToggle
+              title="Monthly summaries"
+              description="A first-of-month summary of open work, completed tasks, and project deadlines."
+              enabled={emailPreferences.emailMonthlySummaryEnabled}
+              disabled={!session || !emailPreferences.emailRemindersEnabled}
+              onToggle={() => void updateEmailReminderPreference({ emailMonthlySummaryEnabled: !emailPreferences.emailMonthlySummaryEnabled })}
+            />
           </div>
           {preferenceMessage ? <p className="mt-3 text-sm text-[var(--text-muted)]">{preferenceMessage}</p> : null}
         </Card>
@@ -1521,6 +1553,32 @@ export function Settings() {
       <p className="pb-2 text-center text-xs text-[var(--text-soft)]">
         Align v{appVersion} · Build {appBuild}
       </p>
+    </div>
+  );
+}
+
+function EmailPreferenceToggle({
+  title,
+  description,
+  enabled,
+  disabled,
+  onToggle,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-semibold text-[var(--text)]">{title}</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">{description}</p>
+      </div>
+      <Button variant={enabled ? "secondary" : "ghost"} onClick={onToggle} disabled={disabled}>
+        {enabled ? "Enabled" : "Paused"}
+      </Button>
     </div>
   );
 }

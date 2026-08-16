@@ -2,6 +2,7 @@ import {
   applyApiCors,
   createReminderNotificationsForUser,
   ensureEnv,
+  findProjectsForUser,
   findTasksForUser,
   getEnv,
   handleApiError,
@@ -22,8 +23,11 @@ export default async function handler(req, res) {
 
   try {
     const user = await requireAllowedUser(req, env);
-    const tasks = await findTasksForUser(env, user.id);
-    const reminderResult = await createReminderNotificationsForUser(env, user.id, tasks);
+    const [tasks, projects] = await Promise.all([
+      findTasksForUser(env, user.id),
+      findProjectsForUser(env, user.id),
+    ]);
+    const reminderResult = await createReminderNotificationsForUser(env, user.id, tasks, { projects });
     const emailResult = await sendReminderEmailsForUser(env, user.id);
 
     res.status(200).json({ ok: true, ...reminderResult, ...emailResult });

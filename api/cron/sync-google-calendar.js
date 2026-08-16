@@ -2,6 +2,7 @@ import {
   createReminderNotificationsForUser,
   ensureEnv,
   findGoogleCalendarConnections,
+  findProjectsForUser,
   findTasksForUser,
   findWorkspaceUserIds,
   getEnv,
@@ -48,11 +49,14 @@ export default async function handler(req, res) {
           continue;
         }
 
-        const tasks = await findTasksForUser(env, userId);
+        const [tasks, projects] = await Promise.all([
+          findTasksForUser(env, userId),
+          findProjectsForUser(env, userId),
+        ]);
         const googleResult = hasGoogleConnection
           ? await syncTasksToGoogleCalendarForUser(env, userId, tasks)
           : { created: 0, updated: 0, removed: 0, skipped: tasks.length, conflicts: [], googleSkipped: true };
-        const reminderResult = await createReminderNotificationsForUser(env, userId, tasks);
+        const reminderResult = await createReminderNotificationsForUser(env, userId, tasks, { projects });
         const emailResult = await sendReminderEmailsForUser(env, userId);
         results.push({ userId, ok: true, ...googleResult, ...reminderResult, ...emailResult });
       } catch (error) {
