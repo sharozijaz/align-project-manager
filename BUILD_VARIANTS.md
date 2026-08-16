@@ -15,6 +15,8 @@ npm run release:desktop:public
 
 These commands set `ALIGN_PUBLIC_RELEASE=true`, clear known cloud and secret environment variables for the child build process, and make Vite read environment files from `config/public-env/` instead of the repository root. This means a private `.env.local` can stay on the maintainer machine without being bundled into a public release.
 
+Public builds also replace the Supabase client package with a tiny local stub because cloud sync is intentionally unavailable in this variant. Private and self-hosted builds keep the real Supabase client.
+
 Public builds should be tested in `Local only` mode with no sign-in required.
 
 ## Private Or Self-Hosted Build

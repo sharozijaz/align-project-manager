@@ -6,6 +6,13 @@ const isPublicReleaseBuild = process.env.ALIGN_PUBLIC_RELEASE === "true";
 
 export default defineConfig({
   envDir: isPublicReleaseBuild ? resolve(__dirname, "config/public-env") : undefined,
+  resolve: {
+    alias: isPublicReleaseBuild
+      ? {
+          "@supabase/supabase-js": resolve(__dirname, "src/integrations/supabase/publicReleaseStub.ts"),
+        }
+      : undefined,
+  },
   plugins: [react()],
   build: {
     rollupOptions: {

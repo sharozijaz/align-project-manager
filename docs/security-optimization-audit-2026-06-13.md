@@ -133,7 +133,7 @@ Strong points checked:
 - `android:fullBackupContent="false"`.
 - `data_extraction_rules.xml` excludes cloud backup and device transfer.
 - `android:usesCleartextTraffic="false"`.
-- Auth callback accepts only `align://auth` and `https://align.sharoz.dev`.
+- Auth callback accepts only `align://auth` and the configured hosted app origin.
 - Widget task action receiver is non-exported.
 - Reminder alarm receiver is non-exported.
 - Release build enables R8 minification and resource shrinking.
