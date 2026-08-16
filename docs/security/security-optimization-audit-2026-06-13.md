@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-Align is in good release-candidate shape across web, desktop, and the private Android app. The web/desktop checks pass, desktop packaging succeeds, Android release assembly succeeds, and no tracked `.env`, Android signing material, APK/AAB, workspace backup, or obvious high-risk secret pattern is present in the public git index.
+Align is in good release-candidate shape across web, desktop, and the non-public mobile companion. The web/desktop checks pass, desktop packaging succeeds, Android release assembly succeeds, and no tracked `.env`, Android signing material, APK/AAB, workspace backup, or obvious high-risk secret pattern is present in the public git index.
 
-This audit also removed stale public hero/banner assets and duplicate generated Vite config files. The remaining important release rule is unchanged: public builds must be local-first unless a private/self-hosted configured backend release is intentional.
+This audit also removed stale public hero/banner assets and duplicate generated Vite config files. The remaining important release rule is unchanged: public builds must be local-first unless a configured/self-hosted backend release is intentional.
 
 ## Verification Results
 
@@ -102,7 +102,7 @@ Strong points:
 Remaining operational requirements:
 
 - Run `supabase/grants.sql` after schema/table changes.
-- Run `supabase/security-hardening.sql` for private hosted deployments.
+- Run `supabase/security-hardening.sql` for configured hosted deployments.
 - Keep service-role keys only in server/Vercel env vars.
 - Use edge/WAF rate limits for `/api/*`, `/share/*`, OAuth callback, reminders, and cron routes.
 
@@ -124,7 +124,7 @@ Notes:
 
 ## Android Security And Cleanliness
 
-Android is still private/personal-use only and ignored by git.
+Android is still excluded from public releases and ignored by git.
 
 Strong points checked:
 
@@ -182,8 +182,8 @@ Status: good RC hygiene after this cleanup.
 
 Ship/public-readiness still depends on release mode:
 
-- Private configured build: OK if you intentionally use your own Supabase/Vercel backend and keep Android private.
-- Public open-source build: use local-first env, no configured backend, no Android app, no private build artifacts.
+- Configured cloud build: OK if you intentionally use your own Supabase/Vercel backend and keep mobile artifacts out of public releases.
+- Public open-source build: use local-first env, no configured backend, no mobile companion, no non-public build artifacts.
 
 ## Follow-Up Checklist
 

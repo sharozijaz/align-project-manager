@@ -2,7 +2,7 @@
 
 Align is designed to be local-first.
 
-The public project covers the web and Windows desktop app. The Android companion app is personal/private only and is not part of the public repository or public release distribution.
+The public project covers the web and Windows desktop app. Mobile companion source and artifacts are excluded from public releases and are not part of the public repository or public release distribution.
 
 ## Local-Only Mode
 
@@ -16,13 +16,13 @@ Local-only data can include:
 - notes and resources
 - app preferences
 
-Local-only data is not sent to the maintainer's server.
+Local-only data is not sent to any default hosted service.
 
 ## Optional Cloud Sync
 
 If you configure Supabase, Align can sync workspace data to your Supabase project. In that mode, Supabase Auth identifies the user and Supabase Row Level Security should isolate each user's rows.
 
-Open-source users should configure their own Supabase project if they want cloud sync. The maintainer's private hosted backend is not intended for public users.
+Open-source users should configure their own Supabase project if they want cloud sync. No hosted backend is provided with the public app.
 
 ## Optional Google Sync
 

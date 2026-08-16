@@ -4,20 +4,20 @@ Align is a local-first project and life planning app for freelance web designers
 
 The public open-source app is designed to work without a hosted backend. Supabase sync, Google sync, email reminders, and share links are optional cloud features for users who configure their own backend.
 
-The Android companion app is personal/private only. Do not commit, publish, or include `android-app/` in the public GitHub repository or public release artifacts.
+This public repository and its release artifacts cover the web app and Windows desktop app. Mobile companion source, signing files, APKs, and AABs are excluded from public releases.
 
 ## Status
 
-Align is past the alpha/beta stage for personal daily use, but the public open-source release is being prepared in phases. See `docs/product/roadmap.md`.
+Align is a release-candidate local-first desktop app. The public release path focuses on a polished offline workflow, with optional self-hosted cloud features documented for advanced users. See `docs/product/roadmap.md`.
 
 ![Align dashboard command center](docs/assets/dashboard-command-center.png)
 
 ## Core Features
 
 - Projects with tasks, subtasks, card/table/board/kanban views, and client context.
-- Personal todos and task planning across day, week, and month.
+- Todos and task planning across day, week, and month.
 - Calendar with Month, Week, and Agenda views.
-- Notes and Resources as separate private workspaces.
+- Notes and Resources as separate workspace areas.
 - Reports for progress, overdue work, status mix, and upcoming deadlines.
 - Local desktop notifications and Tauri desktop packaging.
 - Optional Supabase sync, Google Calendar/Todo sync, client share links, and email reminders for configured hosted deployments.
@@ -84,9 +84,9 @@ If Supabase is unavailable or returns an unexpected empty existing workspace, Al
 
 ## Optional Cloud Setup
 
-Cloud features are optional. Public users should configure their own Supabase/Vercel/Google/email services if they want hosted sync or integrations. The maintainer's private hosted deployment is not intended for public app users.
+Cloud features are optional. Public users can configure their own Supabase/Vercel/Google/email services when they want hosted sync or integrations. No hosted backend is bundled with the public app.
 
-Align uses one codebase for public and private/self-hosted builds. Public release commands set `ALIGN_PUBLIC_RELEASE=true` so Vite ignores root private env files and uses `config/public-env/` instead. Normal build commands keep reading `.env.local`, so the maintainer's private cloud-enabled app keeps the full feature set. See `docs/release/build-variants.md`.
+Align uses one codebase for local-first and configured self-hosted builds. Public release commands set `ALIGN_PUBLIC_RELEASE=true` so Vite ignores root local env files and uses `config/public-env/` instead. Normal build commands keep reading `.env.local`, so configured deployments keep the full cloud feature set. See `docs/release/build-variants.md`.
 
 Frontend-safe environment variables:
 
@@ -183,7 +183,7 @@ notify pgrst, 'reload schema';
 
 Google Calendar/Todo sync, email reminders, and public share links require hosted API routes and server-side secrets. They should not run from frontend-only or desktop-only builds unless `VITE_APP_URL` or `VITE_PUBLIC_APP_URL` points to a deployment that owns those routes.
 
-Private hosted deployments should use Google-only auth (`VITE_AUTH_METHOD=google`), run `supabase/security-hardening.sql`, add trusted emails to `public.allowed_users`, set `ALLOWED_API_ORIGINS`, and set `GOOGLE_TOKEN_ENCRYPTION_KEY` before enabling Google sync. Public open-source builds should stay local-first unless the user self-hosts these services.
+Configured hosted deployments should use Google-only auth (`VITE_AUTH_METHOD=google`), run `supabase/security-hardening.sql`, add trusted emails to `public.allowed_users`, set `ALLOWED_API_ORIGINS`, and set `GOOGLE_TOKEN_ENCRYPTION_KEY` before enabling Google sync. Public open-source builds should stay local-first unless the user self-hosts these services.
 
 Google sign-in setup notes live in `docs/setup/google-sign-in.md`.
 Google Calendar setup notes live in `docs/setup/google-calendar.md`.
@@ -196,11 +196,11 @@ Short self-hosting checklist lives in `docs/setup/self-hosting-checklist.md`.
 Align uses Tauri for the Windows desktop build.
 
 Desktop notes live in `docs/setup/desktop.md`.
-Owner maintenance and update steps live in `docs/release/maintenance.md`.
+Maintenance and update steps live in `docs/release/maintenance.md`.
 
 After a cleanup or Windows reinstall, `node_modules/`, `dist/`, and `src-tauri/target/` may be missing. That is expected. Run `npm install` before building again.
 
-Android builds are not part of the public source release. Keep the Android project, signing material, APKs, AABs, and mobile release notes private.
+Mobile companion builds are not part of the public source release. Keep mobile source, signing material, APKs, AABs, and mobile release notes out of public artifacts.
 
 ## Project Structure
 

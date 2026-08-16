@@ -1,8 +1,8 @@
 # Align Production And Open Source Roadmap
 
-Align is moving toward a public, open-source Windows desktop release while keeping the maintainer's private hosted backend protected.
+Align is moving toward a public, open-source Windows desktop release with local-first behavior as the default.
 
-Public releases cover the web app and Windows desktop app only. The Android companion app is personal/private and must not be pushed to the public repository or attached to public releases.
+Public releases cover the web app and Windows desktop app only. Mobile companion source and artifacts are excluded from public releases and must not be pushed to the public repository or attached to public releases.
 
 ## Current Foundation
 
@@ -17,8 +17,8 @@ Public releases cover the web app and Windows desktop app only. The Android comp
 
 - Add MIT license, changelog, contribution guide, privacy notes, and roadmap.
 - Update README so local-first usage is the default public path.
-- Keep the maintainer's hosted backend private.
-- Remove public-user defaults that silently point to the private hosted backend.
+- Keep the public builds local-first.
+- Remove public-user defaults that silently point to the hosted backend.
 
 ## Phase 2 - Full Backup And Data Ownership
 
@@ -48,7 +48,7 @@ Public releases cover the web app and Windows desktop app only. The Android comp
 ## Phase 5 - GitHub Release Pipeline
 
 - Publish Windows installers through GitHub Releases.
-- Exclude the private Android app and Android release artifacts from GitHub source and releases.
+- Exclude mobile companion source and Android release artifacts from GitHub source and releases.
 - Keep package and Tauri versions aligned.
 - Run checks before release: unused code, TypeScript, audit, build, desktop build, secret scan, and smoke tests.
 - First public release can be unsigned, with a documented Windows SmartScreen warning.

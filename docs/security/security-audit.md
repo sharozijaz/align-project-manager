@@ -10,10 +10,10 @@ Align was audited after a vague email suggested the public repo may have exposed
 
 Align remains designed for two release modes:
 
-- Public/open-source local-first builds with no maintainer backend configured.
+- Public/open-source local-first builds with no default backend configured.
 - Private or self-hosted cloud builds with explicit Supabase, hosted API, Google, and email configuration.
 
-The Android companion app is outside the public release boundary. It is personal/private only and must not be pushed to the public repository or included in public release artifacts.
+Mobile companion source and artifacts are outside the public release boundary. It is excluded from public releases and must not be pushed to the public repository or included in public release artifacts.
 
 The app is not a full enterprise SaaS security product, but the main public-release risks now have code, docs, and process controls. Detailed findings are documented in `docs/security/security-optimization-audit-2026-06-05.md`.
 
@@ -42,7 +42,7 @@ The app is not a full enterprise SaaS security product, but the main public-rele
 - Client overview project-detail links inherit the overview password/expiry when links are created or edited.
 - Android widget task actions now go through a non-exported broadcast receiver.
 - Android auth callbacks are scheme/host allowlisted before sessions are saved.
-- Android app backup and cleartext traffic are disabled in the manifest.
+- Mobile companion backup and cleartext traffic are disabled in the manifest.
 - Android release builds now enable R8 minification and resource shrinking.
 - Public docs describe local-first use, self-hosting, security, privacy, and release checks.
 
@@ -50,8 +50,8 @@ The app is not a full enterprise SaaS security product, but the main public-rele
 
 - Rotate Android signing credentials if any quarantined backup/signing material was ever uploaded, emailed, cloud-synced, or shared outside this machine.
 - Keep `android-app/` private and verify it is not staged before every public commit or release.
-- Run `supabase/security-hardening.sql` and insert trusted emails into `public.allowed_users` on private/self-hosted deployments.
-- Set `VITE_AUTH_METHOD=google` for private production hosted builds.
+- Run `supabase/security-hardening.sql` and insert trusted emails into `public.allowed_users` on configured/self-hosted deployments.
+- Set `VITE_AUTH_METHOD=google` for configured production hosted builds.
 - Set `ALLOWED_API_ORIGINS` for production app and desktop origins.
 - Set a strong `GOOGLE_TOKEN_ENCRYPTION_KEY` before connecting Google sync.
 - Put hosted production behind Cloudflare WAF or equivalent edge rate limiting.
@@ -99,4 +99,4 @@ Do not publish a public desktop build until:
 2. `npm run check:release` passes.
 3. Markdown and secret scans show no private data.
 4. A local-only fresh install opens blank and can import/export backups.
-5. A private configured build is tested separately and not uploaded as the public release artifact.
+5. A configured cloud build is tested separately and not uploaded as the public release artifact.

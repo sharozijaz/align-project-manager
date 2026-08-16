@@ -9,7 +9,7 @@ This guide is for maintaining Align after the project is finished. It covers saf
 - Supabase is the source of truth only for users who enable Cloud sync against a configured Supabase project.
 - Vercel deploys the web app from the repo.
 - The desktop app is rebuilt from the same source code with Tauri.
-- The Android companion app is personal/private only. It is not part of public GitHub source, public releases, or public support.
+- Mobile companion source and artifacts are excluded from public releases. They are not part of public GitHub source, public releases, or public support.
 - `.env.local` is private local configuration and must never be committed.
 
 ## Recent Finalization Notes
@@ -43,7 +43,7 @@ Keep those quarantine folders private. If those signing files were ever uploaded
 Security changes made in this handoff:
 
 - `.gitignore` now blocks private backups, Android signing keys, APK/AAB files, keystore formats, and Android build outputs.
-- Android app backup and cleartext traffic are disabled.
+- Mobile companion backup and cleartext traffic are disabled.
 - Android widget task actions use a non-exported receiver.
 - Android auth callbacks are scheme/host allowlisted before sessions are saved.
 - Android release builds enable minification and resource shrinking.
@@ -61,7 +61,7 @@ Set-Location android-app
 .\gradlew.bat :app:assembleRelease
 ```
 
-`npm run check:public-release-env` failed locally because configured cloud frontend env keys are present. That is expected for this private dev machine, but public releases must run it from a local-first environment or remove configured backend env values first.
+`npm run check:public-release-env` failed locally because configured cloud frontend env keys are present. That is expected for this configured development machine, but public releases must run it from a local-first environment or remove configured backend env values first.
 
 ## After Folder Cleanup
 

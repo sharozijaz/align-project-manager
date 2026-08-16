@@ -261,5 +261,5 @@ npm run desktop:build
 
 - Local-only use costs nothing beyond the user's own device.
 - Self-hosted users should use their own Supabase/API/email/Google accounts.
-- The maintainer's private hosted backend is not intended for public users.
+- No hosted backend is provided with the public app.
 - Keep sync intervals conservative on free hosting plans.

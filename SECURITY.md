@@ -19,7 +19,7 @@ Frontend environment variables are visible in browser builds, so `VITE_ALLOWED_E
 
 Never commit real `.env` files or Vercel local metadata. The repo intentionally ignores `.env`, `.env.*`, `.vercel/`, build output, logs, and TypeScript build info.
 
-The Android companion app is personal/private only. Do not push `android-app/`, Android signing files, APKs, or AABs to the public GitHub repository.
+Mobile companion source and artifacts are excluded from public releases. Do not push `android-app/`, Android signing files, APKs, or AABs to the public GitHub repository.
 
 Safe to expose:
 
@@ -68,7 +68,7 @@ Resources are never exposed by public share APIs. Notes default to private and o
 
 ## Open Source Release Safety
 
-The public desktop app should not silently depend on the maintainer's private hosted backend. Hosted sync, Google sync, share links, and email reminders must be explicit configuration choices.
+The public desktop app should not silently depend on a default hosted backend. Hosted sync, Google sync, share links, and email reminders must be explicit configuration choices.
 
 For public builds:
 
@@ -79,7 +79,7 @@ For public builds:
 - Use `VITE_PUBLIC_APP_URL` only when share links should point to a public web deployment.
 - Run `npm run check:public-release-env` before publishing a public desktop build. It fails if local env files would silently wire the build to a configured backend.
 
-For a private configured build, use `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true npm run check:public-release-env` only when you intentionally want the build to call your own backend.
+For a configured backend build, use `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true npm run check:public-release-env` only when you intentionally want the build to call an operator-controlled backend.
 
 ## Edge Protection
 

@@ -7,7 +7,7 @@ Use this checklist for the v1 release-candidate freeze. During the RC window, av
 - [ ] Create a release-candidate tag after the current stabilization fixes are committed.
 - [ ] Treat `main` as feature-frozen for 7 days.
 - [ ] Only accept bug fixes, data-loss fixes, security/privacy fixes, sync fixes, and small readability fixes.
-- [ ] Keep Android personal/private and do not publish Android source, signing files, APKs, or AABs.
+- [ ] Keep Android excluded from public releases and do not publish mobile source, signing files, APKs, or AABs.
 
 ## Core Verification
 
@@ -18,7 +18,7 @@ Use this checklist for the v1 release-candidate freeze. During the RC window, av
 - [ ] `npm run desktop:build`
 - [ ] Fresh desktop install opens and loads the current workspace.
 - [ ] Fresh web build opens and loads the current workspace.
-- [ ] Android updated build opens and loads expected personal data.
+- [ ] Mobile companion build opens and loads expected test data.
 
 ## Data Safety
 

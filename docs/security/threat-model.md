@@ -10,7 +10,7 @@ This model covers the public Align repository: the Vite/React frontend in `src/`
 
 Align has two intended release modes:
 
-- Public local-first mode: no maintainer backend configured; data stays in browser or desktop WebView storage unless the user imports/exports backups.
+- Public local-first mode: no default backend configured; data stays in browser or desktop WebView storage unless the user imports/exports backups.
 - Private or self-hosted cloud mode: Supabase Auth/database, hosted `/api/*` routes, Google sync, email reminders, and share links are explicitly configured by the operator.
 
 ## Assets
@@ -52,9 +52,9 @@ Existing controls: Supabase RLS policies scope rows to `auth.uid()`. Hosted APIs
 
 Remaining work: keep `public.allowed_users` current and confirm policies are applied after every schema reset.
 
-### Public Build Uses Maintainer Backend
+### Public Build Uses A Hard-Coded Backend
 
-Impact: high. A public desktop build silently pointing at a private backend could leak user data or create unexpected cost.
+Impact: high. A public desktop build silently pointing at a hard-coded backend could leak user data or create unexpected cost.
 
 Existing controls: public release env guard fails when cloud frontend env keys or server-only secrets are present unless explicitly overridden.
 
@@ -103,7 +103,7 @@ Remaining work: encourage regular JSON exports and document restore-first recove
 ## Security Assumptions
 
 - Public users self-host cloud services if they want sync.
-- Maintainer-hosted backend is private or allowlisted.
+- Hosted backend is operator-controlled or allowlisted.
 - Server-only secrets are set only on the API host, never in frontend/desktop builds.
 - Users treat JSON backups as private files.
 

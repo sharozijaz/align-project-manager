@@ -13,7 +13,7 @@ This folder keeps the public documentation organized by purpose.
 
 ## Release
 
-- `release/build-variants.md` - public local-first and private/self-hosted build boundaries.
+- `release/build-variants.md` - public local-first and configured/self-hosted build boundaries.
 - `release/release.md` - GitHub release pipeline and desktop installer checklist.
 - `release/maintenance.md` - owner maintenance workflow.
 - `release/release-candidate-checklist.md` - manual release candidate checks.

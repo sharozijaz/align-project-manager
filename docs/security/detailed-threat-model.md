@@ -13,8 +13,8 @@ Out of scope: live Supabase/Vercel dashboards, provider logs, GitHub secret-scan
 Assumptions:
 
 - Public GitHub source should be safe for local-first/open-source use.
-- Private hosted deployments use Supabase, Vercel-style API routes, Google OAuth, Resend, and allowlisted users.
-- Android source may be committed in the future, but signing keys and release artifacts must remain private.
+- Configured hosted deployments use Supabase, Vercel-style API routes, Google OAuth, Resend, and allowlisted users.
+- Mobile companion source is excluded from public release artifacts; signing keys and release artifacts must remain private.
 - Production Supabase has the hardening migrations applied.
 
 Open questions that would materially change risk:
@@ -31,7 +31,7 @@ Open questions that would materially change risk:
 - Vercel-style serverless API routes (`api/_googleCalendar.js`, `api/_security.js`, `api/project-share.js`, `api/client-share.js`)
 - Supabase Auth/PostgREST/database (`supabase/*.sql`)
 - Tauri desktop shell (`src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`)
-- Private Android companion (source excluded from the public repo)
+- Mobile companion source excluded from the public repo
 - Public release tooling (`scripts/check-public-release-env.mjs`, `docs/release/release.md`)
 
 ### Data flows and trust boundaries
@@ -58,7 +58,7 @@ flowchart TD
   P["Public share visitor"] --> SHARE["Share API"]
   SHARE --> SB
   D["Tauri shell"] --> FE
-  A["Android app"] --> SB
+  A["Mobile companion"] --> SB
   W["Widget host"] --> A
   DEV["Developer repo"] --> GH["Public GitHub"]
 ```
@@ -82,7 +82,7 @@ flowchart TD
 
 - Remote unauthenticated user can request public share URLs and hosted API endpoints.
 - Signed-in but unapproved user can attempt hosted API calls if they obtain a Supabase session.
-- Malicious Android app can send broadcasts/intents to exported components.
+- Malicious mobile app can send broadcasts/intents to exported components.
 - Public GitHub visitor can inspect all committed code/docs and release assets.
 - Opportunistic scanner can brute-force weak share passwords or abuse serverless routes.
 
@@ -110,14 +110,14 @@ flowchart TD
 
 ## Top abuse paths
 
-1. Attacker goal: steal private backend access -> trick developer into committing `.env.local`/service-role key -> public GitHub exposure -> service-role Supabase access.
+1. Attacker goal: steal backend access -> trick developer into committing `.env.local`/service-role key -> public GitHub exposure -> service-role Supabase access.
 2. Attacker goal: compromise Android release identity -> obtain committed `.jks` and password -> sign malicious update or impersonating APK -> user installs compromised build.
 3. Attacker goal: read client project data -> obtain share token from email/browser history -> call share API -> read selected project/task/client-visible note data until expiry.
 4. Attacker goal: brute-force share password -> target known share token -> repeated password attempts -> rate limits slow but edge WAF still needed.
 5. Attacker goal: cross-user cloud data access -> signed-in user calls API for another user -> service route must scope by authenticated user and allowed-user checks.
 6. Attacker goal: steal Google access -> compromise hosted API env or token table -> decrypt/use Google tokens -> Calendar/Tasks data access.
 7. Attacker goal: mutate Android local tasks -> send external broadcast to exported receiver -> fixed by non-exported action receiver.
-8. Attacker goal: publish configured public build -> public release points at private backend -> unexpected users/cost/data risk -> release guard blocks configured env unless overridden.
+8. Attacker goal: publish configured public build -> public release points at an unintended backend -> unexpected users/cost/data risk -> release guard blocks configured env unless overridden.
 
 ## Threat model table
 
@@ -128,14 +128,14 @@ flowchart TD
 | TM-003 | Remote API abuse | Hosted APIs public on internet | Abuse API routes for quota/cost/availability | DoS, API costs, Google quota burn | Hosted API, Google quota | `api/_security.js` in-memory rate limits; CORS allowlist | Serverless in-memory limits do not stop distributed attacks | Add Cloudflare/Vercel WAF and per-route edge limits | Alert on 429 spikes, Google quota errors | Medium | Medium | Medium |
 | TM-004 | Signed-in unapproved user | User has Supabase session but should not use hosted backend | Call hosted APIs directly | Unauthorized backend use | Workspace data, Google tokens | `requireAllowedUser`, `public.allowed_users`, feature access SQL | Production migrations must be applied | Verify staging/prod SQL after schema resets | Monitor 403s and unknown emails | Low | High | Medium |
 | TM-005 | Compromised server env | Provider/Vercel env exposed | Use service-role key or Google client secret | Full backend/API compromise | Service role, Google tokens, user rows | Server-only env usage in `api/_googleCalendar.js`; token encryption | No code can protect leaked provider env | Rotate keys, restrict provider access, audit deployments | Provider audit logs, unexpected service-role requests | Low | High | High |
-| TM-006 | Malicious Android app | Exported component accepts external input | Send spoofed widget task mutation broadcast | Local task integrity loss | Android local tasks | New `WidgetTaskActionReceiver` is `exported=false` | Existing installed old APK remains vulnerable until updated | Ship updated Android build; keep mutation receivers non-exported | Android crash/action telemetry if added | Low | Medium | Low |
+| TM-006 | Malicious mobile companion | Exported component accepts external input | Send spoofed widget task mutation broadcast | Local task integrity loss | Android local tasks | New `WidgetTaskActionReceiver` is `exported=false` | Existing installed old APK remains vulnerable until updated | Ship updated Android build; keep mutation receivers non-exported | Android crash/action telemetry if added | Low | Medium | Low |
 | TM-007 | Android device compromise/backup | Device/account backup can access app data | Extract DataStore tokens or local DB | Account/session and workspace exposure | Android tokens, local data | Backup disabled in manifest; cleartext disabled | Tokens still stored in normal DataStore | Move sessions to encrypted storage | Detect unusual Supabase refresh/use patterns | Medium | Medium | Medium |
 | TM-008 | Supabase schema drift | Migrations skipped or reset | RLS/allowed-user controls missing | Cross-user data access | All cloud rows | RLS SQL files in `supabase/` | Cannot verify live DB from repo | Add migration checklist and staging smoke tests | Supabase policy inspection before release | Medium | High | High |
 
 ## Criticality calibration
 
 - Critical: confirmed public leak of `SUPABASE_SERVICE_ROLE_KEY`; committed Android signing key used for production releases; working auth bypass allowing cross-user data reads.
-- High: production RLS missing; Google token encryption key exposed; configured public release points unknown users at maintainer backend.
+- High: production RLS missing; Google token encryption key exposed; configured public release points unknown users at an unintended backend.
 - Medium: share link overexposure without password/expiry; distributed API abuse without WAF; Android tokens extractable from a compromised device.
 - Low: placeholder secret names in docs; local-only generated build artifacts ignored by git; issues requiring physical/device compromise with no cloud sync enabled.
 

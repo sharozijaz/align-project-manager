@@ -5,7 +5,7 @@ Align is a free, open-source, local-first app. Any commercial work around it sho
 ## Principles
 
 - Keep the app fully useful without payment.
-- Do not make public users depend on the maintainer's private backend.
+- Do not make public users depend on a default hosted backend.
 - Keep paid assets separate from the source repository unless they are intentionally published as free samples.
 - Never include real client data, credentials, private notes, or customer content in public templates or docs.
 

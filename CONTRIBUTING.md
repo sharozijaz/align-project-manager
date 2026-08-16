@@ -43,6 +43,6 @@ npm run desktop:build
 
 ## Cloud Features
 
-Supabase sync, Google sync, share links, and email reminders are optional hosted features. They should not silently point at the maintainer's private deployment.
+Supabase sync, Google sync, share links, and email reminders are optional hosted features. They should not silently point at the hard-coded hosted deployment.
 
 If a feature needs server-side secrets, it must run only in server/API code, never in the frontend or Tauri bundle.

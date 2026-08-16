@@ -6,7 +6,7 @@ This guide is the Phase 5 release pipeline for publishing Align desktop builds t
 
 - GitHub `main` is the source of truth for app code and documentation.
 - The public Windows desktop app should work in `Local only` mode without a hosted backend.
-- The Android companion app is personal/private only and must never be committed to the public repo or attached to public GitHub Releases.
+- Mobile companion source and artifacts are excluded from public releases and must never be committed to the public repo or attached to public GitHub Releases.
 - Cloud sync, Google integrations, share links, and email reminders are optional self-hosted features.
 - `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` must use the same release version.
 - The package stays `"private": true` because Align is released through GitHub, not npm.
@@ -60,7 +60,7 @@ For the public local-first desktop installer, prefer:
 npm run release:desktop:public
 ```
 
-These commands set `ALIGN_PUBLIC_RELEASE=true`, clear known cloud/server environment variables for the child process, and make Vite ignore root private `.env.local` values. For a private hosted or desktop build that intentionally points at your backend, use the normal `npm run build` and `npm run desktop:build` commands. Set `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true` only when you deliberately want the public-release env guard to allow configured frontend cloud keys for a private/self-hosted check. Do not publish that configured build as the local-first public release.
+These commands set `ALIGN_PUBLIC_RELEASE=true`, clear known cloud/server environment variables for the child process, and make Vite ignore root private `.env.local` values. For a configured hosted or desktop build that intentionally points at your backend, use the normal `npm run build` and `npm run desktop:build` commands. Set `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true` only when you deliberately want the public-release env guard to allow configured frontend cloud keys for a configured/self-hosted check. Do not publish that configured build as the local-first public release.
 
 This runs:
 
@@ -81,9 +81,9 @@ git check-ignore -v private-backups/test.zip android-app/keystore.properties and
 
 The secret scan can show placeholder names in docs or env examples. Investigate every match and only proceed when there are no real secrets.
 
-Before pushing public docs, review Markdown for private client details, personal emails, private monetization experiments, internal handoff notes, and sensitive architecture notes. Keep public monetization docs high-level: paid templates, optional customization services, and possible future cloud hosting only. Confirm `GOOGLE_TOKEN_ENCRYPTION_KEY`, `ALLOWED_API_ORIGINS`, and `public.allowed_users` are configured before testing private hosted Google sync. Put production hosted domains behind Cloudflare WAF or an equivalent edge firewall for `/api/*`, share routes, OAuth callback, reminders, and cron endpoints.
+Before pushing public docs, review Markdown for sensitive client details, sensitive emails, unpublished monetization notes, internal handoff notes, and sensitive architecture notes. Keep public monetization docs high-level: paid templates, optional customization services, and possible future cloud hosting only. Confirm `GOOGLE_TOKEN_ENCRYPTION_KEY`, `ALLOWED_API_ORIGINS`, and `public.allowed_users` are configured before testing configured hosted Google sync. Put production hosted domains behind Cloudflare WAF or an equivalent edge firewall for `/api/*`, share routes, OAuth callback, reminders, and cron endpoints.
 
-Do not publish or commit the Android app. Keep `android-app/` out of public source commits, and keep `android-app/keystore.properties`, `.jks`, `.keystore`, `.p12`, `.pfx`, APK, AAB, and private backup ZIP files outside GitHub release source commits. If signing material was ever exposed, rotate it before making a private Android build.
+Do not publish or commit the mobile companion. Keep `android-app/` out of public source commits, and keep `android-app/keystore.properties`, `.jks`, `.keystore`, `.p12`, `.pfx`, APK, AAB, and private backup ZIP files outside GitHub release source commits. If signing material was ever exposed, rotate it before making a mobile companion build.
 
 ## Desktop Build
 
@@ -126,7 +126,7 @@ Test the desktop app:
 - Confirm external links open in the system browser.
 - Confirm drag and drop works in the desktop WebView for projects, tasks, calendar, and kanban.
 
-Only test Google, Supabase, email, and share links against your own configured environment. Public users should not depend on the maintainer's private hosted backend.
+Only test Google, Supabase, email, and share links against your own configured environment. Public users should not depend on a default hosted backend.
 
 ## GitHub Release
 

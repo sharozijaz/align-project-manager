@@ -24,7 +24,7 @@ Security hardening was applied to Android: task-changing widget actions now use 
 | Tracked `HEAD` sensitive filename scan | Pass | No tracked `.env`, `.jks`, APK/ZIP backup folder, or keystore file was found. |
 | Git history sensitive content scan | Pass | No committed signing passwords, private keys, GitHub tokens, OpenAI-style keys, Google API-key pattern, or AWS key pattern found. |
 | Working-tree sensitive scan | Finding remediated | `private-backups/` and ignored Android signing files contained release signing material/artifacts; moved to quarantine outside the repo. |
-| Public release env guard | Expected fail locally | Local frontend cloud env keys are configured. This is a release-control warning, not proof of secret leakage. Use local-first env for public builds, or override only for private builds. |
+| Public release env guard | Expected fail locally | Local frontend cloud env keys are configured. This is a release-control warning, not proof of secret leakage. Use local-first env for public builds, or override only for configured builds. |
 | Dependency audit | Pass | `npm audit --audit-level=moderate` reported `0 vulnerabilities`. |
 
 No real secret values are documented here. If the Android signing key in quarantine was ever uploaded elsewhere or shared, rotate it by creating a new release keystore and updating Play/App release signing procedures.
