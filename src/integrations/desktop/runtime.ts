@@ -12,13 +12,11 @@ export const isTauriRuntime = () =>
     window.location.protocol === "tauri:" ||
     window.location.origin.includes("tauri.localhost"));
 
-export type ExternalUrlBrowserMode = "same-tab" | "new-tab";
-
 export interface OpenExternalUrlOptions {
-  browserMode?: ExternalUrlBrowserMode;
+  browserMode?: "same-tab" | "new-tab";
 }
 
-export function parseExternalUrl(url: string) {
+function parseExternalUrl(url: string) {
   const parsed = new URL(url);
   if (!["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) {
     throw new Error("Unsupported external URL.");

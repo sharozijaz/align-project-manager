@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const envFiles = [".env", ".env.local", ".env.production", ".env.production.local"];
+const publicReleaseBuild = process.env.ALIGN_PUBLIC_RELEASE === "true";
+const envFiles = publicReleaseBuild
+  ? ["config/public-env/.env", "config/public-env/.env.local", "config/public-env/.env.production"]
+  : [".env", ".env.local", ".env.production", ".env.production.local"];
 const frontendCloudKeys = [
   "VITE_SUPABASE_URL",
   "VITE_SUPABASE_ANON_KEY",
@@ -70,4 +73,8 @@ if (!allowConfiguredBackend && configuredFrontendKeys.size > 0) {
   process.exit(1);
 }
 
-console.log("Public release env guard passed.");
+console.log(
+  publicReleaseBuild
+    ? "Public release env guard passed. Root private env files are ignored for this build."
+    : "Public release env guard passed.",
+);

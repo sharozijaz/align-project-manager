@@ -48,7 +48,19 @@ npm run check:release
 npm run check:public-release-env
 ```
 
-For a private hosted or desktop build that intentionally points at your backend, set `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true` only for the public release guard command. Do not publish that build as the local-first public release.
+For the public local-first build, prefer:
+
+```powershell
+npm run release:public
+```
+
+For the public local-first desktop installer, prefer:
+
+```powershell
+npm run release:desktop:public
+```
+
+These commands set `ALIGN_PUBLIC_RELEASE=true`, clear known cloud/server environment variables for the child process, and make Vite ignore root private `.env.local` values. For a private hosted or desktop build that intentionally points at your backend, use the normal `npm run build` and `npm run desktop:build` commands. Set `ALIGN_ALLOW_CONFIGURED_BACKEND_BUILD=true` only when you deliberately want the public-release env guard to allow configured frontend cloud keys for a private/self-hosted check. Do not publish that configured build as the local-first public release.
 
 This runs:
 

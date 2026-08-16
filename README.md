@@ -40,6 +40,12 @@ Build the web app:
 npm run build
 ```
 
+Build a public local-first web app that ignores private root `.env.local` values:
+
+```bash
+npm run build:public
+```
+
 Run the desktop app in development:
 
 ```bash
@@ -50,6 +56,12 @@ Build the Windows desktop app:
 
 ```bash
 npm run desktop:build
+```
+
+Build the public local-first Windows desktop installer:
+
+```bash
+npm run release:desktop:public
 ```
 
 When no Supabase environment variables are configured, Align stores data locally in browser or desktop WebView storage.
@@ -71,6 +83,8 @@ If Supabase is unavailable or returns an unexpected empty existing workspace, Al
 ## Optional Cloud Setup
 
 Cloud features are optional. Public users should configure their own Supabase/Vercel/Google/email services if they want hosted sync or integrations. The maintainer's private hosted deployment is not intended for public app users.
+
+Align uses one codebase for public and private/self-hosted builds. Public release commands set `ALIGN_PUBLIC_RELEASE=true` so Vite ignores root private env files and uses `config/public-env/` instead. Normal build commands keep reading `.env.local`, so the maintainer's private cloud-enabled app keeps the full feature set. See `BUILD_VARIANTS.md`.
 
 Frontend-safe environment variables:
 
@@ -237,6 +251,7 @@ npm run release:desktop
 - `BUSINESS_MODEL.md` - monetization path for templates, customization, and future cloud services.
 - `CHANGELOG.md` - release notes.
 - `DESKTOP.md` - Tauri desktop setup and release notes.
+- `BUILD_VARIANTS.md` - public local-first and private/self-hosted build boundaries.
 - `DEPLOYMENT.md` - hosted deployment notes.
 - `MAINTENANCE.md` - owner maintenance checklist.
 

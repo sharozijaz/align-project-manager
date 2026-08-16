@@ -33,6 +33,12 @@ This starts Vite and opens the Tauri desktop shell.
 npm run desktop:build
 ```
 
+For a public local-first installer that ignores private root `.env.local` values:
+
+```bash
+npm run release:desktop:public
+```
+
 The Windows installer output is created under `src-tauri/target/release/bundle/`:
 
 ```text

@@ -35,8 +35,8 @@ export const useSyncStore = create<SyncState>()(
   persist(
     (set) => ({
       state: "idle",
-      mode: "cloud",
-      message: "Cloud sync is ready.",
+      mode: "local",
+      message: "Local-only mode is active. Cloud upload and download are disabled.",
       lastSyncedAt: undefined,
       setMode: (mode) =>
         set({

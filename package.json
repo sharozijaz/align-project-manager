@@ -12,9 +12,12 @@
     "check:ts-unused": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "check:release": "npm run check:unused && npm run check:ts-unused && npm audit --audit-level=moderate && npm run build",
     "check:public-release-env": "node scripts/check-public-release-env.mjs",
+    "build:public": "node scripts/run-public-release.mjs check:public-release-env build",
     "preview": "vite preview",
     "desktop:dev": "tauri dev",
     "release:desktop": "npm run check:release && npm run desktop:build",
+    "release:public": "node scripts/run-public-release.mjs check:public-release-env check:release",
+    "release:desktop:public": "node scripts/run-public-release.mjs check:public-release-env check:release desktop:build",
     "desktop:build": "tauri build"
   },
   "dependencies": {
