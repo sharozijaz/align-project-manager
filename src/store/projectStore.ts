@@ -11,10 +11,13 @@ interface ProjectState {
   completeProject: (id: string, archive?: boolean) => void;
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
+  restoreProjects: (ids: string[]) => void;
   pinProject: (id: string) => void;
   unpinProject: (id: string) => void;
   deleteProject: (id: string) => void;
   permanentlyDeleteProject: (id: string) => void;
+  permanentlyDeleteProjects: (ids: string[]) => void;
+  clearDeletedProjects: () => void;
   cleanupDeletedProjects: (retentionDays: number) => void;
   reorderProjects: (orderedIds: string[]) => void;
   replaceProjects: (projects: Project[]) => void;
@@ -108,6 +111,26 @@ export const useProjectStore = create<ProjectState>()(
               : project,
           ),
         })),
+      restoreProjects: (projectIds) =>
+        set((state) => {
+          const ids = new Set(projectIds);
+          if (!ids.size) return { projects: state.projects };
+          const now = stamp();
+
+          return {
+            projects: state.projects.map((project) =>
+              ids.has(project.id)
+                ? {
+                    ...project,
+                    status: project.deletedAt ? normalizeProjectStatus(project.status) : "active",
+                    archivedAt: project.deletedAt ? project.archivedAt : undefined,
+                    deletedAt: undefined,
+                    updatedAt: now,
+                  }
+                : project,
+            ),
+          };
+        }),
       pinProject: (projectId) =>
         set((state) => {
           const now = stamp();
@@ -140,6 +163,18 @@ export const useProjectStore = create<ProjectState>()(
         set((state) => {
           cleanupProjectArtifacts(projectId);
           return { projects: state.projects.filter((project) => project.id !== projectId) };
+        }),
+      permanentlyDeleteProjects: (projectIds) =>
+        set((state) => {
+          const ids = new Set(projectIds);
+          if (!ids.size) return { projects: state.projects };
+          projectIds.forEach(cleanupProjectArtifacts);
+          return { projects: state.projects.filter((project) => !ids.has(project.id)) };
+        }),
+      clearDeletedProjects: () =>
+        set((state) => {
+          state.projects.filter((project) => project.deletedAt).forEach((project) => cleanupProjectArtifacts(project.id));
+          return { projects: state.projects.filter((project) => !project.deletedAt) };
         }),
       cleanupDeletedProjects: (retentionDays) =>
         set((state) => ({

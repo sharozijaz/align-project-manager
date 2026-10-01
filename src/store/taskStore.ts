@@ -12,7 +12,10 @@ interface TaskState {
   updateTask: (id: string, updates: Partial<TaskInput>) => void;
   deleteTask: (id: string) => void;
   restoreTask: (id: string) => void;
+  restoreTasks: (ids: string[]) => void;
   permanentlyDeleteTask: (id: string) => void;
+  permanentlyDeleteTasks: (ids: string[]) => void;
+  clearDeletedTasks: () => void;
   cleanupDeletedTasks: (retentionDays: number) => void;
   completeTask: (id: string) => void;
   reorderTasks: (orderedIds: string[]) => void;
@@ -91,10 +94,40 @@ export const useTaskStore = create<TaskState>()(
             task.id === taskId ? { ...task, deletedAt: undefined, updatedAt: stamp() } : task,
           ),
         })),
+      restoreTasks: (taskIds) =>
+        set((state) => {
+          const ids = new Set(taskIds);
+          if (!ids.size) return { tasks: state.tasks };
+          const now = stamp();
+
+          return {
+            lastDeletedTaskId:
+              state.lastDeletedTaskId && ids.has(state.lastDeletedTaskId) ? undefined : state.lastDeletedTaskId,
+            tasks: state.tasks.map((task) =>
+              ids.has(task.id) ? { ...task, deletedAt: undefined, updatedAt: now } : task,
+            ),
+          };
+        }),
       permanentlyDeleteTask: (taskId) =>
         set((state) => ({
           lastDeletedTaskId: state.lastDeletedTaskId === taskId ? undefined : state.lastDeletedTaskId,
           tasks: state.tasks.filter((task) => task.id !== taskId),
+        })),
+      permanentlyDeleteTasks: (taskIds) =>
+        set((state) => {
+          const ids = new Set(taskIds);
+          if (!ids.size) return { tasks: state.tasks };
+
+          return {
+            lastDeletedTaskId:
+              state.lastDeletedTaskId && ids.has(state.lastDeletedTaskId) ? undefined : state.lastDeletedTaskId,
+            tasks: state.tasks.filter((task) => !ids.has(task.id)),
+          };
+        }),
+      clearDeletedTasks: () =>
+        set((state) => ({
+          lastDeletedTaskId: undefined,
+          tasks: state.tasks.filter((task) => !task.deletedAt),
         })),
       cleanupDeletedTasks: (retentionDays) =>
         set((state) => ({
